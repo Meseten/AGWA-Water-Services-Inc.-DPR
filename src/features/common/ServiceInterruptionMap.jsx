@@ -56,7 +56,7 @@ const ServiceInterruptionMap = ({ db, showNotification }) => {
                             ` A total of ${allAffectedAreas.length} barangay(s) are affected.`
                         }
                     </p>
-                    <div className="flex-grow w-full rounded-lg overflow-hidden border border-gray-300 shadow-inner">
+                    <div className="flex-grow w-full rounded-lg overflow-hidden border border-gray-300 shadow-inner relative z-10">
                         <BarangayMap
                             geoJsonData={geoJsonData}
                             affectedAreas={allAffectedAreas}

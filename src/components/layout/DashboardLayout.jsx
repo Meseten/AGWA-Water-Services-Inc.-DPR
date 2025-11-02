@@ -238,13 +238,11 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
                 setMobileOpen={setIsSidebarOpenMobile}
             />
 
-            <div className="lg:pl-64 flex flex-col min-h-screen print:pl-0">
-                <header className="sticky top-0 z-30 flex items-center justify-between bg-white/80 backdrop-blur-lg shadow-sm p-3 lg:hidden no-print">
+            <div className="lg:pl-64 flex flex-col min-h-screen print:pl-0 overflow-x-hidden">
+                <header className="sticky top-0 z-30 flex items-center justify-start bg-white/80 backdrop-blur-lg shadow-sm p-3 lg:hidden no-print">
                     <button onClick={() => setIsSidebarOpenMobile(true)} className="text-gray-600 hover:text-gray-900 p-1">
                         <Menu size={28} />
                     </button>
-                    <h1 className="text-lg font-semibold text-blue-700">AGWA Portal</h1>
-                     <div className="w-8"></div>
                 </header>
 
                 {banner && (
