@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>AGWA Water Services - Page Not Found</title>
+    <script type="text/javascript">
+      var path = window.location.pathname;
+      var repo = '/AGWA-Water-Services-Inc./';
+      var redirect =
+        sessionStorage.redirect ||
+        path.substring(0, repo.length) === repo
+          ? path.substring(repo.length)
+          : null;
+
+      if (redirect) {
+        sessionStorage.redirect = redirect;
+        window.location.href = repo;
+      }
+    </script>
+  </head>
+  <body>
+    If you are not redirected automatically, please <a href="/AGWA-Water-Services-Inc./">click here</a>.
+  </body>
+</html>
