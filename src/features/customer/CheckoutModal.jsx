@@ -18,7 +18,7 @@ const CheckoutModal = ({ isOpen, onClose, billToPay, userData, showNotification,
         }
 
         try {
-            const sessionId = await createCheckoutSession(
+            const sessionUrl = await createCheckoutSession(
                 billToPay.id,
                 billToPay.amount,
                 userData.email,
@@ -26,21 +26,19 @@ const CheckoutModal = ({ isOpen, onClose, billToPay, userData, showNotification,
                 userData.accountNumber
             );
             
-            const stripe = await stripePromise;
-            const { error } = await stripe.redirectToCheckout({ sessionId });
-
-            if (error) {
-                setError(error.message || 'Failed to redirect to Stripe.');
-                showNotification(error.message || 'Failed to redirect to Stripe.', 'error');
+            if (sessionUrl) {
+                window.location.href = sessionUrl;
+            } else {
+                throw new Error("Did not receive a valid session URL.");
             }
 
         } catch (err) {
             const userFriendlyError = "Failed to create payment session. This could be a temporary network issue or a problem with the payment service. Please try again in a moment. (Error: " + (err.message || 'Unknown') + ")";
             setError(userFriendlyError);
             showNotification("Failed to create payment session. Please try again.", 'error');
+            setIsLoading(false);
         }
         
-        setIsLoading(false);
     };
 
     if (!isOpen) return null;

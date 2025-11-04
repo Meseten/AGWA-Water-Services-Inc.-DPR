@@ -52,11 +52,11 @@ export const createCheckoutSession = async (
 
     const data = await response.json();
 
-    if (!data || !data.sessionId) {
-      throw new Error('Invalid response from checkout session API.');
+    if (!data || !data.sessionUrl) {
+      throw new Error('Invalid response from checkout session API. Missing sessionUrl.');
     }
 
-    return data.sessionId;
+    return data.sessionUrl;
   } catch (error) {
     console.error('Error creating checkout session:', error);
     throw new Error(error.message || 'Could not connect to payment service.');
