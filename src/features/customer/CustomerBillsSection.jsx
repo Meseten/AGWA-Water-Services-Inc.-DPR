@@ -74,12 +74,17 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
     
     useEffect(() => {
         const query = new URLSearchParams(window.location.search);
+        
         if (query.get('payment') === 'success') {
             showNotification('Payment successful! Your bill is being updated.', 'success');
             fetchBills();
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
         }
         if (query.get('payment') === 'cancel') {
             showNotification('Payment was cancelled. Your bill remains unpaid.', 'warning');
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
         }
     }, [fetchBills, showNotification]);
 
