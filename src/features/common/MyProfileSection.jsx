@@ -38,7 +38,7 @@ const MyProfileSection = ({ user, userData, setUserData, auth, db, showNotificat
     
     const formatAddressToString = (addressObj) => {
         if (!addressObj || typeof addressObj !== 'object') return 'N/A';
-        const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Quezon City"];
+        const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Naic, Cavite"];
         return parts.filter(p => p && p.trim()).join(', ');
     };
 

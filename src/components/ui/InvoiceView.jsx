@@ -29,7 +29,7 @@ const InvoiceView = ({
 
     const formatAddressToString = (addressObj) => {
         if (!addressObj || typeof addressObj !== 'object') return addressObj || 'N/A';
-        const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Quezon City"];
+        const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Naic, Cavite"];
         return parts.filter(p => p && p.trim()).join(', ');
     };
 
@@ -177,7 +177,7 @@ const InvoiceView = ({
                             <div className="text-right text-xs">
                                 <div className="font-semibold">AGWA Water Services, Inc.</div>
                                 <div>123 Aqua Drive, Hydro Business Park</div>
-                                <div>Quezon City, Metro Manila, Philippines 1101</div>
+                                <div>Naic, Cavite, Philippines 4110</div>
                                 <div>VAT Reg. TIN: 000-123-456-789</div>
                                 <div className="no-print-in-iframe">Machine Serial No.: AGWAMSN001</div>
                             </div>

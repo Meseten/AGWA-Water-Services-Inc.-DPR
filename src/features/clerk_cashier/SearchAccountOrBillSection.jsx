@@ -84,7 +84,7 @@ const SearchAccountOrBillSection = ({ db, showNotification, billingService: calc
 
     const formatAddressToString = (addressObj) => {
         if (!addressObj || typeof addressObj !== 'object') return addressObj || 'N/A';
-        const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Quezon City"];
+        const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Naic, Cavite"];
         return parts.filter(p => p && p.trim()).join(', ');
     };
 

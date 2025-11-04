@@ -3,7 +3,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import { CreditCard, Loader2, X, Landmark, AlertTriangle } from 'lucide-react';
 import { createCheckoutSession } from '../../services/stripeService.js';
 
-const PaymentModal = ({ isOpen, onClose, billToPay, userData, showNotification, stripePromise }) => {
+const CheckoutModal = ({ isOpen, onClose, billToPay, userData, showNotification, stripePromise }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -35,8 +35,9 @@ const PaymentModal = ({ isOpen, onClose, billToPay, userData, showNotification, 
             }
 
         } catch (err) {
-            setError(err.message || 'An error occurred while preparing your payment.');
-            showNotification(err.message || 'An error occurred.', 'error');
+            const userFriendlyError = "Failed to create payment session. This could be a temporary network issue or a problem with the payment service. Please try again in a moment. (Error: " + (err.message || 'Unknown') + ")";
+            setError(userFriendlyError);
+            showNotification("Failed to create payment session. Please try again.", 'error');
         }
         
         setIsLoading(false);
@@ -82,4 +83,4 @@ const PaymentModal = ({ isOpen, onClose, billToPay, userData, showNotification, 
     );
 };
 
-export default PaymentModal;
+export default CheckoutModal;

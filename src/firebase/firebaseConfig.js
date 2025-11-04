@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { initializeFirestore, connectFirestoreEmulator, persistentLocalCache, memoryLocalCache } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
@@ -21,20 +21,7 @@ if (!getApps().length) {
 }
 
 const auth = getAuth(app);
-
-let db;
-try {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: 'multi-tab' })
-  });
-  console.log("Firestore multi-tab offline persistence enabled.");
-} catch (err) {
-  console.warn("Could not enable multi-tab persistence, falling back to memory cache.", err.message);
-  db = initializeFirestore(app, {
-    localCache: memoryLocalCache()
-  });
-}
-
+const db = getFirestore(app);
 const functions = getFunctions(app);
 
 const USE_EMULATOR = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
@@ -47,5 +34,19 @@ if (USE_EMULATOR) {
 } else {
     console.log("🚀 Connecting to Production Firebase Services 🚀");
 }
+
+enableIndexedDbPersistence(db, { synchronization: 'MULTI_TAB' })
+  .then(() => {
+    console.log("Firestore offline persistence enabled for multiple tabs.");
+  })
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn("Firestore offline persistence failed: Multiple tabs open or other issues.");
+    } else if (err.code === 'unimplemented') {
+      console.warn("Firestore offline persistence failed: Browser does not support all features.");
+    } else {
+      console.warn("Firestore persistence error:", err.message);
+    }
+  });
 
 export { app, auth, db, functions };

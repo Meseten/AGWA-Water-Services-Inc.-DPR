@@ -33,8 +33,7 @@ const AdminDashboardMain = ({ user, userData, db, showNotification, setActiveSec
                 partialErrorAccumulator += "Users data unavailable. ";
             }
             if (ticketsResult.status === 'fulfilled' && ticketsResult.value.success) {
-                // This is the fix: Read from data.byStatus.Open
-                newStats.openTickets = ticketsResult.value.data.byStatus.Open || 0;
+                newStats.openTickets = ticketsResult.value.data.openCount || 0;
             } else {
                 partialErrorAccumulator += "Tickets data unavailable. ";
             }

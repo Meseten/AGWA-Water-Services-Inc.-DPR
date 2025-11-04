@@ -2,7 +2,7 @@ import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath
+    FieldPath, documentId
 } from 'firebase/firestore';
 import {
     userProfileDocumentPath,
@@ -22,7 +22,7 @@ const handleFirestoreError = (functionName, error) => {
     console.error(`Firestore Error [${functionName}]:`, error.code, error.message, error.stack);
     let userFriendlyMessage = `An error occurred while ${functionName.replace(/([A-Z])/g, ' $1').toLowerCase()}. Code: ${error.code}.`;
     if (error.code === 'failed-precondition') {
-        userFriendlyMessage += " This often requires creating a Firestore index. Check the console logs for a link.";
+        userFriendlyMessage = `Query failed: ${error.message}. This almost always means you are missing a Firestore index. Check the console logs (on your server or browser) for a link to create the required index.`;
     } else if (error.code === 'permission-denied') {
          userFriendlyMessage += " You don't have permission for this action. Check Firestore rules.";
     } else {
@@ -69,17 +69,18 @@ const deleteAllFromCollection = async (dbInstance, collectionPath) => {
         if (snapshot.empty) return { success: true, count: 0 };
 
         let count = 0;
-        while (!snapshot.empty) {
+        let lastSnapshot = snapshot;
+        while (!lastSnapshot.empty) {
             const batch = writeBatch(dbInstance);
-            snapshot.docs.forEach((doc) => {
+            lastSnapshot.docs.forEach((doc) => {
                 batch.delete(doc.ref);
             });
             await batch.commit();
-            count += snapshot.size;
+            count += lastSnapshot.size;
             
-            if (snapshot.size < 500) break;
+            if (lastSnapshot.size < 500) break;
             
-            snapshot = await getDocs(query(collection(dbInstance, collectionPath), limit(500)));
+            lastSnapshot = await getDocs(query(collection(dbInstance, collectionPath), limit(500)));
         }
         
         return { success: true, count };
@@ -270,7 +271,7 @@ export const getRevenueByLocationStats = async (dbInstance) => {
         for (let i = 0; i < userIds.length; i += 30) {
             const chunk = userIds.slice(i, i + 30);
             if (chunk.length === 0) continue;
-            const usersQuery = query(collection(dbInstance, profilesCollectionPath()), where(FieldPath.documentId(), 'in', chunk));
+            const usersQuery = query(collection(dbInstance, profilesCollectionPath()), where(documentId(), 'in', chunk));
             const usersSnapshot = await getDocs(usersQuery);
             usersSnapshot.forEach(doc => userProfiles[doc.id] = doc.data());
         }
@@ -278,7 +279,8 @@ export const getRevenueByLocationStats = async (dbInstance) => {
         billsSnapshot.forEach(doc => {
             const bill = doc.data();
             const userProfile = userProfiles[bill.userId];
-            const location = userProfile?.serviceAddress?.barangay || 'Unknown Barangay';
+            if (!userProfile) return;
+            const location = userProfile.serviceAddress?.barangay || 'Unknown Barangay';
             revenueByLocation[location] = (revenueByLocation[location] || 0) + (bill.amountPaid || 0);
         });
 
@@ -758,9 +760,16 @@ export const updateSystemSettings = async (dbInstance, settingsData) => {
 
 export const getBillsForUser = async (dbInstance, userId) => {
     try {
-        const q = query(collection(dbInstance, allBillsCollectionPath()), where("userId", "==", userId), orderBy("billDate", "desc"));
+        const q = query(
+            collection(dbInstance, allBillsCollectionPath()), 
+            where("userId", "==", userId), 
+            orderBy("billDate", "desc") // <-- THIS IS THE FIX. It now matches your index.
+        );
         const snapshot = await getDocs(q);
-        return { success: true, data: snapshot.docs.map(d => ({ id: d.id, ...d.data() })) };
+        
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        return { success: true, data: data };
     } catch (error) {
         return handleFirestoreError('getting bills for user', error);
     }
@@ -770,29 +779,32 @@ const awardRebatePoints = async (dbInstance, userId, bill, amountPaid, systemSet
     if (!systemSettings?.isRebateProgramEnabled || !userId) return;
 
     try {
-        const pointsPerPeso = systemSettings.pointsPerPeso || 0;
-        const earlyPaymentDays = systemSettings.earlyPaymentDaysThreshold || 7;
-        const earlyPaymentBonus = systemSettings.earlyPaymentBonusPoints || 10;
+        const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso) || 0;
+        const earlyPaymentDays = parseInt(systemSettings.earlyPaymentDaysThreshold, 10) || 7;
+        const earlyPaymentBonus = parseInt(systemSettings.earlyPaymentBonusPoints, 10) || 10;
 
         let pointsToAward = (amountPaid * pointsPerPeso);
 
-        const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : new Date();
-        const paymentDate = new Date();
+        const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : null;
+        const paymentDate = new Date(); 
         
-        const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
-
-        if (daysEarly >= earlyPaymentDays) {
-            pointsToAward += earlyPaymentBonus;
+        if(dueDate) {
+            const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
+            if (daysEarly >= earlyPaymentDays) {
+                pointsToAward += earlyPaymentBonus;
+            }
         }
 
-        if (pointsToAward <= 0) return;
+        const roundedPointsToAward = Math.round(pointsToAward);
+
+        if (roundedPointsToAward <= 0) return;
 
         const userProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
         const userProfileSnap = await getDoc(userProfileRef);
         if (!userProfileSnap.exists()) return;
 
         const currentPoints = userProfileSnap.data().rebatePoints || 0;
-        const newTotalPoints = currentPoints + pointsToAward;
+        const newTotalPoints = currentPoints + roundedPointsToAward;
 
         let newTier = 'Bronze';
         if (newTotalPoints >= 3000) newTier = 'Platinum';
@@ -818,7 +830,7 @@ export const updateBill = async (dbInstance, billId, updates) => {
     try {
         await updateDoc(doc(dbInstance, allBillDocumentPath(billId)), { ...updates, lastUpdatedAt: serverTimestamp() });
         
-        if (updates.status === 'Paid' && updates.amountPaid && updates.paymentTimestamp) {
+        if (updates.status === 'Paid' && updates.amountPaid && (updates.paymentTimestamp || updates.paymentDate)) {
             const billSnap = await getDoc(doc(dbInstance, allBillDocumentPath(billId)));
             if (billSnap.exists()) {
                 const bill = billSnap.data();
@@ -940,6 +952,7 @@ export const getTicketsStats = async (dbInstance) => {
         const ticketsRef = collection(dbInstance, supportTicketsCollectionPath());
         const snapshot = await getDocs(ticketsRef);
         
+        let openCount = 0;
         const stats = {
             total: snapshot.size,
             byStatus: {},
@@ -953,8 +966,13 @@ export const getTicketsStats = async (dbInstance) => {
 
             stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
             stats.byType[type] = (stats.byType[type] || 0) + 1;
+            
+            if (status !== 'Closed' && status !== 'Resolved') {
+                openCount++;
+            }
         });
-
+        
+        stats.openCount = openCount;
         return { success: true, data: stats };
     } catch(e) {
         return handleFirestoreError('getting tickets stats', e);

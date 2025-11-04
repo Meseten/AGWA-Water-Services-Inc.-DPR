@@ -56,16 +56,154 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
     }, [fetchClerkStats]);
 
     const handlePrintReport = () => {
-        const reportContent = document.getElementById('eod-report-content').innerHTML;
-        const printWindow = window.open('', '', 'height=800,width=1000');
-        printWindow.document.write('<html><head><title>End-of-Day Report</title>');
-        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-        printWindow.document.write('<style>body {font-family: Arial, sans-serif;-webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;} @media print {.no-print{display:none;} .printable-area { padding: 1rem; } }</style>');
-        printWindow.document.write('</head><body><div class="printable-area">');
-        printWindow.document.write(reportContent);
-        printWindow.document.write('</div></body></html>');
-        printWindow.document.close();
-        setTimeout(() => printWindow.print(), 500);
+        const reportContent = document.getElementById('eod-report-content');
+        if (reportContent) {
+            const printWindow = window.open('', '', 'height=800,width=1000');
+            printWindow.document.write('<html><head><title>Cashier Daily Collection Report</title>');
+            printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+            printWindow.document.write(`
+                <style>
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+                        -webkit-print-color-adjust: exact !important; 
+                        print-color-adjust: exact !important; 
+                        color: #1a202c;
+                        font-size: 10pt;
+                    }
+                    .printable-area { 
+                        max-width: 800px; 
+                        margin: auto; 
+                        padding: 2.5rem; 
+                    }
+                    .report-header { 
+                        text-align: center; 
+                        border-bottom: 2px solid #2d3748; 
+                        padding-bottom: 1rem; 
+                    }
+                    .report-header .logo { 
+                        font-size: 2.25rem; 
+                        font-weight: 700; 
+                        color: #2b6cb0 !important; 
+                        margin: 0; 
+                    }
+                    .report-header .tagline { 
+                        font-size: 0.875rem; 
+                        color: #4299e1 !important; 
+                        font-style: italic; 
+                    }
+                    .report-header h1.report-title { 
+                        font-size: 1.5rem; 
+                        font-weight: 600; 
+                        color: #1a202c !important; 
+                        margin-top: 0.5rem; 
+                        margin-bottom: 0; 
+                    }
+                    .report-section { 
+                        margin-top: 1.5rem; 
+                        page-break-inside: avoid;
+                    }
+                    .report-section h2 { 
+                        font-size: 1.25rem; 
+                        font-weight: 600; 
+                        border-bottom: 1px solid #718096; 
+                        padding-bottom: 0.25rem; 
+                        margin-bottom: 1rem; 
+                        color: #2d3748 !important;
+                    }
+                    .info-table { 
+                        width: 100%; 
+                        font-size: 10pt;
+                    }
+                    .info-table td { 
+                        padding: 4px 0; 
+                        vertical-align: top;
+                    }
+                    .info-table td:nth-child(odd) { 
+                        font-weight: 600; 
+                        color: #4a5568 !important; 
+                        width: auto; 
+                        white-space: nowrap; 
+                        padding-right: 1rem; 
+                    }
+                    .summary-grid { 
+                        display: grid; 
+                        grid-template-columns: repeat(3, 1fr); 
+                        gap: 1.5rem; 
+                    }
+                    .summary-card { 
+                        background-color: #f7fafc !important; 
+                        border: 1px solid #e2e8f0; 
+                        padding: 1.25rem; 
+                        border-radius: 0.5rem; 
+                        text-align: center; 
+                    }
+                    .summary-card p { 
+                        margin: 0; 
+                        font-size: 0.875rem; 
+                        font-weight: 500;
+                        text-transform: uppercase; 
+                        color: #4a5568 !important; 
+                    }
+                    .summary-card span { 
+                        font-size: 1.875rem; 
+                        font-weight: 700; 
+                        color: #1a202c !important; 
+                        display: block; 
+                        margin-top: 0.25rem;
+                    }
+                    table.data-table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin-top: 1rem; 
+                        font-size: 9.5pt;
+                    }
+                    .data-table th, .data-table td { 
+                        border: 1px solid #e2e8f0; 
+                        padding: 0.5rem 0.75rem; 
+                        text-align: left; 
+                    }
+                    .data-table th { 
+                        background-color: #f7fafc !important; 
+                        font-weight: 600; 
+                        text-transform: uppercase;
+                        font-size: 0.75rem;
+                        color: #4a5568 !important;
+                    }
+                    .data-table .text-right { text-align: right; }
+                    .data-table .font-mono { font-family: "Courier New", Courier, monospace; }
+                    .data-table .font-semibold { font-weight: 600; }
+                    .data-table .total-row td {
+                        font-weight: 700;
+                        font-size: 1.125rem;
+                        background-color: #f7fafc !important;
+                        border-top: 2px solid #718096;
+                    }
+                    .report-footer { 
+                        margin-top: 4rem; 
+                        padding-top: 2rem; 
+                        border-top: 1px solid #9ca3af; 
+                    }
+                    .signature-line { 
+                        width: 60%; 
+                        margin: 2rem auto 0 auto; 
+                        border-top: 1px solid #333; 
+                        padding-top: 8px; 
+                        text-align: center; 
+                    }
+                    @media print {
+                        .no-print { display: none !important; }
+                        body { margin: 0; font-size: 10pt; }
+                        .printable-area { padding: 0.5rem; }
+                        .summary-grid { grid-template-columns: repeat(3, 1fr); }
+                    }
+                </style>
+            `);
+            printWindow.document.write('</head><body><div class="printable-area">');
+            printWindow.document.write(reportContent.innerHTML);
+            printWindow.document.write('</div></body></html>');
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 500);
+        }
     };
 
     const quickActionCards = [
@@ -117,7 +255,7 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                 </div>
             </div>
 
-            <div id="eod-report-wrapper" className="mt-8 p-5 bg-gray-50 rounded-xl shadow">
+            <div id="eod-report-wrapper" className="mt-8 p-3 sm:p-5 bg-gray-50 rounded-xl shadow">
                 <div className="flex justify-between items-center mb-4 no-print">
                     <h3 className="text-lg font-semibold text-gray-700 flex items-center">
                         <Clock size={20} className="mr-2 text-gray-500" /> Shift Summary / End-of-Day Report
@@ -126,86 +264,243 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         <Printer size={14} className="mr-1.5" /> Print Report
                     </button>
                 </div>
-                <div id="eod-report-content" className="bg-white p-6 rounded-lg border text-gray-800">
-                    <header className="flex justify-between items-start pb-4 border-b-2 border-gray-700">
-                        <div>
-                            <h1 className="text-3xl font-bold text-blue-700">AGWA</h1>
-                            <p className="text-sm text-gray-500 italic">End-of-Day Clerk Report</p>
-                        </div>
-                        <div className="text-right text-sm">
-                            <p><span className="font-semibold">Cashier:</span> {userData.displayName}</p>
-                            <p><span className="font-semibold">Date:</span> {formatDate(new Date(), {year: 'numeric', month: 'long', day: 'numeric'})}</p>
-                            <p><span className="font-semibold">Report Generated:</span> {formatDate(new Date(), {hour:'2-digit', minute:'2-digit'})}</p>
-                        </div>
-                    </header>
+                
+                <div id="eod-report-content" className="bg-white p-6 sm:p-10 rounded-lg border border-gray-200 text-gray-800 text-[10pt] leading-normal printable-area">
+                    <div className="report-header text-center border-b-2 border-gray-700 pb-4">
+                        <h1 className="logo text-3xl font-bold text-blue-700">AGWA</h1>
+                        <p className="tagline text-sm text-blue-600 italic">Ensuring Clarity, Sustaining Life.</p>
+                        <h1 className="report-title text-2xl font-semibold text-gray-800 mt-2">CASHIER'S DAILY COLLECTION REPORT</h1>
+                    </div>
+
+                    <div className="report-section mt-6">
+                        <table className="info-table w-full">
+                            <tbody>
+                                <tr className="!border-none">
+                                    <td className="font-semibold text-gray-600 !pr-4 !border-none !p-1">Cashier Name:</td>
+                                    <td className="font-medium !border-none !p-1">{userData.displayName}</td>
+                                    <td className="font-semibold text-gray-600 !pr-4 !border-none !p-1">Report Date:</td>
+                                    <td className="font-medium !border-none !p-1">{formatDate(new Date(), {year: 'numeric', month: 'long', day: 'numeric'})}</td>
+                                </tr>
+                                <tr className="!border-none">
+                                    <td className="font-semibold text-gray-600 !pr-4 !border-none !p-1">Cashier ID:</td>
+                                    <td className="font-mono !border-none !p-1">{userData.accountNumber || userData.uid.substring(0,10)}</td>
+                                    <td className="font-semibold text-gray-600 !pr-4 !border-none !p-1">Time Generated:</td>
+                                    <td className="font-medium !border-none !p-1">{formatDate(new Date(), {hour:'2-digit', minute:'2-digit', hour12: true})}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                     
-                    <section className="my-6">
-                        <h2 className="text-lg font-semibold mb-3 text-center">Shift Summary</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="bg-blue-50 p-4 rounded-lg text-center">
-                                <p className="text-sm text-blue-700 uppercase font-semibold">Total Collected</p>
-                                <p className="text-2xl font-bold text-blue-800">₱{dashboardStats.totalCollectedToday.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+                    <section className="report-section mt-8">
+                        <h2 className="text-lg font-semibold border-b border-gray-300 pb-2 mb-4 text-gray-700">Collection Summary</h2>
+                        <div className="summary-grid grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="summary-card bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
+                                <p className="text-sm font-medium text-gray-500 uppercase">Total Collected</p>
+                                <span className="text-2xl font-bold text-gray-800">₱{dashboardStats.totalCollectedToday.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                             </div>
-                            <div className="bg-gray-100 p-4 rounded-lg text-center">
-                                <p className="text-sm text-gray-600 uppercase font-semibold">Total Transactions</p>
-                                <p className="text-2xl font-bold">{dashboardStats.paymentsTodayCount}</p>
+                            <div className="summary-card bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
+                                <p className="text-sm font-medium text-gray-500 uppercase">Total Transactions</p>
+                                <span className="text-2xl font-bold text-gray-800">{dashboardStats.paymentsTodayCount}</span>
                             </div>
-                             <div className="bg-gray-100 p-4 rounded-lg text-center">
-                                <p className="text-sm text-gray-600 uppercase font-semibold">Average Transaction</p>
-                                <p className="text-2xl font-bold">₱{dashboardStats.avgPaymentAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+                             <div className="summary-card bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
+                                <p className="text-sm font-medium text-gray-500 uppercase">Average Transaction</p>
+                                <span className="text-2xl font-bold text-gray-800">₱{dashboardStats.avgPaymentAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                             </div>
                         </div>
-                        {dashboardStats.paymentMethodSummary && Object.keys(dashboardStats.paymentMethodSummary).length > 0 &&
-                            <div className="mt-4 p-4 border rounded-lg">
-                                <h3 className="text-sm font-semibold mb-2">Collection by Payment Method:</h3>
-                                <div className="text-xs space-y-1">
-                                    {Object.entries(dashboardStats.paymentMethodSummary).map(([method, amount]) => (
-                                        <div key={method} className="flex justify-between">
-                                            <span>{method}:</span>
-                                            <span className="font-medium">₱{amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        }
                     </section>
 
-                    <section className="mt-6">
-                        <h2 className="text-lg font-semibold mb-3 text-center">Transaction Details</h2>
+                    {dashboardStats.paymentMethodSummary && Object.keys(dashboardStats.paymentMethodSummary).length > 0 &&
+                        <section className="report-section mt-8">
+                            <h2 className="text-lg font-semibold border-b border-gray-300 pb-2 mb-4 text-gray-700">Breakdown by Payment Method</h2>
+                            <table className="data-table w-full border-collapse text-sm">
+                                <thead className="bg-gray-100">
+                                    <tr>
+                                        <th className="border p-2 text-left text-xs font-semibold text-gray-600 uppercase">Payment Method</th>
+                                        <th className="border p-2 text-right text-xs font-semibold text-gray-600 uppercase">Total Amount (PHP)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(dashboardStats.paymentMethodSummary).map(([method, amount]) => (
+                                        <tr key={method} className="border-b">
+                                            <td className="border p-2.5">{method}</td>
+                                            <td className="border p-2.5 text-right font-semibold">₱{amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="total-row bg-gray-100">
+                                        <td className="border p-3 font-bold text-base">GRAND TOTAL</td>
+                                        <td className="border p-3 text-right font-bold text-base">₱{dashboardStats.totalCollectedToday.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </section>
+                    }
+
+                    <section className="report-section mt-8">
+                        <h2 className="text-lg font-semibold border-b border-gray-300 pb-2 mb-4 text-gray-700">Transaction Log (Today)</h2>
                         {todaysTransactions.length > 0 ? (
-                            <div className="overflow-x-auto border rounded-lg">
-                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                            <div className="overflow-x-auto">
+                                <table className="data-table w-full border-collapse text-sm">
                                     <thead className="bg-gray-100">
                                         <tr>
-                                            <th className="px-4 py-2 text-left font-semibold text-gray-600">Time</th>
-                                            <th className="px-4 py-2 text-left font-semibold text-gray-600">Account #</th>
-                                            <th className="px-4 py-2 text-left font-semibold text-gray-600">Ref #</th>
-                                            <th className="px-4 py-2 text-right font-semibold text-gray-600">Amount (PHP)</th>
+                                            <th className="border p-2 text-left text-xs font-semibold text-gray-600 uppercase">Time</th>
+                                            <th className="border p-2 text-left text-xs font-semibold text-gray-600 uppercase">Account #</th>
+                                            <th className="border p-2 text-left text-xs font-semibold text-gray-600 uppercase">Reference #</th>
+                                            <th className="border p-2 text-right text-xs font-semibold text-gray-600 uppercase">Amount (PHP)</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                                    <tbody>
                                         {todaysTransactions.map(tx => (
-                                            <tr key={tx.id}>
-                                                <td className="px-4 py-2 whitespace-nowrap">{formatDate(tx.paymentTimestamp?.toDate(), {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</td>
-                                                <td className="px-4 py-2 whitespace-nowrap font-mono">{tx.accountNumber}</td>
-                                                <td className="px-4 py-2 whitespace-nowrap font-mono text-xs">{tx.paymentReference}</td>
-                                                <td className="px-4 py-2 whitespace-nowrap text-right font-semibold">₱{tx.amountPaid?.toFixed(2)}</td>
+                                            <tr key={tx.id} className="border-b">
+                                                <td className="border p-2.5 whitespace-nowrap">{formatDate(tx.paymentTimestamp?.toDate(), {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: true})}</td>
+                                                <td className="border p-2.5 whitespace-nowrap font-mono">{tx.accountNumber}</td>
+                                                <td className="border p-2.5 whitespace-nowrap font-mono">{tx.paymentReference}</td>
+                                                <td className="border p-2.5 whitespace-nowrap text-right font-semibold">₱{tx.amountPaid?.toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500 text-center py-6 bg-gray-50 rounded-md">No payments have been processed yet today.</p>
+                            <div className="text-center py-10 bg-gray-50 rounded-md border">
+                                <Info size={32} className="mx-auto text-gray-400 mb-2"/>
+                                <p className="text-gray-500">No payments have been processed yet today.</p>
+                            </div>
                         )}
                     </section>
-                     <footer className="mt-12 pt-8">
-                        <div className="w-1/2 sm:w-1/3 border-t-2 border-gray-400 text-center mx-auto pt-2">
-                            <p className="text-xs text-gray-600">Cashier's Signature</p>
+                     
+                    <footer className="report-footer mt-16 pt-8 border-t border-gray-400">
+                        <div className="signature-line w-3/5 mx-auto border-t border-gray-700 pt-2 text-center">
+                            <p className="text-sm font-semibold">{userData.displayName}</p>
+                            <p className="text-xs text-gray-600">Cashier's Signature Over Printed Name</p>
                         </div>
                     </footer>
                 </div>
             </div>
+
+            <style>
+                {`
+                    .printable-area { 
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+                        color: #1a202c;
+                    }
+                    .report-header { 
+                        text-align: center; 
+                        border-bottom: 2px solid #2d3748; 
+                        padding-bottom: 1rem; 
+                    }
+                    .report-header .logo { 
+                        font-size: 2.25rem; 
+                        font-weight: 700; 
+                        color: #2b6cb0; 
+                        margin: 0; 
+                    }
+                    .report-header .tagline { 
+                        font-size: 0.875rem; 
+                        color: #4299e1; 
+                        font-style: italic; 
+                    }
+                    .report-header .report-title { 
+                        font-size: 1.5rem; 
+                        font-weight: 600; 
+                        color: #1a202c; 
+                        margin-top: 0.5rem; 
+                        margin-bottom: 0; 
+                    }
+                    .report-section { 
+                        margin-top: 1.5rem; 
+                    }
+                    .report-section h2 { 
+                        font-size: 1.25rem; 
+                        font-weight: 600; 
+                        border-bottom: 1px solid #718096; 
+                        padding-bottom: 0.25rem; 
+                        margin-bottom: 1rem; 
+                        color: #2d3748;
+                    }
+                    .info-table { 
+                        width: 100%; 
+                    }
+                    .info-table td { 
+                        padding: 4px 0; 
+                        vertical-align: top;
+                    }
+                    .info-table td:nth-child(odd) { 
+                        font-weight: 600; 
+                        color: #4a5568; 
+                        width: auto; 
+                        white-space: nowrap; 
+                        padding-right: 1rem; 
+                    }
+                    .summary-grid { 
+                        display: grid; 
+                        grid-template-columns: repeat(1, 1fr);
+                    }
+                    @media (min-width: 640px) {
+                        .summary-grid { 
+                            grid-template-columns: repeat(3, 1fr); 
+                        }
+                    }
+                    .summary-card { 
+                        background-color: #f7fafc; 
+                        border: 1px solid #e2e8f0; 
+                        padding: 1.25rem; 
+                        border-radius: 0.5rem; 
+                        text-align: center; 
+                    }
+                    .summary-card p { 
+                        margin: 0; 
+                        font-size: 0.875rem; 
+                        font-weight: 500;
+                        text-transform: uppercase; 
+                        color: #4a5568; 
+                    }
+                    .summary-card span { 
+                        font-size: 1.875rem; 
+                        font-weight: 700; 
+                        color: #1a202c; 
+                        display: block; 
+                        margin-top: 0.25rem;
+                    }
+                    table.data-table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin-top: 1rem; 
+                    }
+                    .data-table th, .data-table td { 
+                        border: 1px solid #e2e8f0; 
+                        padding: 0.5rem 0.75rem; 
+                        text-align: left; 
+                    }
+                    .data-table th { 
+                        background-color: #f7fafc; 
+                        font-weight: 600; 
+                        text-transform: uppercase;
+                        font-size: 0.75rem;
+                        color: #4a5568;
+                    }
+                    .data-table .text-right { text-align: right; }
+                    .data-table .font-mono { font-family: "Courier New", Courier, monospace; }
+                    .data-table .font-semibold { font-weight: 600; }
+                    .data-table .total-row td {
+                        font-weight: 700;
+                        font-size: 1.125rem;
+                        background-color: #f7fafc;
+                        border-top: 2px solid #718096;
+                    }
+                    .report-footer { 
+                        margin-top: 4rem; 
+                        padding-top: 2rem; 
+                        border-top: 1px solid #9ca3af; 
+                    }
+                    .signature-line { 
+                        width: 60%; 
+                        margin: 2rem auto 0 auto; 
+                        border-top: 1px solid #333; 
+                        padding-top: 8px; 
+                        text-align: center; 
+                    }
+                `}
+            </style>
         </div>
     );
 };

@@ -238,20 +238,22 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
                 setMobileOpen={setIsSidebarOpenMobile}
             />
 
-            <div className="lg:pl-64 flex flex-col min-h-screen print:pl-0 overflow-x-hidden">
-                <header className="sticky top-0 z-30 flex items-center justify-start bg-white/80 backdrop-blur-lg shadow-sm p-3 lg:hidden no-print">
+            <div className="lg:pl-64 flex flex-col min-h-screen">
+                <header className="sticky top-0 z-30 flex items-center justify-between bg-white/80 backdrop-blur-lg shadow-sm p-3 lg:hidden">
                     <button onClick={() => setIsSidebarOpenMobile(true)} className="text-gray-600 hover:text-gray-900 p-1">
                         <Menu size={28} />
                     </button>
+                    <h1 className="text-lg font-semibold text-blue-700">AGWA Portal</h1>
+                     <div className="w-8"></div>
                 </header>
 
                 {banner && (
-                    <div className="bg-yellow-400 text-center p-2 text-yellow-900 font-semibold shadow-md text-sm sticky top-[57px] z-20 lg:top-0 no-print">
+                    <div className="bg-yellow-400 text-center p-2 text-yellow-900 font-semibold shadow-md text-sm sticky top-[57px] z-20 lg:top-0">
                        {banner.text}
                     </div>
                 )}
 
-                <main className={`${mainContentPadding} flex-grow ${banner ? 'pt-2' : ''} print:p-4`}>
+                <main className={`${mainContentPadding} flex-grow ${banner ? 'pt-2' : ''}`}>
                     {renderSection()}
                 </main>
             </div>
@@ -260,7 +262,7 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
                 <>
                     <button
                         onClick={() => setIsChatbotOpen(true)}
-                        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform duration-200 ease-in-out z-40 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 no-print"
+                        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform duration-200 ease-in-out z-40 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
                         aria-label="Open Chatbot"
                     >
                         <ChatIcon size={28} />

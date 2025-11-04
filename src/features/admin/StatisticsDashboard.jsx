@@ -56,7 +56,9 @@ const BarChartComponent = ({ data, title, label, color, borderColor }) => {
 };
 
 const LineChartComponent = ({ data, title, datasets }) => {
-    if (!data || data.length === 0) return <p className="text-sm text-gray-500 text-center py-10">No data available for {title}.</p>;
+    if (!data || (Array.isArray(data) && data.length === 0) || (typeof data === 'object' && Object.keys(data).length === 0)) {
+        return <p className="text-sm text-gray-500 text-center py-10">No data available for {title}.</p>;
+    }
     
     let chartData;
     if (datasets) {
@@ -64,7 +66,7 @@ const LineChartComponent = ({ data, title, datasets }) => {
             labels: Object.keys(data),
             datasets: datasets.map(ds => ({
                 ...ds,
-                data: Object.values(data).map(val => val[ds.key] || 0)
+                data: Object.values(data).map(val => val[ds.key] || val || 0)
             }))
         };
     } else {
@@ -180,51 +182,52 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             if (usersResult.status === 'fulfilled' && usersResult.value.success) {
                 newStats.usersByRole = usersResult.value.data.byRole;
                 newStats.totalUsers = usersResult.value.data.total;
-            } else partialError += "User stats failed. ";
+            } else partialError += `User stats failed. ${usersResult.reason?.message || usersResult.value?.error || ''} | `;
 
             if (ticketsResult.status === 'fulfilled' && ticketsResult.value.success) {
                  newStats.ticketStats = ticketsResult.value.data.byStatus;
                  newStats.ticketsByType = ticketsResult.value.data.byType;
                  newStats.totalTickets = ticketsResult.value.data.total;
-            } else partialError += "Ticket stats failed. ";
+                 newStats.openTickets = ticketsResult.value.data.openCount;
+            } else partialError += `Ticket stats failed. ${ticketsResult.reason?.message || ticketsResult.value?.error || ''} | `;
 
             if (revenueResult.status === 'fulfilled' && revenueResult.value.success) {
                  newStats.monthlyRevenue = revenueResult.value.data;
-            } else partialError += "Monthly revenue failed. ";
+            } else partialError += `Monthly revenue failed. ${revenueResult.reason?.message || revenueResult.value?.error || ''} | `;
 
             if (hourlyResult.status === 'fulfilled' && hourlyResult.value.success) {
                  newStats.hourlyActivity = hourlyResult.value.data;
-            } else partialError += "Hourly activity failed. ";
+            } else partialError += `Hourly activity failed. ${hourlyResult.reason?.message || hourlyResult.value?.error || ''} | `;
             
             if (staffResult.status === 'fulfilled' && staffResult.value.success) {
                  newStats.staffActivity = staffResult.value.data;
-            } else partialError += "Staff activity failed. ";
+            } else partialError += `Staff activity failed. ${staffResult.reason?.message || staffResult.value?.error || ''} | `;
             
             if (techResult.status === 'fulfilled' && techResult.value.success) {
                  newStats.techStats = techResult.value.data;
-            } else partialError += "Technical stats failed. ";
+            } else partialError += `Technical stats failed. ${techResult.reason?.message || techResult.value?.error || ''} | `;
 
             if (locationRevenueResult.status === 'fulfilled' && locationRevenueResult.value.success) {
                  newStats.revenueByLocation = locationRevenueResult.value.data;
-            } else partialError += "Location revenue failed. ";
+            } else partialError += `Location revenue failed. ${locationRevenueResult.reason?.message || locationRevenueResult.value?.error || ''} | `;
 
             if (outstandingResult.status === 'fulfilled' && outstandingResult.value.success) {
                  newStats.outstandingBalance = outstandingResult.value.data.totalOutstanding;
-            } else partialError += "Outstanding balance failed. ";
+            } else partialError += `Outstanding balance failed. ${outstandingResult.reason?.message || outstandingResult.value?.error || ''} | `;
 
             if (consumptionResult.status === 'fulfilled' && consumptionResult.value.success) {
                  newStats.monthlyConsumption = consumptionResult.value.data;
-            } else partialError += "Consumption stats failed. ";
+            } else partialError += `Consumption stats failed. ${consumptionResult.reason?.message || consumptionResult.value?.error || ''} | `;
 
             if (paymentMethodResult.status === 'fulfilled' && paymentMethodResult.value.success) {
                  newStats.paymentMethods = paymentMethodResult.value.data;
-            } else partialError += "Payment methods failed. ";
+            } else partialError += `Payment methods failed. ${paymentMethodResult.reason?.message || paymentMethodResult.value?.error || ''} | `;
 
             if (userGrowthResult.status === 'fulfilled' && userGrowthResult.value.success) {
                  newStats.userGrowth = userGrowthResult.value.data;
-            } else partialError += "User growth failed. ";
+            } else partialError += `User growth failed. ${userGrowthResult.reason?.message || userGrowthResult.value?.error || ''} | `;
 
-            if (partialError) setError(partialError.trim());
+            if (partialError) setError(partialError.trim().slice(0, -1));
             setStats(newStats);
 
         } catch (e) {
@@ -233,7 +236,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [showNotification]);
 
     useEffect(() => {
         fetchStatistics();
@@ -267,7 +270,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 </div>
             </div>
 
-            {error && <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 my-4 flex items-center no-print" role="alert"><Info size={20} className="mr-3" /><p>Could not load all statistics: {error}</p></div>}
+            {error && <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 my-4 flex items-start no-print" role="alert"><Info size={20} className="mr-3 mt-1 flex-shrink-0" /><p className="text-sm">Could not load all statistics: <span className="font-mono text-xs break-all">{error}</span></p></div>}
 
             <div id="stats-print-area">
                  <header className="hidden print:block text-center mb-8">
@@ -316,7 +319,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                             <StatCard title="Total Users" value={stats?.totalUsers ?? 'N/A'} icon={Users} color={chartColors.purpleBorder}/>
                             <StatCard title="Total Tickets" value={stats?.totalTickets ?? 'N/A'} icon={MessageSquare} color={chartColors.orangeBorder}/>
-                            <StatCard title="Open Tickets" value={stats?.ticketStats?.Open ?? '0'} icon={AlertTriangle} color={chartColors.redBorder}/>
+                            <StatCard title="Open Tickets" value={stats?.openTickets ?? '0'} icon={AlertTriangle} color={chartColors.redBorder}/>
                         </div>
                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                              <div className="p-4 bg-gray-50 rounded-lg border">
@@ -328,8 +331,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                         key: 'users',
                                         borderColor: chartColors.purpleBorder,
                                         backgroundColor: chartColors.purple,
-                                        tension: 0.1,
-                                        data: Object.values(stats?.userGrowth || {})
+                                        tension: 0.1
                                     }]}
                                 />
                             </div>
@@ -393,7 +395,6 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     .shadow-xl, .shadow-md, .shadow-lg, .border { border: none !important; box-shadow: none !imporant; }
                     .bg-gray-50 { background-color: #F9FAFB !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     
-                    /* Reset dashboard layout for printing */
                     div.lg\\:pl-64 {
                         padding-left: 0 !important;
                     }

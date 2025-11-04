@@ -287,7 +287,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
                             <div className="text-right text-xs">
                                 <p className="font-semibold">AGWA Water Services, Inc.</p>
                                 <p>123 Aqua Drive, Hydro Business Park</p>
-                                <p>Quezon City, Metro Manila, Philippines 1101</p>
+                                <p>Naic, Cavite, Philippines 4110</p>
                             </div>
                         </div>
                         <div className="text-center mb-6">

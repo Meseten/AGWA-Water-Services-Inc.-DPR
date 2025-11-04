@@ -86,3 +86,4 @@ web_modules/
 dist
 build
 dist-ssr
+.vercel
