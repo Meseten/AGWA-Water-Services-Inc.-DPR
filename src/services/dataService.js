@@ -1308,3 +1308,26 @@ export const getUserGrowthStats = async (dbInstance) => {
         return handleFirestoreError('getting user growth stats', error);
     }
 };
+export const getDiscountStats = async (dbInstance) => {
+    try {
+        const profilesRef = collection(dbInstance, profilesCollectionPath());
+        const snapshot = await getDocs(query(profilesRef, where("role", "==", "customer")));
+        
+        const stats = {
+            none: 0,
+            pending: 0,
+            verified: 0
+        };
+
+        snapshot.forEach(doc => {
+            const status = doc.data().discountStatus || 'none';
+            if (stats.hasOwnProperty(status)) {
+                stats[status]++;
+            }
+        });
+        
+        return { success: true, data: stats };
+    } catch(e) {
+        return handleFirestoreError('getting discount stats', e);
+    }
+};

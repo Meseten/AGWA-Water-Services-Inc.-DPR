@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Bar, Line, Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
-import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, Calendar, MapPin as MapPinIcon, DollarSign, Clock, UserCheck, Settings, AlertTriangle, TrendingUp, AlertOctagon, Droplets, CreditCard, UserPlus } from "lucide-react";
+import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, Calendar, MapPin as MapPinIcon, DollarSign, Clock, UserCheck, Settings, AlertTriangle, TrendingUp, AlertOctagon, Droplets, CreditCard, UserPlus, Percent } from "lucide-react";
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from "../../services/dataService.js";
 import { db } from "../../firebase/firebaseConfig.js";
@@ -27,6 +27,8 @@ const chartColors = {
     pinkBorder: 'rgba(236, 72, 153, 1)',
     yellow: 'rgba(234, 179, 8, 0.6)',
     yellowBorder: 'rgba(234, 179, 8, 1)',
+    gray: 'rgba(107, 114, 128, 0.6)',
+    grayBorder: 'rgba(107, 114, 128, 1)',
 };
 
 const commonChartOptions = (title) => ({
@@ -84,13 +86,20 @@ const LineChartComponent = ({ data, title, datasets }) => {
     return <div className="h-72 w-full"><Line options={commonChartOptions(title)} data={chartData} /></div>;
 };
 
-const DoughnutChartComponent = ({ data, title }) => {
+const DoughnutChartComponent = ({ data, title, colorMap }) => {
     if (!data || Object.keys(data).length === 0) return <p className="text-sm text-gray-500 text-center py-10">No data for {title}.</p>;
+    
+    const defaultColors = [chartColors.blue, chartColors.green, chartColors.purple, chartColors.orange, chartColors.red, chartColors.teal, chartColors.sky, chartColors.pink, chartColors.yellow, chartColors.gray];
+    
+    const backgroundColors = colorMap 
+        ? Object.keys(data).map(key => colorMap[key] || chartColors.gray)
+        : defaultColors.slice(0, Object.keys(data).length);
+        
     const chartData = {
-        labels: Object.keys(data),
+        labels: Object.keys(data).map(k => k.charAt(0).toUpperCase() + k.slice(1)),
         datasets: [{
             data: Object.values(data),
-            backgroundColor: [chartColors.blue, chartColors.green, chartColors.purple, chartColors.orange, chartColors.red, chartColors.teal, chartColors.sky, chartColors.pink, chartColors.yellow],
+            backgroundColor: backgroundColors,
             borderColor: '#FFFFFF',
             borderWidth: 2,
         }],
@@ -168,12 +177,14 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 DataService.getConsumptionStats(db),
                 DataService.getPaymentMethodStats(db),
                 DataService.getUserGrowthStats(db),
+                DataService.getDiscountStats(db),
             ]);
 
             const [
                 usersResult, ticketsResult, revenueResult, hourlyResult, 
                 staffResult, techResult, locationRevenueResult, outstandingResult,
-                consumptionResult, paymentMethodResult, userGrowthResult
+                consumptionResult, paymentMethodResult, userGrowthResult,
+                discountResult
             ] = results;
             
             let partialError = '';
@@ -226,6 +237,10 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             if (userGrowthResult.status === 'fulfilled' && userGrowthResult.value.success) {
                  newStats.userGrowth = userGrowthResult.value.data;
             } else partialError += `User growth failed. ${userGrowthResult.reason?.message || userGrowthResult.value?.error || ''} | `;
+
+            if (discountResult.status === 'fulfilled' && discountResult.value.success) {
+                 newStats.discountStats = discountResult.value.data;
+            } else partialError += `Discount stats failed. ${discountResult.reason?.message || discountResult.value?.error || ''} | `;
 
             if (partialError) setError(partialError.trim().slice(0, -1));
             setStats(newStats);
@@ -316,10 +331,11 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     
                     <section className="print-section pt-6 border-t">
                          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center"><Users size={22} className="mr-2 text-purple-600"/>User & Support Analytics</h3>
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                             <StatCard title="Total Users" value={stats?.totalUsers ?? 'N/A'} icon={Users} color={chartColors.purpleBorder}/>
                             <StatCard title="Total Tickets" value={stats?.totalTickets ?? 'N/A'} icon={MessageSquare} color={chartColors.orangeBorder}/>
                             <StatCard title="Open Tickets" value={stats?.openTickets ?? '0'} icon={AlertTriangle} color={chartColors.redBorder}/>
+                            <StatCard title="Verified Discounts" value={stats?.discountStats?.verified ?? 'N/A'} icon={Percent} color={chartColors.greenBorder}/>
                         </div>
                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                              <div className="p-4 bg-gray-50 rounded-lg border">
@@ -343,6 +359,17 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                             </div>
                             <div className="p-4 bg-gray-50 rounded-lg border">
                                 <DoughnutChartComponent data={stats?.ticketStats} title="Support Tickets by Status" />
+                            </div>
+                             <div className="p-4 bg-gray-50 rounded-lg border lg:col-span-2">
+                                <DoughnutChartComponent 
+                                    data={stats?.discountStats} 
+                                    title="Customer Discount Status"
+                                    colorMap={{
+                                        'none': chartColors.gray,
+                                        'pending': chartColors.yellow,
+                                        'verified': chartColors.green
+                                    }}
+                                />
                             </div>
                         </div>
                     </section>

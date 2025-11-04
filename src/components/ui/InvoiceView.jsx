@@ -1,6 +1,6 @@
 import React from 'react';
 import Modal from './Modal';
-import { Printer, X, Info, Download, FileText, PhoneCall, Mail } from 'lucide-react';
+import { Printer, X, Download, FileText } from 'lucide-react';
 import { formatDate } from '../../utils/userUtils';
 import Barcode from './Barcode.jsx';
 import DOMPurify from 'dompurify';
@@ -11,7 +11,8 @@ const InvoiceView = ({
     bill,
     userData,
     calculateBillDetails,
-    showNotification
+    showNotification,
+    systemSettings = {}
 }) => {
     if (!isOpen || !bill || !userData) return null;
 
@@ -20,8 +21,24 @@ const InvoiceView = ({
         userData.serviceType,
         userData.meterSize || '1/2"'
     );
+    
+    const penaltyRate = (systemSettings.latePaymentPenaltyPercentage || 2.0) / 100;
+    
+    
+    const totalCurrentCharges = parseFloat(bill.totalCalculatedCharges?.toFixed(2) || 0);
+    
+    const previousUnpaidAmount = parseFloat((bill.previousUnpaidAmount || 0).toFixed(2));
+    
+    const existingPenalty = parseFloat((bill.penaltyAmount || 0).toFixed(2));
+    
+    const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
-    const totalAmountDue = (bill.amount || 0).toFixed(2);
+    const amountDueOnOrBeforeDate = totalCurrentCharges + previousUnpaidAmount + existingPenalty - seniorCitizenDiscount;
+
+    const newLatePenalty = parseFloat((totalCurrentCharges * penaltyRate).toFixed(2));
+    
+    const amountDueAfterDate = amountDueOnOrBeforeDate + newLatePenalty;
+
 
     const billDateObj = bill.billDate?.toDate ? bill.billDate.toDate() : null;
     const formattedDateForInvoiceNum = billDateObj ? `${billDateObj.getFullYear()}${String(billDateObj.getMonth() + 1).padStart(2, '0')}${String(billDateObj.getDate()).padStart(2, '0')}` : Date.now().toString().slice(-6);
@@ -69,6 +86,7 @@ const InvoiceView = ({
                         position: relative;
                         font-family: 'Times New Roman', Times, serif;
                         color: #000;
+                        padding: 2rem;
                     }
                     .paid-stamp-print {
                         position: absolute;
@@ -91,8 +109,8 @@ const InvoiceView = ({
                         display: flex;
                         justify-content: space-between;
                         align-items: flex-start;
-                        padding: 2rem;
-                        border-bottom: 4px solid #1e3a8a; /* Dark Blue */
+                        padding-bottom: 1rem;
+                        border-bottom: 4px solid #1e3a8a;
                     }
                     .invoice-header-print .logo-print { font-size: 3rem; font-weight: bold; color: #1e3a8a; line-height: 1; }
                     .invoice-header-print .tagline-print { font-size: 0.8rem; color: #1d4ed8; font-style: italic; }
@@ -104,7 +122,6 @@ const InvoiceView = ({
                         display: grid;
                         grid-template-columns: 1fr 1fr;
                         gap: 1.5rem;
-                        padding: 0 2rem;
                     }
                     .invoice-box-print { border: 1px solid #d1d5db; border-radius: 6px; }
                     .invoice-box-print h2 {
@@ -119,14 +136,13 @@ const InvoiceView = ({
                     .invoice-box-print .detail-row { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed #e5e7eb; }
                     .invoice-box-print .detail-row span:first-child { color: #4b5563; }
                     .invoice-box-print .detail-row span:last-child { font-weight: 600; text-align: right; }
-                    .invoice-table-print { width: calc(100% - 4rem); margin: 2rem; border-collapse: collapse; }
+                    .invoice-table-print { width: 100%; margin: 2rem 0; border-collapse: collapse; }
                     .invoice-table-print th, .invoice-table-print td { border: 1px solid #d1d5db; padding: 0.6rem 0.8rem; font-size: 0.9rem; }
                     .invoice-table-print th { background-color: #f3f4f6; text-align: left; }
                     .invoice-table-print td:last-child { text-align: right; }
                     .invoice-totals-print {
                         width: 50%;
                         margin-left: auto;
-                        margin-right: 2rem;
                         font-size: 0.9rem;
                     }
                     .invoice-totals-print .detail-row {
@@ -141,35 +157,38 @@ const InvoiceView = ({
                         justify-content: space-between;
                         padding: 0.8rem;
                         margin-top: 0.5rem;
+                        background-color: #f3f4f6;
+                        border: 1px solid #d1d5db;
+                        border-radius: 4px;
+                        font-size: 1rem;
+                    }
+                    .invoice-totals-print .grand-total-print-final {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 0.8rem;
+                        margin-top: 0.25rem;
                         background-color: #1e3a8a;
                         color: white;
                         border-radius: 4px;
                         font-size: 1.1rem;
                     }
                     .invoice-footer-print {
-                        padding: 2rem;
+                        padding: 2rem 0 0 0;
                         margin-top: 1rem;
                         border-top: 2px solid #e5e7eb;
                         font-size: 0.8rem;
                         color: #4b5563;
                         text-align: center;
                     }
-                    .barcode-section-print {
-                        padding: 1rem 2rem 0 2rem;
-                        text-align: center;
-                        page-break-before: always;
-                    }
-                    /* *** THIS IS THE FIX for Issue 1 (Barcode) *** */
                     .payment-stub-print {
-                        margin: 2rem 2rem 0 2rem;
+                        margin-top: 2rem;
                         padding: 1rem;
                         border: 2px dashed #4b5563;
                         background-color: #f9fafb;
+                        page-break-before: always;
                     }
                     .payment-stub-print h2 { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 1rem; }
                     .payment-stub-print .barcode-container { max-width: 300px; margin: 0.5rem auto 0 auto; }
-                    
-                    .no-print-in-iframe { display: none !important; }
                 `}
             </style>
             
@@ -214,8 +233,7 @@ const InvoiceView = ({
                                 <strong>AGWA Water Services, Inc.</strong><br/>
                                 123 Aqua Drive, Hydro Business Park<br/>
                                 Naic, Cavite, Philippines 4110<br/>
-                                VAT Reg. TIN: 000-123-456-789<br/>
-                                <strong>System ID:</strong> AGWAMSN001
+                                VAT Reg. TIN: 000-123-456-789
                             </div>
                         </header>
                         
@@ -231,7 +249,7 @@ const InvoiceView = ({
                                     <div className="detail-row"><span>Contract Acct No.:</span> <span>{userData.accountNumber}</span></div>
                                     <div className="detail-row"><span>Account Name:</span> <span>{userData.displayName || userData.email}</span></div>
                                     <div className="detail-row"><span>Service Address:</span> <span>{formatAddressToString(userData.serviceAddress)}</span></div>
-                                    <div className="detail-row"><span>Meter Serial No.:</span> <span>{userData.meterSerialNumber || ''}</span></div>
+                                    <div className="detail-row"><span>Meter Serial No.:</span> <span>{userData.meterSerialNumber || 'N/A'}</span></div>
                                     <div className="detail-row"><span>Rate Class:</span> <span>{userData.serviceType || "Residential"}</span></div>
                                 </div>
                             </div>
@@ -248,7 +266,7 @@ const InvoiceView = ({
                         </section>
 
                         <section>
-                            <h2 className="section-title-print" style={{margin: '2rem 2rem 0 2rem'}}>CHARGES BREAKDOWN</h2>
+                            <h2 className="section-title-print" style={{margin: '2rem 0 0 0'}}>CHARGES BREAKDOWN</h2>
                             <table className="invoice-table-print">
                                 <thead>
                                     <tr>
@@ -266,20 +284,42 @@ const InvoiceView = ({
                                     <tr className="bg-gray-50 font-semibold"><td>SUB-TOTAL (Water & Other Charges)</td><td>{charges.subTotalBeforeTaxes?.toFixed(2)}</td></tr>
                                     <tr><td>Government Taxes (Local Franchise Tax)</td><td>{charges.governmentTaxes?.toFixed(2)}</td></tr>
                                     <tr><td>Value Added Tax (VAT 12%)</td><td>{charges.vat?.toFixed(2)}</td></tr>
-                                    <tr className="bg-gray-100 font-bold text-base"><td>Total Current Charges</td><td>{charges.totalCalculatedCharges?.toFixed(2)}</td></tr>
+                                    <tr className="bg-gray-100 font-bold text-base"><td>Total Current Charges</td><td>{totalCurrentCharges.toFixed(2)}</td></tr>
                                 </tbody>
                             </table>
                         </section>
 
                         <section className="invoice-totals-print">
-                            <div className="detail-row"><span>Total Current Charges:</span> <span>PHP {charges.totalCalculatedCharges?.toFixed(2)}</span></div>
-                            <div className="detail-row"><span>Previous Unpaid Amount:</span> <span className={(bill.previousUnpaidAmount || 0) > 0 ? 'text-red-600' : ''}>PHP {(bill.previousUnpaidAmount || 0).toFixed(2)}</span></div>
-                            <div className="detail-row"><span>Late Payment Penalty:</span> <span className={(bill.penaltyAmount || 0) > 0 ? 'text-red-600' : ''}>PHP {(bill.penaltyAmount || 0).toFixed(2)}</span></div>
-                            <div className="detail-row"><span>Senior Citizen/PWD Discount:</span> <span className={(bill.seniorCitizenDiscount || 0) > 0 ? 'text-green-600' : ''}>PHP ({(bill.seniorCitizenDiscount || 0).toFixed(2)})</span></div>
+                            <div className="detail-row">
+                                <span>Total Current Charges:</span> 
+                                <span>PHP {totalCurrentCharges.toFixed(2)}</span>
+                            </div>
+                            <div className="detail-row">
+                                <span>Previous Unpaid Amount:</span> 
+                                <span className={previousUnpaidAmount > 0 ? 'text-red-600' : ''}>PHP {previousUnpaidAmount.toFixed(2)}</span>
+                            </div>
+                            <div className="detail-row">
+                                <span>Penalties from Previous Bills:</span> 
+                                <span className={existingPenalty > 0 ? 'text-red-600' : ''}>PHP {existingPenalty.toFixed(2)}</span>
+                            </div>
+                            <div className="detail-row">
+                                <span>Senior Citizen/PWD Discount:</span> 
+                                <span className={seniorCitizenDiscount > 0 ? 'text-green-600' : ''}>PHP ({seniorCitizenDiscount.toFixed(2)})</span>
+                            </div>
                             
                             <div className="grand-total-print">
-                                <span className="font-bold">TOTAL AMOUNT DUE</span>
-                                <span className="font-bold">₱{totalAmountDue}</span>
+                                <span className="font-bold">Amount Due on or Before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}</span>
+                                <span className="font-bold">₱{amountDueOnOrBeforeDate.toFixed(2)}</span>
+                            </div>
+
+                            <div className="detail-row mt-4">
+                                <span>Late Payment Penalty (if paid after due date)</span>
+                                <span>PHP {newLatePenalty.toFixed(2)}</span>
+                            </div>
+                            
+                            <div className="grand-total-print-final">
+                                <span className="font-bold">TOTAL AMOUNT DUE AFTER Due Date</span>
+                                <span className="font-bold">₱{amountDueAfterDate.toFixed(2)}</span>
                             </div>
                             <div className="text-right text-red-600 font-bold text-sm mt-1">
                                 Due Date: {formatDate(bill.dueDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A'}
@@ -289,7 +329,6 @@ const InvoiceView = ({
                         <footer className="invoice-footer-print">
                             <p>Please pay on or before the due date to avoid disconnection and late payment penalties.</p>
                             <p>This is a system-generated statement. For inquiries, please call our 24/7 hotline at <strong>1627-AGWA</strong> or email us at <strong>support@agwa-waterservices.com.ph</strong>.</p>
-                            <p className="no-print-in-iframe">BIR Permit No. AGWA-001-012025-000001 | Date Issued: 01/01/2025</p>
                         </footer>
 
                         <section className="payment-stub-print">
@@ -297,8 +336,8 @@ const InvoiceView = ({
                             <div className="detail-row"><span>Account Name:</span> <span>{userData.displayName || userData.email}</span></div>
                             <div className="detail-row"><span>Account No.:</span> <span>{userData.accountNumber}</span></div>
                             <div className="detail-row"><span>Invoice No.:</span> <span>{invoiceNumber}</span></div>
-                            <div className="detail-row"><span>Amount Due:</span> <span className="text-lg font-bold">₱{totalAmountDue}</span></div>
-                            <div className="detail-row"><span>Due Date:</span> <span>{formatDate(bill.dueDate, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+                            <div className="detail-row"><span>Amount Due (on or before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}):</span> <span className="text-lg font-bold">₱{amountDueOnOrBeforeDate.toFixed(2)}</span></div>
+                            <div className="detail-row"><span>Amount Due (after {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}):</span> <span className="text-lg font-bold">₱{amountDueAfterDate.toFixed(2)}</span></div>
                             <div className="barcode-container">
                                 <Barcode value={invoiceNumber} />
                             </div>
