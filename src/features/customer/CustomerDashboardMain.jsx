@@ -32,8 +32,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
             if (billsResult.success) {
                 const billsWithCalculatedAmounts = billsResult.data.map(bill => {
                     const charges = calculateBillDetails(bill.consumption, userData.serviceType, userData.meterSize, userData.systemSettings || {});
-                    const totalAmountDue = charges.totalCalculatedCharges + (bill.previousUnpaidAmount || 0) - (bill.seniorCitizenDiscount || 0);
-                    return { ...bill, amount: totalAmountDue, calculatedCharges: charges, billDateTimestamp: bill.billDate?.toDate ? bill.billDate.toDate() : new Date(bill.billDate) };
+                    return { ...bill, calculatedCharges: charges, billDateTimestamp: bill.billDate?.toDate ? bill.billDate.toDate() : new Date(bill.billDate) };
                 }).sort((a, b) => b.billDateTimestamp - a.billDateTimestamp);
 
                 setRecentBills(billsWithCalculatedAmounts.slice(0, 3));
@@ -42,7 +41,8 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                 if (unpaidBills.length > 0) {
                     const sortedUnpaidBills = unpaidBills.sort((a, b) => new Date(a.dueDate?.toDate() || 0) - new Date(b.dueDate?.toDate() || 0));
                     const oldestDueBill = sortedUnpaidBills[0];
-                    setCurrentBalance(oldestDueBill.amount);
+                    const totalBalance = unpaidBills.reduce((sum, bill) => sum + (bill.amount || 0), 0);
+                    setCurrentBalance(totalBalance);
                     setNextDueDate(oldestDueBill.dueDate);
                 } else {
                     setCurrentBalance(0);
@@ -92,7 +92,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
     const currentBalanceDisplay = `₱${currentBalance.toFixed(2)}`;
     const balanceSubtext = currentBalance > 0 && nextDueDate ? `Next Due: ${formatDate(nextDueDate, {month: 'short', day: 'numeric', year: 'numeric'})}` : (currentBalance === 0 ? 'All bills settled!' : '');
     
-    const quickActionCardClass = "p-5 bg-white rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 ease-in-out text-left focus:outline-none focus:ring-2 focus:ring-opacity-75 flex flex-col items-start";
+    const quickActionCardClass = "p-5 bg-white rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 ease-in-out text-left focus:outline-none focus:ring-2 focus:ring-opacity-75 flex flex-col items-start h-full";
     const PesoIcon = () => <span className="font-bold">₱</span>;
 
     return (
@@ -147,7 +147,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                     )}
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 lg:flex lg:flex-col">
                      <button onClick={() => setActiveSection('myBills')} className={`${quickActionCardClass} focus:ring-green-500 border-l-4 border-green-500`}>
                         <CreditCard size={26} className="mb-2 text-green-500" />
                         <h4 className="font-semibold text-green-700 text-md">Pay My Bill</h4>

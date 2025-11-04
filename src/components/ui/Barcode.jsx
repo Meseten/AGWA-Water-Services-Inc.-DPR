@@ -24,7 +24,7 @@ const Barcode = ({ value }) => {
             <div
                 key={index}
                 className={`h-full ${bar === '1' ? 'bg-black' : 'bg-transparent'}`}
-                style={{ width: '2px' }} 
+                style={{ width: '1px' }} 
             ></div>
         ));
     };
@@ -32,8 +32,8 @@ const Barcode = ({ value }) => {
     const sanitizedValue = value.replace(/[^0-9-]/g, '');
 
     return (
-        <div className="flex flex-col items-center justify-center">
-            <div className="flex h-16 items-stretch" aria-label={`Barcode for ${sanitizedValue}`}>
+        <div className="flex flex-col items-center justify-center w-full">
+            <div className="flex h-12 items-stretch" aria-label={`Barcode for ${sanitizedValue}`}>
                 {getBarcodeBars(sanitizedValue)}
             </div>
             <p className="tracking-widest text-xs font-mono mt-1">{sanitizedValue}</p>

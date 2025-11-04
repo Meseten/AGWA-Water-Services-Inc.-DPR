@@ -3,6 +3,7 @@ import Sidebar from './Sidebar.jsx';
 import CustomerDashboardMain from '../../features/customer/CustomerDashboardMain.jsx';
 import CustomerBillsSection from '../../features/customer/CustomerBillsSection.jsx';
 import WaterAnalyticsSection from '../../features/customer/WaterAnalyticsSection.jsx';
+import PaymentAnalyticsSection from '../../features/customer/PaymentAnalyticsSection.jsx';
 import RebateProgramSection from '../../features/customer/RebateProgramSection.jsx';
 import MyProfileSection from '../../features/common/MyProfileSection.jsx';
 import ReportIssueSection from '../../features/common/ReportIssuesSection.jsx';
@@ -34,7 +35,7 @@ import ServiceInterruptionMap from '../../features/common/ServiceInterruptionMap
 import NotFound from '../core/NotFound.jsx';
 import ChatbotModal from '../ui/ChatbotModal.jsx';
 import LinkAccountModal from '../auth/LinkAccountModal.jsx';
-import { MessageSquare as ChatIcon, Menu, TrendingUp, Gift, AlertTriangle as AlertIcon, ShieldCheck, Eye, Map, Settings, Users, BarChart3, Edit, Gauge, FileText, ClipboardEdit, Search, Banknote, FileSearch, Home, UserCog, HelpCircle, Info, PhoneCall, Megaphone } from 'lucide-react';
+import { MessageSquare as ChatIcon, Menu, TrendingUp, Gift, AlertTriangle as AlertIcon, ShieldCheck, Eye, Map, Settings, Users, BarChart3, Edit, Gauge, FileText, ClipboardEdit, Search, Banknote, FileSearch, Home, UserCog, HelpCircle, Info, PhoneCall, Megaphone, CreditCard } from 'lucide-react';
 import * as billingService from '../../services/billingService.js';
 import * as dataService from '../../services/dataService.js';
 import * as userUtils from '../../utils/userUtils.js';
@@ -114,6 +115,7 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
             { name: 'My Profile', iconName: 'UserCog', section: 'myProfile', group: 'Account' },
             { name: 'My Bills & Payments', iconName: 'FileText', section: 'myBills', group: 'Account' },
             { name: 'Consumption Analytics', iconName: 'TrendingUp', section: 'waterAnalytics', group: 'Account' },
+            { name: 'Payment Analytics', iconName: 'CreditCard', section: 'paymentAnalytics', group: 'Account' },
             { name: 'Rewards Program', iconName: 'Gift', section: 'rebateProgram', group: 'Account' },
             { name: 'My Support Tickets', iconName: 'MessageSquare', section: 'myTickets', group: 'Support' },
             { name: 'Report an Issue', iconName: 'AlertTriangle', section: 'reportIssue', group: 'Support' },
@@ -198,6 +200,7 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
 
             case 'myBills': if(userData.role === 'customer') return <CustomerBillsSection {...sectionProps} />; break;
             case 'waterAnalytics': if(userData.role === 'customer') return <WaterAnalyticsSection {...sectionProps} />; break;
+            case 'paymentAnalytics': if(userData.role === 'customer') return <PaymentAnalyticsSection {...sectionProps} />; break;
             case 'rebateProgram': if(userData.role === 'customer') return <RebateProgramSection {...sectionProps} />; break;
 
             case 'myTickets': if(['customer', 'clerk_cashier', 'meter_reader'].includes(userData.role)) return <MyTicketsSection {...sectionProps} />; break;

@@ -148,12 +148,27 @@ const InvoiceView = ({
                     }
                     .invoice-footer-print {
                         padding: 2rem;
-                        margin-top: 2rem;
+                        margin-top: 1rem;
                         border-top: 2px solid #e5e7eb;
                         font-size: 0.8rem;
                         color: #4b5563;
                         text-align: center;
                     }
+                    .barcode-section-print {
+                        padding: 1rem 2rem 0 2rem;
+                        text-align: center;
+                        page-break-before: always;
+                    }
+                    /* *** THIS IS THE FIX for Issue 1 (Barcode) *** */
+                    .payment-stub-print {
+                        margin: 2rem 2rem 0 2rem;
+                        padding: 1rem;
+                        border: 2px dashed #4b5563;
+                        background-color: #f9fafb;
+                    }
+                    .payment-stub-print h2 { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 1rem; }
+                    .payment-stub-print .barcode-container { max-width: 300px; margin: 0.5rem auto 0 auto; }
+                    
                     .no-print-in-iframe { display: none !important; }
                 `}
             </style>
@@ -200,7 +215,7 @@ const InvoiceView = ({
                                 123 Aqua Drive, Hydro Business Park<br/>
                                 Naic, Cavite, Philippines 4110<br/>
                                 VAT Reg. TIN: 000-123-456-789<br/>
-                                Machine Serial No.: AGWAMSN001
+                                <strong>System ID:</strong> AGWAMSN001
                             </div>
                         </header>
                         
@@ -258,9 +273,9 @@ const InvoiceView = ({
 
                         <section className="invoice-totals-print">
                             <div className="detail-row"><span>Total Current Charges:</span> <span>PHP {charges.totalCalculatedCharges?.toFixed(2)}</span></div>
-                            <div className="detail-row"><span>Previous Unpaid Amount:</span> <span className={bill.previousUnpaidAmount > 0 ? 'text-red-600' : ''}>PHP {(bill.previousUnpaidAmount || 0).toFixed(2)}</span></div>
-                            <div className="detail-row"><span>Late Payment Penalty:</span> <span className={bill.penaltyAmount > 0 ? 'text-red-600' : ''}>PHP {(bill.penaltyAmount || 0).toFixed(2)}</span></div>
-                            <div className="detail-row"><span>Senior Citizen Discount:</span> <span className={bill.seniorCitizenDiscount > 0 ? 'text-green-600' : ''}>PHP ({(bill.seniorCitizenDiscount || 0).toFixed(2)})</span></div>
+                            <div className="detail-row"><span>Previous Unpaid Amount:</span> <span className={(bill.previousUnpaidAmount || 0) > 0 ? 'text-red-600' : ''}>PHP {(bill.previousUnpaidAmount || 0).toFixed(2)}</span></div>
+                            <div className="detail-row"><span>Late Payment Penalty:</span> <span className={(bill.penaltyAmount || 0) > 0 ? 'text-red-600' : ''}>PHP {(bill.penaltyAmount || 0).toFixed(2)}</span></div>
+                            <div className="detail-row"><span>Senior Citizen/PWD Discount:</span> <span className={(bill.seniorCitizenDiscount || 0) > 0 ? 'text-green-600' : ''}>PHP ({(bill.seniorCitizenDiscount || 0).toFixed(2)})</span></div>
                             
                             <div className="grand-total-print">
                                 <span className="font-bold">TOTAL AMOUNT DUE</span>
@@ -270,12 +285,25 @@ const InvoiceView = ({
                                 Due Date: {formatDate(bill.dueDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A'}
                             </div>
                         </section>
-
+                        
                         <footer className="invoice-footer-print">
                             <p>Please pay on or before the due date to avoid disconnection and late payment penalties.</p>
                             <p>This is a system-generated statement. For inquiries, please call our 24/7 hotline at <strong>1627-AGWA</strong> or email us at <strong>support@agwa-waterservices.com.ph</strong>.</p>
                             <p className="no-print-in-iframe">BIR Permit No. AGWA-001-012025-000001 | Date Issued: 01/01/2025</p>
                         </footer>
+
+                        <section className="payment-stub-print">
+                            <h2>PAYMENT STUB</h2>
+                            <div className="detail-row"><span>Account Name:</span> <span>{userData.displayName || userData.email}</span></div>
+                            <div className="detail-row"><span>Account No.:</span> <span>{userData.accountNumber}</span></div>
+                            <div className="detail-row"><span>Invoice No.:</span> <span>{invoiceNumber}</span></div>
+                            <div className="detail-row"><span>Amount Due:</span> <span className="text-lg font-bold">₱{totalAmountDue}</span></div>
+                            <div className="detail-row"><span>Due Date:</span> <span>{formatDate(bill.dueDate, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+                            <div className="barcode-container">
+                                <Barcode value={invoiceNumber} />
+                            </div>
+                        </section>
+
                     </div>
                 </div>
             </div>

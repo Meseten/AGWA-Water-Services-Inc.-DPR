@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../components/ui/Modal.jsx';
-import { User, Mail, Hash, Shield, Briefcase, Save, Loader2, MapPin, Gauge } from 'lucide-react';
+import { User, Mail, Hash, Shield, Briefcase, Save, Loader2, MapPin, Gauge, CheckSquare, Info, Percent } from 'lucide-react';
 import * as geoService from '../../services/geoService';
 
 const commonInputClass = "w-full px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 focus:outline-none transition duration-150 text-sm placeholder-gray-400";
@@ -16,6 +16,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
         serviceType: 'Residential',
         meterSerialNumber: '',
         meterSize: '1/2"',
+        discountStatus: 'none',
     });
     const [addressForm, setAddressForm] = useState({ district: '', barangay: '', street: '', landmark: '' });
     const [districts, setDistricts] = useState([]);
@@ -38,6 +39,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
                 serviceType: user.serviceType || 'Residential',
                 meterSerialNumber: user.meterSerialNumber || '',
                 meterSize: user.meterSize || '1/2"',
+                discountStatus: user.discountStatus || 'none',
             });
              if (isUserCustomer && user.serviceAddress && typeof user.serviceAddress === 'object') {
                 const currentDistrict = user.serviceAddress.district || '';
@@ -69,8 +71,11 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
     };
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        let newFormData = { ...formData, [name]: value };
+        const { name, value, type, checked } = e.target;
+        let newFormData = { 
+            ...formData, 
+            [name]: type === 'checkbox' ? checked : value 
+        };
 
         if (name === 'accountNumber' && determineServiceTypeAndRole) {
             const { role, serviceType } = determineServiceTypeAndRole(value);
@@ -81,6 +86,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
             newFormData.accountNumber = '';
             newFormData.meterSerialNumber = '';
             newFormData.meterSize = '';
+            newFormData.discountStatus = 'none';
             const { serviceType } = determineServiceTypeAndRole('');
             newFormData.serviceType = serviceType;
             setAddressForm({ district: '', barangay: '', street: '', landmark: '' });
@@ -100,6 +106,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
             delete dataToSave.meterSerialNumber;
             delete dataToSave.meterSize;
             delete dataToSave.serviceAddress;
+            delete dataToSave.discountStatus;
         }
         
         onSave(dataToSave);
@@ -154,6 +161,31 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
                         </div>
                     </div>
                  )}
+                 
+                 {isCustomer && (
+                    <div className="pt-4 mt-4 border-t">
+                         <h3 className="text-md font-semibold text-gray-700 mb-2">Discount Status</h3>
+                         <div>
+                            <label htmlFor="discountStatus" className="block text-xs font-medium text-gray-600 mb-1">Set Verification Status</label>
+                            <select 
+                                id="discountStatus"
+                                name="discountStatus" 
+                                value={formData.discountStatus} 
+                                onChange={handleChange} 
+                                className={commonInputClass}
+                            >
+                                <option value="none">None</option>
+                                <option value="pending">Pending Verification</option>
+                                <option value="verified">Verified (Active)</option>
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                                <Info size={14} className="inline mr-1.5" />
+                                <strong>Admin Only:</strong> Set to "Verified" only after seeing a valid Senior/PWD ID.
+                            </p>
+                        </div>
+                    </div>
+                 )}
+
 
                 <div className="pt-4 flex justify-end space-x-3">
                     <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg border" disabled={isSaving}>Cancel</button>

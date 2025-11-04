@@ -54,8 +54,7 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
 
                  const billsWithDetails = sortedBills.map(bill => {
                      const calculatedCharges = billingService(bill.consumption ?? 0, currentUserData.serviceType, currentUserData.meterSize, currentSettings);
-                     const totalAmount = (calculatedCharges.totalCalculatedCharges || 0) + (bill.previousUnpaidAmount || 0) - (bill.seniorCitizenDiscount || 0);
-                     return { ...bill, amount: totalAmount, calculatedCharges: calculatedCharges };
+                     return { ...bill, calculatedCharges: calculatedCharges };
                  }).filter(bill => bill.amount !== undefined);
 
 

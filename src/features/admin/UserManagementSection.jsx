@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Edit3, Users, Search, Filter, Loader2, AlertTriangle, ShieldCheck, UserCheck, UserX, RotateCcw, Info, Trash2 } from "lucide-react";
+import { Edit3, Users, Search, Filter, Loader2, AlertTriangle, ShieldCheck, UserCheck, UserX, RotateCcw, Info, Trash2, Percent, Clock } from "lucide-react";
 import UserEditModal from "./UserEditModal.jsx";
 import LoadingSpinner from "../../components/ui/LoadingSpinner.jsx";
 import ConfirmationModal from "../../components/ui/ConfirmationModal.jsx";
@@ -21,6 +21,7 @@ const UserManagementSection = ({ db, showNotification, determineServiceTypeAndRo
     const [searchTerm, setSearchTerm] = useState("");
     const [filterRole, setFilterRole] = useState("");
     const [filterStatus, setFilterStatus] = useState("");
+    const [filterDiscount, setFilterDiscount] = useState("");
 
     const [actionLoading, setActionLoading] = useState(false);
     const [fetchError, setFetchError] = useState('');
@@ -112,14 +113,19 @@ const UserManagementSection = ({ db, showNotification, determineServiceTypeAndRo
                user.email?.toLowerCase().includes(searchLower) ||
                user.accountNumber?.toLowerCase().includes(searchLower)) &&
                (filterRole ? user.role === filterRole : true) &&
-               (filterStatus ? user.accountStatus === filterStatus : true);
+               (filterStatus ? user.accountStatus === filterStatus : true) &&
+               (filterDiscount ? (user.discountStatus || 'none') === filterDiscount : true);
     });
 
     const roleColors = { admin: 'bg-purple-100 text-purple-700', customer: 'bg-blue-100 text-blue-700', meter_reader: 'bg-teal-100 text-teal-700', clerk_cashier: 'bg-indigo-100 text-indigo-700', unknown: 'bg-gray-100 text-gray-700' };
     const statusColors = { Active: 'bg-green-100 text-green-700', Inactive: 'bg-gray-200 text-gray-600', Suspended: 'bg-red-100 text-red-700', 'Profile Missing': 'bg-yellow-100 text-yellow-700', Unknown: 'bg-gray-100 text-gray-600' };
+    const discountColors = { none: 'bg-gray-100 text-gray-600', pending: 'bg-yellow-100 text-yellow-700', verified: 'bg-green-100 text-green-700' };
+    const discountLabels = { none: 'None', pending: 'Pending', verified: 'Verified' };
+
     
     const Row = ({ index, style }) => {
         const u = filteredUsers[index];
+        const discountStatus = u.discountStatus || 'none';
         return (
             <div style={style} className="flex items-center border-b border-gray-200 text-sm">
                 <div className="px-4 py-2 whitespace-nowrap text-gray-800 font-medium flex-1">{u.displayName || 'N/A'}</div>
@@ -127,7 +133,7 @@ const UserManagementSection = ({ db, showNotification, determineServiceTypeAndRo
                 <div className="px-4 py-2 flex-1"><span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${roleColors[u.role || 'unknown']}`}>{u.role?.replace('_', ' ') || 'Unknown'}</span></div>
                 <div className="px-4 py-2 whitespace-nowrap text-gray-500 font-mono text-xs flex-1">{u.accountNumber || 'N/A'}</div>
                 <div className="px-4 py-2 flex-1"><span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColors[u.accountStatus || 'Unknown']}`}>{u.accountStatus || 'Unknown'}</span></div>
-                <div className="px-4 py-2 whitespace-nowrap text-gray-500 flex-1">{u.createdAt ? formatDate(u.createdAt, { year: 'numeric', month: 'short', day: 'numeric'}) : 'N/A'}</div>
+                <div className="px-4 py-2 flex-1"><span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${discountColors[discountStatus]}`}>{discountLabels[discountStatus]}</span></div>
                 <div className="px-4 py-2 whitespace-nowrap text-sm text-center space-x-1.5 flex-1">
                     <button onClick={() => handleOpenEditModal(u)} className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-100 rounded-md" title="Edit User"><Edit3 size={16}/></button>
                      {u.accountStatus !== 'Suspended' && <button onClick={() => openStatusChangeModal(u, 'Suspended')} className="text-orange-500 hover:text-orange-700 p-1 hover:bg-orange-100 rounded-md" title="Suspend User"><UserX size={16} /></button>}
@@ -156,7 +162,7 @@ const UserManagementSection = ({ db, showNotification, determineServiceTypeAndRo
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg shadow-sm">
                 <div>
                     <label htmlFor="userMgmtSearchTerm" className="block text-xs font-medium text-gray-600 mb-1">Search Users</label>
                     <div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /><input type="text" id="userMgmtSearchTerm" placeholder="Name, Email, Account No..." className={`${commonInputClass} pl-9`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
@@ -168,6 +174,10 @@ const UserManagementSection = ({ db, showNotification, determineServiceTypeAndRo
                 <div>
                      <label htmlFor="userMgmtFilterStatus" className="block text-xs font-medium text-gray-600 mb-1">Filter by Status</label>
                     <div className="relative"><ShieldCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /><select id="userMgmtFilterStatus" className={`${commonInputClass} pl-9`} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="">All Statuses</option><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Suspended">Suspended</option><option value="Profile Missing">Profile Missing</option></select></div>
+                </div>
+                <div>
+                     <label htmlFor="userMgmtFilterDiscount" className="block text-xs font-medium text-gray-600 mb-1">Filter by Discount</label>
+                    <div className="relative"><Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /><select id="userMgmtFilterDiscount" className={`${commonInputClass} pl-9`} value={filterDiscount} onChange={(e) => setFilterDiscount(e.target.value)}><option value="">All</option><option value="none">None</option><option value="pending">Pending</option><option value="verified">Verified</option></select></div>
                 </div>
             </div>
 
@@ -183,7 +193,7 @@ const UserManagementSection = ({ db, showNotification, determineServiceTypeAndRo
                         <div className="px-4 py-3 flex-1">Role</div>
                         <div className="px-4 py-3 flex-1">Account No.</div>
                         <div className="px-4 py-3 flex-1">Status</div>
-                        <div className="px-4 py-3 flex-1">Joined</div>
+                        <div className="px-4 py-3 flex-1">Discount</div>
                         <div className="px-4 py-3 text-center flex-1">Actions</div>
                     </div>
                     <List

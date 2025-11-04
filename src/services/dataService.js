@@ -459,6 +459,10 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
 
         const charges = billingService.calculateBillDetails(consumption, userProfile.serviceType, userProfile.meterSize, systemSettings);
         const currentCharges = charges.totalCalculatedCharges || 0;
+        
+        const seniorCitizenDiscount = (userProfile.discountStatus === 'verified') 
+            ? parseFloat((currentCharges * 0.05).toFixed(2)) 
+            : 0;
 
         let previousUnpaidAmount = 0;
         let penaltyAmount = 0;
@@ -467,25 +471,27 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
             collection(dbInstance, allBillsCollectionPath()),
             where("userId", "==", userId),
             where("status", "==", "Unpaid"),
-            orderBy("dueDate", "desc"),
-            limit(1)
+            orderBy("dueDate", "desc")
         );
         const prevBillSnapshot = await getDocs(prevBillQuery);
         
         if (!prevBillSnapshot.empty) {
-            const prevBill = prevBillSnapshot.docs[0].data();
-            previousUnpaidAmount = prevBill.amount || 0; 
-            
-            const prevDueDate = prevBill.dueDate.toDate();
-            const daysPastDue = (today.getTime() - prevDueDate.getTime()) / (1000 * 60 * 60 * 24);
+             prevBillSnapshot.docs.forEach(doc => {
+                const prevBill = doc.data();
+                const prevBillTotal = prevBill.amount || 0;
+                previousUnpaidAmount += prevBillTotal; 
+                
+                const prevDueDate = prevBill.dueDate.toDate();
+                const daysPastDue = (today.getTime() - prevDueDate.getTime()) / (1000 * 60 * 60 * 24);
 
-            if (daysPastDue > 0) {
-                const prevBillCurrentCharges = prevBill.totalCalculatedCharges || prevBill.amount;
-                penaltyAmount = prevBillCurrentCharges * penaltyRate;
-            }
+                if (daysPastDue > 0 && !prevBill.penaltyAmount) {
+                    const prevBillCurrentCharges = prevBill.totalCalculatedCharges || 0;
+                    penaltyAmount += (prevBillCurrentCharges * penaltyRate);
+                }
+             });
         }
         
-        const totalAmountDue = currentCharges + previousUnpaidAmount + penaltyAmount;
+        const totalAmountDue = currentCharges + previousUnpaidAmount + penaltyAmount - seniorCitizenDiscount;
         const dueDate = new Date(billDate);
         dueDate.setDate(dueDate.getDate() + gracePeriod);
 
@@ -504,6 +510,7 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
             
             penaltyAmount: parseFloat(penaltyAmount.toFixed(2)),
             previousUnpaidAmount: parseFloat(previousUnpaidAmount.toFixed(2)),
+            seniorCitizenDiscount: parseFloat(seniorCitizenDiscount.toFixed(2)),
             
             amount: parseFloat(totalAmountDue.toFixed(2)),
             
@@ -514,7 +521,8 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
         };
         
         const docRef = await addDoc(collection(dbInstance, allBillsCollectionPath()), newBill);
-        await updateDoc(docRef, { billId: docRef.id, invoiceNumber: `AGWA-${docRef.id.slice(0,4).toUpperCase()}-${billDate.getFullYear()}${String(billDate.getMonth() + 1).padStart(2, '0')}${String(billDate.getDate()).padStart(2, '0')}` });
+        const newInvoiceNumber = `AGWA-${docRef.id.slice(0,4).toUpperCase()}-${billDate.getFullYear()}${String(billDate.getMonth() + 1).padStart(2, '0')}${String(billDate.getDate()).padStart(2, '0')}`;
+        await updateDoc(docRef, { billId: docRef.id, invoiceNumber: newInvoiceNumber });
 
         return { success: true, message: `Bill for ${billMonthYear} generated.`, billId: docRef.id };
 
@@ -603,6 +611,7 @@ export const createUserProfile = async (dbInstance, userId, profileData) => {
             displayNameLower: profileData.displayName ? profileData.displayName.toLowerCase() : '',
             rebatePoints: 0,
             rebateTier: 'Bronze',
+            discountStatus: 'none',
         };
 
         batch.set(doc(dbInstance, userProfileDocumentPath(userId)), dataForDb);
@@ -622,6 +631,10 @@ export const updateUserProfile = async (dbInstance, userId, profileUpdates) => {
         const dataForUpdate = { ...profileUpdates, updatedAt: serverTimestamp() };
         if (dataForUpdate.accountNumber) dataForUpdate.accountNumber = dataForUpdate.accountNumber.toUpperCase();
         if (dataForUpdate.displayName) dataForUpdate.displayNameLower = dataForUpdate.displayName.toLowerCase();
+
+        if (profileUpdates.discountStatus !== undefined) {
+            dataForUpdate.discountStatus = profileUpdates.discountStatus;
+        }
 
         batch.update(doc(dbInstance, userProfileDocumentPath(userId)), dataForUpdate);
         batch.update(doc(dbInstance, profilesCollectionPath(), userId), dataForUpdate);
