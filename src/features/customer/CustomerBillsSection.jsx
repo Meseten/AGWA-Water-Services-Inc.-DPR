@@ -123,6 +123,13 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
         setBillToView(bill);
         setIsInvoiceViewOpen(true);
     };
+    
+    const getInvoiceNumber = (bill) => {
+        if (bill.invoiceNumber) return bill.invoiceNumber;
+        const billDateObj = bill.billDate?.toDate ? bill.billDate.toDate() : null;
+        const formattedDateForInvoiceNum = billDateObj ? `${billDateObj.getFullYear()}${String(billDateObj.getMonth() + 1).padStart(2, '0')}${String(billDateObj.getDate()).padStart(2, '0')}` : Date.now().toString().slice(-6);
+        return `AGWA-${bill.id?.slice(0,4).toUpperCase()}-${formattedDateForInvoiceNum}`;
+    };
 
     if (isLoading) {
         return <LoadingSpinner message="Loading your bills..." />;
@@ -143,34 +150,37 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
             )}
 
             <div className="space-y-4">
-                {bills.map(bill => (
-                    <div key={bill.id} className={`p-4 rounded-lg shadow-md border-l-4 ${bill.status === 'Paid' ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
-                        <div className="flex flex-wrap justify-between items-center gap-2">
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-800">{bill.monthYear || bill.billingPeriod || 'N/A'}</h3>
-                                <p className="text-sm text-gray-600">Due: {formatDate(bill.dueDate, {month: 'long', day: 'numeric'})}</p>
-                                 <p className="text-xs text-gray-500 mt-1">Bill ID: {bill.id.substring(0, 8)}...</p>
+                {bills.map(bill => {
+                    const invoiceNumber = getInvoiceNumber(bill);
+                    return (
+                        <div key={bill.id} className={`p-4 rounded-lg shadow-md border-l-4 ${bill.status === 'Paid' ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
+                            <div className="flex flex-wrap justify-between items-center gap-2">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-800">{bill.monthYear || bill.billingPeriod || 'N/A'}</h3>
+                                    <p className="text-sm text-gray-600">Due: {formatDate(bill.dueDate, {month: 'long', day: 'numeric'})}</p>
+                                    <p className="text-xs text-gray-500 mt-1" title={invoiceNumber}>Invoice No: {invoiceNumber}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-2xl font-bold text-gray-700">₱{bill.amount?.toFixed(2) ?? '0.00'}</p>
+                                    <p className={`text-sm font-semibold ${bill.status === 'Paid' ? 'text-green-600' : 'text-red-600'}`}>
+                                        {bill.status || 'Unknown'}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="text-right">
-                                <p className="text-2xl font-bold text-gray-700">₱{bill.amount?.toFixed(2) ?? '0.00'}</p>
-                                <p className={`text-sm font-semibold ${bill.status === 'Paid' ? 'text-green-600' : 'text-red-600'}`}>
-                                    {bill.status || 'Unknown'}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-gray-200/80 flex flex-wrap gap-2 justify-end">
-                            <button onClick={() => handleViewInvoice(bill)} className="text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded-md transition flex items-center"><Eye size={14} className="mr-1"/>View Invoice</button>
-                            <button onClick={() => handleExplainBill(bill)} className="text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-md transition flex items-center" disabled={isExplaining && billToExplain?.id === bill.id}>
-                                {isExplaining && billToExplain?.id === bill.id ? <Loader2 size={14} className="animate-spin mr-1"/> : <Sparkles size={14} className="mr-1"/>} Explain Bill (AI)
-                            </button>
-                            {bill.status === 'Unpaid' && isOnlinePaymentsEnabled && (
-                                <button onClick={() => handlePayBillClick(bill)} className="text-xs font-bold bg-green-500 text-white hover:bg-green-600 px-4 py-1.5 rounded-md transition flex items-center">
-                                    <span className="mr-1 font-bold">₱</span> Pay Now
+                            <div className="mt-3 pt-3 border-t border-gray-200/80 flex flex-wrap gap-2 justify-end">
+                                <button onClick={() => handleViewInvoice(bill)} className="text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded-md transition flex items-center"><Eye size={14} className="mr-1"/>View Invoice</button>
+                                <button onClick={() => handleExplainBill(bill)} className="text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-md transition flex items-center" disabled={isExplaining && billToExplain?.id === bill.id}>
+                                    {isExplaining && billToExplain?.id === bill.id ? <Loader2 size={14} className="animate-spin mr-1"/> : <Sparkles size={14} className="mr-1"/>} Explain Bill (AI)
                                 </button>
-                            )}
+                                {bill.status === 'Unpaid' && isOnlinePaymentsEnabled && (
+                                    <button onClick={() => handlePayBillClick(bill)} className="text-xs font-bold bg-green-500 text-white hover:bg-green-600 px-4 py-1.5 rounded-md transition flex items-center">
+                                        <span className="mr-1 font-bold">₱</span> Pay Now
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <Modal isOpen={!!billToExplain} onClose={() => setBillToExplain(null)} title={`✨ AI Explanation for ${billToExplain?.monthYear || 'Bill'}`} size="lg">

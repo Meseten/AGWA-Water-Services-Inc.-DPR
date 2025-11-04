@@ -763,7 +763,7 @@ export const getBillsForUser = async (dbInstance, userId) => {
         const q = query(
             collection(dbInstance, allBillsCollectionPath()), 
             where("userId", "==", userId), 
-            orderBy("billDate", "desc") // <-- THIS IS THE FIX. It now matches your index.
+            orderBy("billDate", "desc")
         );
         const snapshot = await getDocs(q);
         
@@ -776,7 +776,10 @@ export const getBillsForUser = async (dbInstance, userId) => {
 };
 
 const awardRebatePoints = async (dbInstance, userId, bill, amountPaid, systemSettings) => {
-    if (!systemSettings?.isRebateProgramEnabled || !userId) return;
+    if (!systemSettings?.isRebateProgramEnabled || !userId) {
+        console.log(`dataService: Rebate program disabled or no user ID. Skipping points.`);
+        return;
+    }
 
     try {
         const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso) || 0;
@@ -785,23 +788,29 @@ const awardRebatePoints = async (dbInstance, userId, bill, amountPaid, systemSet
 
         let pointsToAward = (amountPaid * pointsPerPeso);
 
-        const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : null;
+        const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : (bill.dueDate?.seconds ? new Date(bill.dueDate.seconds * 1000) : null);
         const paymentDate = new Date(); 
         
         if(dueDate) {
             const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
             if (daysEarly >= earlyPaymentDays) {
                 pointsToAward += earlyPaymentBonus;
+                console.log(`dataService: Awarding ${earlyPaymentBonus} early payment bonus.`);
             }
         }
 
         const roundedPointsToAward = Math.round(pointsToAward);
-
-        if (roundedPointsToAward <= 0) return;
+        if (roundedPointsToAward <= 0) {
+            console.log(`dataService: No points to award (rounded to ${roundedPointsToAward}).`);
+            return;
+        }
 
         const userProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
         const userProfileSnap = await getDoc(userProfileRef);
-        if (!userProfileSnap.exists()) return;
+        if (!userProfileSnap.exists()) {
+            console.error(`dataService: User profile ${userId} not found. Cannot award points.`);
+            return;
+        }
 
         const currentPoints = userProfileSnap.data().rebatePoints || 0;
         const newTotalPoints = currentPoints + roundedPointsToAward;
@@ -820,9 +829,10 @@ const awardRebatePoints = async (dbInstance, userId, bill, amountPaid, systemSet
         batch.update(userProfileRef, updates);
         batch.update(doc(dbInstance, userProfileDocumentPath(userId)), updates);
         await batch.commit();
+        console.log(`dataService: Awarded ${roundedPointsToAward} points to ${userId}. New total: ${newTotalPoints}`);
 
     } catch (error) {
-        console.error("Failed to award rebate points:", error);
+        console.error("dataService: Failed to award rebate points:", error);
     }
 };
 

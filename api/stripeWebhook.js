@@ -50,7 +50,10 @@ async function getRawBody(req) {
 }
 
 const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
-  if (!systemSettings?.isRebateProgramEnabled || !userId) return;
+  if (!systemSettings?.isRebateProgramEnabled || !userId) {
+    console.log(`Webhook: Rebate program disabled or no user ID. Skipping points.`);
+    return;
+  }
 
   try {
     const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso) || 0;
@@ -58,22 +61,29 @@ const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
     const earlyPaymentBonus = parseInt(systemSettings.earlyPaymentBonusPoints, 10) || 10;
     let pointsToAward = (amountPaid * pointsPerPeso);
 
-    const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : new Date(bill.dueDate.seconds * 1000);
+    const dueDate = bill.dueDate?.seconds ? new Date(bill.dueDate.seconds * 1000) : null;
     const paymentDate = new Date();
 
     if (dueDate) {
       const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
       if (daysEarly >= earlyPaymentDays) {
         pointsToAward += earlyPaymentBonus;
+        console.log(`Webhook: Awarding ${earlyPaymentBonus} early payment bonus.`);
       }
     }
 
     const roundedPointsToAward = Math.round(pointsToAward);
-    if (roundedPointsToAward <= 0) return;
+    if (roundedPointsToAward <= 0) {
+      console.log(`Webhook: No points to award (rounded to ${roundedPointsToAward}).`);
+      return;
+    }
 
     const userProfileRef = db.doc(profilesCollectionPath() + `/${userId}`);
     const userProfileSnap = await userProfileRef.get();
-    if (!userProfileSnap.exists) return;
+    if (!userProfileSnap.exists) {
+        console.error(`Webhook: User profile ${userId} not found. Cannot award points.`);
+        return;
+    }
 
     const currentPoints = userProfileSnap.data().rebatePoints || 0;
     const newTotalPoints = currentPoints + roundedPointsToAward;
@@ -88,7 +98,7 @@ const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
     batch.update(userProfileRef, updates);
     batch.update(db.doc(userProfileDocumentPath(userId)), updates);
     await batch.commit();
-    console.log(`Webhook: Awarded ${roundedPointsToAward} points to ${userId}`);
+    console.log(`Webhook: Awarded ${roundedPointsToAward} points to ${userId}. New total: ${newTotalPoints}`);
   } catch (error) {
     console.error(`Webhook: Failed to award rebate points to ${userId}:`, error);
   }
@@ -146,6 +156,7 @@ export default async function handler(req, res) {
 
       const settingsSnap = await db.doc(systemSettingsDocumentPath()).get();
       const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+      
       await awardRebatePoints(userId, billData, amountPaid, settings);
 
     } catch (dbError) {
