@@ -36,7 +36,7 @@ const CheckoutModal = ({ isOpen, onClose, billToPay, userData, showNotification,
             const userFriendlyError = "Failed to create payment session. This could be a temporary network issue or a problem with the payment service. Please try again in a moment. (Error: " + (err.message || 'Unknown') + ")";
             setError(userFriendlyError);
             showNotification("Failed to create payment session. Please try again.", 'error');
-            setIsLoading(false);
+            setIsLoading(false); 
         }
         
     };
