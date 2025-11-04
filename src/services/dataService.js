@@ -420,6 +420,11 @@ export const searchUserProfiles = async (dbInstance, searchTerm) => {
 export const generateBillForUser = async (dbInstance, userId, userProfile) => {
      if (!userId || !userProfile) return { success: false, error: "User ID and profile required." };
     try {
+        const settingsResult = await getSystemSettings(dbInstance);
+        const systemSettings = settingsResult.success ? settingsResult.data : {};
+        const penaltyRate = (systemSettings.latePaymentPenaltyPercentage || 2.0) / 100;
+        const gracePeriod = systemSettings.latePaymentPenaltyDelayDays || 15;
+
         const readingsQuery = query(
             collection(dbInstance, allMeterReadingsCollectionPath()),
             where("userId", "==", userId),
@@ -427,11 +432,9 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
             limit(2)
         );
         const readingsSnapshot = await getDocs(readingsQuery);
-
         if (readingsSnapshot.docs.length < 2) {
             return { success: false, error: "At least two readings needed." };
         }
-
         const latestReadingDoc = readingsSnapshot.docs[0];
         const previousReadingDoc = readingsSnapshot.docs[1];
         const latestReading = latestReadingDoc.data();
@@ -444,7 +447,6 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
 
         const billDate = latestReading.readingDate.toDate();
         const billMonthYear = billDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-
         const existingBillQuery = query(
             collection(dbInstance, allBillsCollectionPath()),
             where("userId", "==", userId),
@@ -455,13 +457,37 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
             return { success: false, error: `Bill for ${billMonthYear} already exists.` };
         }
 
-        const settingsResult = await getSystemSettings(dbInstance);
-        const systemSettings = settingsResult.success ? settingsResult.data : {};
-
         const charges = billingService.calculateBillDetails(consumption, userProfile.serviceType, userProfile.meterSize, systemSettings);
+        const currentCharges = charges.totalCalculatedCharges || 0;
 
+        let previousUnpaidAmount = 0;
+        let penaltyAmount = 0;
+        const today = new Date();
+        const prevBillQuery = query(
+            collection(dbInstance, allBillsCollectionPath()),
+            where("userId", "==", userId),
+            where("status", "==", "Unpaid"),
+            orderBy("dueDate", "desc"),
+            limit(1)
+        );
+        const prevBillSnapshot = await getDocs(prevBillQuery);
+        
+        if (!prevBillSnapshot.empty) {
+            const prevBill = prevBillSnapshot.docs[0].data();
+            previousUnpaidAmount = prevBill.amount || 0; 
+            
+            const prevDueDate = prevBill.dueDate.toDate();
+            const daysPastDue = (today.getTime() - prevDueDate.getTime()) / (1000 * 60 * 60 * 24);
+
+            if (daysPastDue > 0) {
+                const prevBillCurrentCharges = prevBill.totalCalculatedCharges || prevBill.amount;
+                penaltyAmount = prevBillCurrentCharges * penaltyRate;
+            }
+        }
+        
+        const totalAmountDue = currentCharges + previousUnpaidAmount + penaltyAmount;
         const dueDate = new Date(billDate);
-        dueDate.setDate(dueDate.getDate() + (systemSettings.latePaymentPenaltyDelayDays || 15));
+        dueDate.setDate(dueDate.getDate() + gracePeriod);
 
         const newBill = {
             userId: userId,
@@ -475,19 +501,20 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
             currentReading: latestReading.readingValue,
             consumption: consumption,
             ...charges,
-            amount: charges.totalCalculatedCharges || 0,
-            previousUnpaidAmount: 0,
-            seniorCitizenDiscount: 0,
-            totalAmountDue: charges.totalCalculatedCharges || 0,
+            
+            penaltyAmount: parseFloat(penaltyAmount.toFixed(2)),
+            previousUnpaidAmount: parseFloat(previousUnpaidAmount.toFixed(2)),
+            
+            amount: parseFloat(totalAmountDue.toFixed(2)),
+            
             status: 'Unpaid',
             createdAt: serverTimestamp(),
             previousReadingId: previousReadingDoc.id,
             currentReadingId: latestReadingDoc.id,
         };
-
+        
         const docRef = await addDoc(collection(dbInstance, allBillsCollectionPath()), newBill);
-        await updateDoc(docRef, { billId: docRef.id });
-
+        await updateDoc(docRef, { billId: docRef.id, invoiceNumber: `AGWA-${docRef.id.slice(0,4).toUpperCase()}-${billDate.getFullYear()}${String(billDate.getMonth() + 1).padStart(2, '0')}${String(billDate.getDate()).padStart(2, '0')}` });
 
         return { success: true, message: `Bill for ${billMonthYear} generated.`, billId: docRef.id };
 

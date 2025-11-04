@@ -64,10 +64,10 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
             printWindow.document.write(`
                 <style>
                     body { 
-                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+                        font-family: 'Times New Roman', Times, serif; 
                         -webkit-print-color-adjust: exact !important; 
                         print-color-adjust: exact !important; 
-                        color: #1a202c;
+                        color: #000;
                         font-size: 10pt;
                     }
                     .printable-area { 
@@ -76,27 +76,40 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         padding: 2.5rem; 
                     }
                     .report-header { 
-                        text-align: center; 
-                        border-bottom: 2px solid #2d3748; 
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        text-align: left;
+                        border-bottom: 2px solid #000; 
                         padding-bottom: 1rem; 
                     }
-                    .report-header .logo { 
-                        font-size: 2.25rem; 
+                    .report-header .logo-print { 
+                        font-size: 2.5rem; 
                         font-weight: 700; 
-                        color: #2b6cb0 !important; 
+                        color: #1e3a8a !important; 
+                        line-height: 1;
                         margin: 0; 
                     }
-                    .report-header .tagline { 
-                        font-size: 0.875rem; 
-                        color: #4299e1 !important; 
-                        font-style: italic; 
+                    .report-header .tagline-print { 
+                        font-size: 0.8rem; 
+                        color: #1d4ed8 !important; 
+                        font-style: italic;
+                        margin: 0;
                     }
-                    .report-header h1.report-title { 
+                    .report-header .company-address-print {
+                        text-align: right;
+                        font-size: 0.8rem;
+                        line-height: 1.4;
+                        color: #374151;
+                    }
+                    h1.report-title { 
                         font-size: 1.5rem; 
-                        font-weight: 600; 
-                        color: #1a202c !important; 
-                        margin-top: 0.5rem; 
-                        margin-bottom: 0; 
+                        font-weight: 700; 
+                        color: #000 !important; 
+                        margin-top: 1.5rem; 
+                        margin-bottom: 1rem; 
+                        text-align: center;
+                        text-transform: uppercase;
                     }
                     .report-section { 
                         margin-top: 1.5rem; 
@@ -104,11 +117,11 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     }
                     .report-section h2 { 
                         font-size: 1.25rem; 
-                        font-weight: 600; 
-                        border-bottom: 1px solid #718096; 
+                        font-weight: 700; 
+                        border-bottom: 1px solid #4b5563; 
                         padding-bottom: 0.25rem; 
                         margin-bottom: 1rem; 
-                        color: #2d3748 !important;
+                        color: #111827 !important;
                     }
                     .info-table { 
                         width: 100%; 
@@ -119,8 +132,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         vertical-align: top;
                     }
                     .info-table td:nth-child(odd) { 
-                        font-weight: 600; 
-                        color: #4a5568 !important; 
+                        font-weight: 700; 
+                        color: #374151 !important; 
                         width: auto; 
                         white-space: nowrap; 
                         padding-right: 1rem; 
@@ -131,8 +144,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         gap: 1.5rem; 
                     }
                     .summary-card { 
-                        background-color: #f7fafc !important; 
-                        border: 1px solid #e2e8f0; 
+                        background-color: #f9fafb !important; 
+                        border: 1px solid #e5e7eb; 
                         padding: 1.25rem; 
                         border-radius: 0.5rem; 
                         text-align: center; 
@@ -140,14 +153,14 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     .summary-card p { 
                         margin: 0; 
                         font-size: 0.875rem; 
-                        font-weight: 500;
+                        font-weight: 600;
                         text-transform: uppercase; 
-                        color: #4a5568 !important; 
+                        color: #4b5563 !important; 
                     }
                     .summary-card span { 
                         font-size: 1.875rem; 
                         font-weight: 700; 
-                        color: #1a202c !important; 
+                        color: #000 !important; 
                         display: block; 
                         margin-top: 0.25rem;
                     }
@@ -158,16 +171,16 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         font-size: 9.5pt;
                     }
                     .data-table th, .data-table td { 
-                        border: 1px solid #e2e8f0; 
+                        border: 1px solid #d1d5db; 
                         padding: 0.5rem 0.75rem; 
                         text-align: left; 
                     }
                     .data-table th { 
-                        background-color: #f7fafc !important; 
-                        font-weight: 600; 
+                        background-color: #f3f4f6 !important; 
+                        font-weight: 700; 
                         text-transform: uppercase;
                         font-size: 0.75rem;
-                        color: #4a5568 !important;
+                        color: #374151 !important;
                     }
                     .data-table .text-right { text-align: right; }
                     .data-table .font-mono { font-family: "Courier New", Courier, monospace; }
@@ -175,8 +188,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     .data-table .total-row td {
                         font-weight: 700;
                         font-size: 1.125rem;
-                        background-color: #f7fafc !important;
-                        border-top: 2px solid #718096;
+                        background-color: #f3f4f6 !important;
+                        border-top: 2px solid #374151;
                     }
                     .report-footer { 
                         margin-top: 4rem; 
@@ -193,7 +206,7 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     @media print {
                         .no-print { display: none !important; }
                         body { margin: 0; font-size: 10pt; }
-                        .printable-area { padding: 0.5rem; }
+                        .printable-area { padding: 0.5rem; box-shadow: none; border: none; }
                         .summary-grid { grid-template-columns: repeat(3, 1fr); }
                     }
                 </style>
@@ -266,11 +279,20 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                 </div>
                 
                 <div id="eod-report-content" className="bg-white p-6 sm:p-10 rounded-lg border border-gray-200 text-gray-800 text-[10pt] leading-normal printable-area">
-                    <div className="report-header text-center border-b-2 border-gray-700 pb-4">
-                        <h1 className="logo text-3xl font-bold text-blue-700">AGWA</h1>
-                        <p className="tagline text-sm text-blue-600 italic">Ensuring Clarity, Sustaining Life.</p>
-                        <h1 className="report-title text-2xl font-semibold text-gray-800 mt-2">CASHIER'S DAILY COLLECTION REPORT</h1>
+                    <div className="report-header">
+                        <div>
+                            <h1 className="logo-print">AGWA</h1>
+                            <p className="tagline-print">Ensuring Clarity, Sustaining Life.</p>
+                        </div>
+                        <div className="company-address-print">
+                            <strong>AGWA Water Services, Inc.</strong><br/>
+                            123 Aqua Drive, Hydro Business Park<br/>
+                            Naic, Cavite, Philippines 4110<br/>
+                            VAT Reg. TIN: 000-123-456-789
+                        </div>
                     </div>
+
+                    <h1 className="report-title">CASHIER'S DAILY COLLECTION REPORT</h1>
 
                     <div className="report-section mt-6">
                         <table className="info-table w-full">
@@ -380,42 +402,55 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
             <style>
                 {`
                     .printable-area { 
-                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
-                        color: #1a202c;
+                        font-family: 'Times New Roman', Times, serif; 
+                        color: #000;
                     }
                     .report-header { 
-                        text-align: center; 
-                        border-bottom: 2px solid #2d3748; 
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        text-align: left;
+                        border-bottom: 2px solid #000; 
                         padding-bottom: 1rem; 
                     }
-                    .report-header .logo { 
-                        font-size: 2.25rem; 
+                    .report-header .logo-print { 
+                        font-size: 2.5rem; 
                         font-weight: 700; 
-                        color: #2b6cb0; 
+                        color: #1e3a8a; 
+                        line-height: 1;
                         margin: 0; 
                     }
-                    .report-header .tagline { 
-                        font-size: 0.875rem; 
-                        color: #4299e1; 
-                        font-style: italic; 
+                    .report-header .tagline-print { 
+                        font-size: 0.8rem; 
+                        color: #1d4ed8; 
+                        font-style: italic;
+                        margin: 0;
                     }
-                    .report-header .report-title { 
+                    .report-header .company-address-print {
+                        text-align: right;
+                        font-size: 0.8rem;
+                        line-height: 1.4;
+                        color: #374151;
+                    }
+                    h1.report-title { 
                         font-size: 1.5rem; 
-                        font-weight: 600; 
-                        color: #1a202c; 
-                        margin-top: 0.5rem; 
-                        margin-bottom: 0; 
+                        font-weight: 700; 
+                        color: #000; 
+                        margin-top: 1.5rem; 
+                        margin-bottom: 1rem; 
+                        text-align: center;
+                        text-transform: uppercase;
                     }
                     .report-section { 
                         margin-top: 1.5rem; 
                     }
                     .report-section h2 { 
                         font-size: 1.25rem; 
-                        font-weight: 600; 
-                        border-bottom: 1px solid #718096; 
+                        font-weight: 700; 
+                        border-bottom: 1px solid #4b5563; 
                         padding-bottom: 0.25rem; 
                         margin-bottom: 1rem; 
-                        color: #2d3748;
+                        color: #111827;
                     }
                     .info-table { 
                         width: 100%; 
@@ -425,8 +460,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         vertical-align: top;
                     }
                     .info-table td:nth-child(odd) { 
-                        font-weight: 600; 
-                        color: #4a5568; 
+                        font-weight: 700; 
+                        color: #374151; 
                         width: auto; 
                         white-space: nowrap; 
                         padding-right: 1rem; 
@@ -441,8 +476,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         }
                     }
                     .summary-card { 
-                        background-color: #f7fafc; 
-                        border: 1px solid #e2e8f0; 
+                        background-color: #f9fafb; 
+                        border: 1px solid #e5e7eb; 
                         padding: 1.25rem; 
                         border-radius: 0.5rem; 
                         text-align: center; 
@@ -450,14 +485,14 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     .summary-card p { 
                         margin: 0; 
                         font-size: 0.875rem; 
-                        font-weight: 500;
+                        font-weight: 600;
                         text-transform: uppercase; 
-                        color: #4a5568; 
+                        color: #4b5563; 
                     }
                     .summary-card span { 
                         font-size: 1.875rem; 
                         font-weight: 700; 
-                        color: #1a202c; 
+                        color: #000; 
                         display: block; 
                         margin-top: 0.25rem;
                     }
@@ -467,16 +502,16 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         margin-top: 1rem; 
                     }
                     .data-table th, .data-table td { 
-                        border: 1px solid #e2e8f0; 
+                        border: 1px solid #d1d5db; 
                         padding: 0.5rem 0.75rem; 
                         text-align: left; 
                     }
                     .data-table th { 
-                        background-color: #f7fafc; 
-                        font-weight: 600; 
+                        background-color: #f3f4f6; 
+                        font-weight: 700; 
                         text-transform: uppercase;
                         font-size: 0.75rem;
-                        color: #4a5568;
+                        color: #374151;
                     }
                     .data-table .text-right { text-align: right; }
                     .data-table .font-mono { font-family: "Courier New", Courier, monospace; }
@@ -484,8 +519,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     .data-table .total-row td {
                         font-weight: 700;
                         font-size: 1.125rem;
-                        background-color: #f7fafc;
-                        border-top: 2px solid #718096;
+                        background-color: #f3f4f6;
+                        border-top: 2px solid #374151;
                     }
                     .report-footer { 
                         margin-top: 4rem; 
