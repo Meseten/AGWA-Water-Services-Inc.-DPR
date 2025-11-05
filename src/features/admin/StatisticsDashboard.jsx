@@ -306,65 +306,67 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
     return (
         <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn">
              <style id="stats-print-styles" dangerouslySetInnerHTML={{ __html: `
-                @page {
-                    size: A4 portrait;
-                    margin: 0.75in;
+                @media print {
+                    @page {
+                        size: A4 portrait;
+                        margin: 0.75in;
+                    }
+                    body { 
+                        font-family: 'Times New Roman', Times, serif; 
+                        -webkit-print-color-adjust: exact !important; 
+                        print-color-adjust: exact !important;
+                        color: #000;
+                        font-size: 10pt;
+                    }
+                    .no-print { display: none !important; }
+                    .printable-area { padding: 0 !important; max-width: 100%; margin: auto; }
+                    .report-header { display: flex; justify-content: space-between; align-items: flex-start; text-align: left; border-bottom: 2px solid #000; padding-bottom: 1rem; }
+                    .report-header .logo-print { font-size: 2.5rem; font-weight: 700; color: #1e3a8a !important; line-height: 1; margin: 0; }
+                    .report-header .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; margin: 0; }
+                    .report-header .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151 !important; }
+                    h1.report-title { font-size: 1.5rem; font-weight: 700; color: #000 !important; margin-top: 1.5rem; margin-bottom: 1rem; text-align: center; text-transform: uppercase; }
+                    p.report-generated-date { text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 2rem; }
+                    .print-section { 
+                        page-break-inside: avoid !important; 
+                        margin-top: 1.5rem; 
+                        border-top: 1px solid #eee !important; 
+                        padding-top: 1.5rem !important;
+                    }
+                    h3.print-section-title {
+                        font-size: 1.25rem; 
+                        font-weight: 700; 
+                        border-bottom: 1px solid #4b5563; 
+                        padding-bottom: 0.25rem; 
+                        margin-bottom: 1rem; 
+                        color: #111827 !important;
+                        display: flex;
+                        align-items: center;
+                    }
+                    h3.print-section-title svg { display: none; }
+                    .shadow-xl, .shadow-md, .shadow-lg, .border { 
+                        border: 1px solid #e5e7eb !important; 
+                        box-shadow: none !important; 
+                    }
+                    .bg-gray-50 { 
+                        background-color: #F9FAFB !important; 
+                    }
+                    .bg-white { background-color: #FFFFFF !important; }
+                    .grid { display: grid !important; }
+                    .grid-cols-1 { grid-template-columns: repeat(1, 1fr) !important; }
+                    .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+                    .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+                    .lg\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
+                    .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
+                    .lg\\:col-span-2 { grid-column: span 2 / span 2 !important; }
+                    .lg\\:col-span-3 { grid-column: span 3 / span 3 !important; }
+                    .gap-4 { gap: 1rem !important; }
+                    .gap-6 { gap: 1.5rem !important; }
+                    .p-4 { padding: 1rem !important; }
+                    .mb-4 { margin-bottom: 1rem !important; }
+                    .mb-6 { margin-bottom: 1.5rem !important; }
+                    canvas { max-width: 100%; }
+                    .h-72 { height: 18rem !important; }
                 }
-                body { 
-                    font-family: 'Times New Roman', Times, serif; 
-                    -webkit-print-color-adjust: exact !important; 
-                    print-color-adjust: exact !important;
-                    color: #000;
-                    font-size: 10pt;
-                }
-                .no-print { display: none !important; }
-                .printable-area { padding: 0 !important; max-width: 100%; margin: auto; }
-                .report-header { display: flex; justify-content: space-between; align-items: flex-start; text-align: left; border-bottom: 2px solid #000; padding-bottom: 1rem; }
-                .report-header .logo-print { font-size: 2.5rem; font-weight: 700; color: #1e3a8a !important; line-height: 1; margin: 0; }
-                .report-header .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; margin: 0; }
-                .report-header .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151 !important; }
-                h1.report-title { font-size: 1.5rem; font-weight: 700; color: #000 !important; margin-top: 1.5rem; margin-bottom: 1rem; text-align: center; text-transform: uppercase; }
-                p.report-generated-date { text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 2rem; }
-                .print-section { 
-                    page-break-inside: avoid !important; 
-                    margin-top: 1.5rem; 
-                    border-top: 1px solid #eee !important; 
-                    padding-top: 1.5rem !important;
-                }
-                h3.print-section-title {
-                    font-size: 1.25rem; 
-                    font-weight: 700; 
-                    border-bottom: 1px solid #4b5563; 
-                    padding-bottom: 0.25rem; 
-                    margin-bottom: 1rem; 
-                    color: #111827 !important;
-                    display: flex;
-                    align-items: center;
-                }
-                h3.print-section-title svg { display: none; }
-                .shadow-xl, .shadow-md, .shadow-lg, .border { 
-                    border: 1px solid #e5e7eb !important; 
-                    box-shadow: none !important; 
-                }
-                .bg-gray-50 { 
-                    background-color: #F9FAFB !important; 
-                }
-                .bg-white { background-color: #FFFFFF !important; }
-                .grid { display: grid !important; }
-                .grid-cols-1 { grid-template-columns: repeat(1, 1fr) !important; }
-                .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
-                .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
-                .lg\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
-                .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
-                .lg\\:col-span-2 { grid-column: span 2 / span 2 !important; }
-                .lg\\:col-span-3 { grid-column: span 3 / span 3 !important; }
-                .gap-4 { gap: 1rem !important; }
-                .gap-6 { gap: 1.5rem !important; }
-                .p-4 { padding: 1rem !important; }
-                .mb-4 { margin-bottom: 1rem !important; }
-                .mb-6 { margin-bottom: 1.5rem !important; }
-                canvas { max-width: 100%; }
-                .h-72 { height: 18rem !important; }
              `}} />
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 no-print">
                 <h2 className="text-2xl font-semibold text-gray-800 flex items-center">

@@ -1017,7 +1017,8 @@ export async function getUsersStats(dbInstance) {
 export async function getTicketsStats(dbInstance) {
     try {
         const ticketsRef = collection(dbInstance, supportTicketsCollectionPath());
-        const snapshot = await getDocs(ticketsRef);
+        const q = query(ticketsRef, orderBy("lastUpdatedAt", "desc"));
+        const snapshot = await getDocs(q);
         
         let openCount = 0;
         const stats = {
@@ -1218,7 +1219,7 @@ export async function getStaffActivityStats(dbInstance) {
 
         const [readersSnap, clerksSnap, adminTicketsSnap] = await Promise.all([
             getDocs(query(collection(dbInstance, allMeterReadingsCollectionPath()), where("recordedAt", ">=", startOfTodayTs))),
-            getDocs(query(collection(dbInstance, allBillsCollectionPath()), where("paymentTimestamp", ">=", startOfTodayTs), where("processedByClerkId", "!=", null))),
+            getDocs(query(collection(dbInstance, allBillsCollectionPath()), where("paymentTimestamp", ">=", startOfTodayTs), where("processedByClerkId", ">", ""))),
             getDocs(query(collection(dbInstance, supportTicketsCollectionPath()), where("lastUpdatedAt", ">=", startOfTodayTs)))
         ]);
 
