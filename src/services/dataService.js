@@ -1017,7 +1017,7 @@ export async function getUsersStats(dbInstance) {
 export async function getTicketsStats(dbInstance) {
     try {
         const ticketsRef = collection(dbInstance, supportTicketsCollectionPath());
-        const q = query(ticketsRef, orderBy("lastUpdatedAt", "desc"));
+        const q = query(ticketsRef, orderBy("lastUpdatedAt", "asc"));
         const snapshot = await getDocs(q);
         
         let openCount = 0;
@@ -1216,10 +1216,10 @@ export async function getStaffActivityStats(dbInstance) {
     try {
         const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
         const startOfTodayTs = Timestamp.fromDate(startOfDay);
-
+        
         const [readersSnap, clerksSnap, adminTicketsSnap] = await Promise.all([
             getDocs(query(collection(dbInstance, allMeterReadingsCollectionPath()), where("recordedAt", ">=", startOfTodayTs))),
-            getDocs(query(collection(dbInstance, allBillsCollectionPath()), where("paymentTimestamp", ">=", startOfTodayTs), where("processedByClerkId", ">", ""))),
+            getDocs(query(collection(dbInstance, allBillsCollectionPath()), where("processedByClerkId", ">", ""), where("paymentTimestamp", ">=", startOfTodayTs))),
             getDocs(query(collection(dbInstance, supportTicketsCollectionPath()), where("lastUpdatedAt", ">=", startOfTodayTs)))
         ]);
 
@@ -1257,12 +1257,12 @@ export async function getTechnicalStats(dbInstance) {
             getDocs(query(collection(dbInstance, serviceInterruptionsCollectionPath()), where("status", "in", ["Scheduled", "Ongoing"]))),
             getDocs(query(collection(dbInstance, meterRoutesCollectionPath()), where("assignedReaderId", "==", "")))
         ]);
-        
+
         const totalRoutes = routesSnap.size;
         const totalAccounts = routesSnap.docs.reduce((sum, doc) => sum + (doc.data().accountNumbers?.length || 0), 0);
         const activeInterrupts = interruptionsSnap.size;
         const unassignedRoutes = unassignedRoutes.size;
-        
+
         return { success: true, data: { totalRoutes, totalAccounts, activeInterrupts, unassignedRoutes } };
     } catch (error) {
         return handleFirestoreError('getting technical stats', error);
