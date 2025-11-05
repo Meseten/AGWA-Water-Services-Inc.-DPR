@@ -108,6 +108,11 @@ const InvoiceView = ({
                     font-family: 'Times New Roman', Times, serif;
                     color: #000;
                     padding: 2rem;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .invoice-body-print {
+                    flex-grow: 1;
                 }
                 .paid-stamp-print {
                     position: absolute;
@@ -195,21 +200,13 @@ const InvoiceView = ({
                 }
                 .invoice-footer-print {
                     padding: 2rem 0 0 0;
-                    margin-top: 1rem;
+                    margin-top: auto;
                     border-top: 2px solid #e5e7eb;
                     font-size: 0.8rem;
                     color: #4b5563;
                     text-align: center;
+                    page-break-before: avoid;
                 }
-                .payment-stub-print {
-                    margin-top: 2rem;
-                    padding: 1rem;
-                    border: 2px dashed #4b5563;
-                    background-color: #f9fafb !important;
-                    page-break-before: always;
-                }
-                .payment-stub-print h2 { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 1rem; }
-                .payment-stub-print .barcode-container { max-width: 300px; margin: 0.5rem auto 0 auto; }
             `}} />
             
             <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-300 bg-gray-100 rounded-t-xl sticky top-0 z-20">
@@ -243,7 +240,7 @@ const InvoiceView = ({
                             <div className="paid-stamp-date-print">{formatDate(bill.paymentDate, { year: 'numeric', month: 'short', day: 'numeric' })}</div>
                         </div>
                     )}
-                    <div className="relative z-0">
+                    <div className="relative z-0 invoice-body-print">
                         <header className="invoice-header-print">
                             <div>
                                 <h1 className="logo-print">AGWA</h1>
@@ -351,26 +348,15 @@ const InvoiceView = ({
                             </div>
                         </section>
                         
-                        <footer className="invoice-footer-print">
-                            <p>Please pay on or before the due date to avoid disconnection and late payment penalties.</p>
-                            <p>This is a system-generated statement. For inquiries, please call our 24/7 hotline at <strong>1627-AGWA</strong> or email us at <strong>support@agwa-waterservices.com.ph</strong>.</p>
-                        </footer>
-
-                        <section className="payment-stub-print">
-                            <h2>PAYMENT STUB</h2>
-                            <div className="detail-row"><span>Account Name:</span> <span>{userData.displayName || userData.email}</span></div>
-                            <div className="detail-row"><span>Account No.:</span> <span>{userData.accountNumber}</span></div>
-                            <div className="detail-row"><span>Invoice No.:</span> <span>{invoiceNumber}</span></div>
-                            <div className="detail-row"><span>Amount Due (on or before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}):</span> <span className="text-lg font-bold">₱{amountDueOnOrBeforeDate.toFixed(2)}</span></div>
-                            {bill.status !== 'Paid' && (
-                                <div className="detail-row"><span>Amount Due (after {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}):</span> <span className="text-lg font-bold">₱{amountDueAfterDate.toFixed(2)}</span></div>
-                            )}
-                            <div className="barcode-container">
-                                <Barcode value={invoiceNumber} />
-                            </div>
-                        </section>
-
                     </div>
+                    
+                    <footer className="invoice-footer-print">
+                        <p>Please pay on or before the due date to avoid disconnection and late payment penalties.</p>
+                        <p>This is a system-generated statement. For inquiries, please call our 24/7 hotline at <strong>1627-AGWA</strong> or email us at <strong>support@agwa-waterservices.com.ph</strong>.</p>
+                        <div className="barcode-container-print" style={{ maxWidth: '300px', margin: '1rem auto 0 auto' }}>
+                            <Barcode value={invoiceNumber} />
+                        </div>
+                    </footer>
                 </div>
             </div>
         </Modal>

@@ -18,7 +18,7 @@ import {
 import * as billingService from './billingService.js';
 import { determineServiceTypeAndRole } from '../utils/userUtils.js';
 
-const handleFirestoreError = (functionName, error) => {
+function handleFirestoreError(functionName, error) {
     console.error(`Firestore Error [${functionName}]:`, error);
     const code = error.code || 'unknown';
     const message = error.message || 'An unexpected error occurred.';
@@ -34,7 +34,7 @@ const handleFirestoreError = (functionName, error) => {
     return { success: false, error: userFriendlyMessage };
 };
 
-export const batchUpdateTicketStatus = async (dbInstance, ticketIds, newStatus) => {
+export async function batchUpdateTicketStatus(dbInstance, ticketIds, newStatus) {
     if (!ticketIds || ticketIds.length === 0) return { success: true };
     try {
         const batch = writeBatch(dbInstance);
@@ -49,7 +49,7 @@ export const batchUpdateTicketStatus = async (dbInstance, ticketIds, newStatus) 
     }
 };
 
-export const deleteUserProfile = async (dbInstance, userId) => {
+export async function deleteUserProfile(dbInstance, userId) {
     if (!userId) return { success: false, error: "User ID is required." };
     try {
         const batch = writeBatch(dbInstance);
@@ -66,7 +66,7 @@ export const deleteUserProfile = async (dbInstance, userId) => {
     }
 };
 
-const deleteAllFromCollection = async (dbInstance, collectionPath) => {
+async function deleteAllFromCollection(dbInstance, collectionPath) {
     try {
         const snapshot = await getDocs(query(collection(dbInstance, collectionPath), limit(500)));
         if (snapshot.empty) return { success: true, count: 0 };
@@ -92,13 +92,13 @@ const deleteAllFromCollection = async (dbInstance, collectionPath) => {
     }
 };
 
-export const deleteAllTickets = (dbInstance) => deleteAllFromCollection(dbInstance, supportTicketsCollectionPath());
-export const deleteAllBills = (dbInstance) => deleteAllFromCollection(dbInstance, allBillsCollectionPath());
-export const deleteAllReadings = (dbInstance) => deleteAllFromCollection(dbInstance, allMeterReadingsCollectionPath());
-export const deleteAllAnnouncements = (dbInstance) => deleteAllFromCollection(dbInstance, announcementsCollectionPath());
-export const deleteAllInterruptions = (dbInstance) => deleteAllFromCollection(dbInstance, serviceInterruptionsCollectionPath());
-export const deleteAllRoutes = (dbInstance) => deleteAllFromCollection(dbInstance, meterRoutesCollectionPath());
-export const deleteAllUsers = async (dbInstance) => {
+export function deleteAllTickets(dbInstance) { return deleteAllFromCollection(dbInstance, supportTicketsCollectionPath()); };
+export function deleteAllBills(dbInstance) { return deleteAllFromCollection(dbInstance, allBillsCollectionPath()); };
+export function deleteAllReadings(dbInstance) { return deleteAllFromCollection(dbInstance, allMeterReadingsCollectionPath()); };
+export function deleteAllAnnouncements(dbInstance) { return deleteAllFromCollection(dbInstance, announcementsCollectionPath()); };
+export function deleteAllInterruptions(dbInstance) { return deleteAllFromCollection(dbInstance, serviceInterruptionsCollectionPath()); };
+export function deleteAllRoutes(dbInstance) { return deleteAllFromCollection(dbInstance, meterRoutesCollectionPath()); };
+export async function deleteAllUsers(dbInstance) {
     try {
         const usersSnapshot = await getDocs(query(collection(dbInstance, profilesCollectionPath())));
         if (usersSnapshot.empty) return { success: true, count: 0 };
@@ -115,7 +115,7 @@ export const deleteAllUsers = async (dbInstance) => {
     }
 };
 
-export const linkAccountNumberToProfile = async (dbInstance, userId, accountNumber) => {
+export async function linkAccountNumberToProfile(dbInstance, userId, accountNumber) {
     if (!accountNumber || !userId) {
         return { success: false, error: "User ID and Account Number required." };
     }
@@ -168,7 +168,7 @@ export const linkAccountNumberToProfile = async (dbInstance, userId, accountNumb
     }
 };
 
-export const getUniqueServiceLocations = async (dbInstance) => {
+export async function getUniqueServiceLocations(dbInstance) {
     try {
         const profilesRef = collection(dbInstance, profilesCollectionPath());
         const snapshot = await getDocs(profilesRef);
@@ -183,7 +183,7 @@ export const getUniqueServiceLocations = async (dbInstance) => {
     }
 };
 
-export const getAccountsByLocation = async (dbInstance, location) => {
+export async function getAccountsByLocation(dbInstance, location) {
     if (!location) return { success: true, data: [] };
     try {
         const profilesRef = collection(dbInstance, profilesCollectionPath());
@@ -196,7 +196,7 @@ export const getAccountsByLocation = async (dbInstance, location) => {
     }
 };
 
-export const createOrUpdateMeterRoute = async (dbInstance, routeData, routeId = null) => {
+export async function createOrUpdateMeterRoute(dbInstance, routeData, routeId = null) {
     try {
         const data = { ...routeData, updatedAt: serverTimestamp() };
         if (routeId) {
@@ -211,7 +211,7 @@ export const createOrUpdateMeterRoute = async (dbInstance, routeData, routeId = 
     }
 };
 
-export const getAllMeterRoutes = async (dbInstance) => {
+export async function getAllMeterRoutes(dbInstance) {
     try {
         const q = query(collection(dbInstance, meterRoutesCollectionPath()), orderBy("name", "asc"));
         const snapshot = await getDocs(q);
@@ -221,7 +221,7 @@ export const getAllMeterRoutes = async (dbInstance) => {
     }
 };
 
-export const deleteMeterRoute = async (dbInstance, routeId) => {
+export async function deleteMeterRoute(dbInstance, routeId) {
     try {
         await deleteDoc(doc(dbInstance, meterRoutesCollectionPath(), routeId));
         return { success: true };
@@ -230,7 +230,7 @@ export const deleteMeterRoute = async (dbInstance, routeId) => {
     }
 };
 
-export const getAllMeterReaders = async (dbInstance) => {
+export async function getAllMeterReaders(dbInstance) {
     try {
         const q = query(collection(dbInstance, profilesCollectionPath()), where("role", "==", "meter_reader"), orderBy("displayName", "asc"));
         const snapshot = await getDocs(q);
@@ -240,7 +240,7 @@ export const getAllMeterReaders = async (dbInstance) => {
     }
 };
 
-export const getRevenueStats = async (dbInstance) => {
+export async function getRevenueStats(dbInstance) {
     try {
         const paidBillsQuery = query(collection(dbInstance, allBillsCollectionPath()), where("status", "==", "Paid"));
         const snapshot = await getDocs(paidBillsQuery);
@@ -261,7 +261,7 @@ export const getRevenueStats = async (dbInstance) => {
     }
 };
 
-export const getRevenueByLocationStats = async (dbInstance) => {
+export async function getRevenueByLocationStats(dbInstance) {
     try {
         const paidBillsQuery = query(collection(dbInstance, allBillsCollectionPath()), where("status", "==", "Paid"));
         const billsSnapshot = await getDocs(paidBillsQuery);
@@ -293,7 +293,7 @@ export const getRevenueByLocationStats = async (dbInstance) => {
     }
 };
 
-export const getOutstandingBalanceStats = async (dbInstance) => {
+export async function getOutstandingBalanceStats(dbInstance) {
     try {
         const unpaidBillsQuery = query(collection(dbInstance, allBillsCollectionPath()), where("status", "==", "Unpaid"));
         const snapshot = await getDocs(unpaidBillsQuery);
@@ -308,7 +308,7 @@ export const getOutstandingBalanceStats = async (dbInstance) => {
 };
 
 
-export const getPaymentDayOfWeekStats = async (dbInstance) => {
+export async function getPaymentDayOfWeekStats(dbInstance) {
     try {
         const paidBillsQuery = query(collection(dbInstance, allBillsCollectionPath()), where("status", "==", "Paid"));
         const snapshot = await getDocs(paidBillsQuery);
@@ -330,7 +330,7 @@ export const getPaymentDayOfWeekStats = async (dbInstance) => {
     }
 };
 
-export const getReadingsCountByReaderForDate = async (dbInstance, readerId, dateString) => {
+export async function getReadingsCountByReaderForDate(dbInstance, readerId, dateString) {
     try {
         const q = query(collection(dbInstance, allMeterReadingsCollectionPath()),
             where("readerId", "==", readerId),
@@ -343,7 +343,7 @@ export const getReadingsCountByReaderForDate = async (dbInstance, readerId, date
     }
 };
 
-export const getAccountsInRoute = async (dbInstance, route) => {
+export async function getAccountsInRoute(dbInstance, route) {
     const accountNumbers = route?.accountNumbers;
     if (!Array.isArray(accountNumbers) || accountNumbers.length === 0) {
         return { success: true, data: [] };
@@ -364,7 +364,7 @@ export const getAccountsInRoute = async (dbInstance, route) => {
     }
 };
 
-export const getUserProfile = async (dbInstance, userId) => {
+export async function getUserProfile(dbInstance, userId) {
     if (!userId) return { success: false, error: "User ID required." };
     try {
         const docRef = doc(dbInstance, profilesCollectionPath(), userId);
@@ -384,7 +384,7 @@ export const getUserProfile = async (dbInstance, userId) => {
     }
 };
 
-export const searchUserProfiles = async (dbInstance, searchTerm) => {
+export async function searchUserProfiles(dbInstance, searchTerm) {
     const term = searchTerm?.trim().toLowerCase();
     if (!term) return { success: false, error: "Search term required." };
     const termUpper = searchTerm.trim().toUpperCase();
@@ -420,7 +420,9 @@ export const searchUserProfiles = async (dbInstance, searchTerm) => {
     }
 };
 
-export const generateBillForUser = async (dbInstance, userId, userProfile) => {
+function formatDateSimple(date) { return date ? date.toLocaleDateString('en-CA') : 'N/A'; };
+
+export async function generateBillForUser(dbInstance, userId, userProfile) {
      if (!userId || !userProfile) return { success: false, error: "User ID and profile required." };
     try {
         const settingsResult = await getSystemSettings(dbInstance);
@@ -522,9 +524,8 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
         return handleFirestoreError(`generating bill for ${userProfile?.accountNumber}`, error);
     }
 };
-const formatDateSimple = (date) => date ? date.toLocaleDateString('en-CA') : 'N/A';
 
-export const getBillableAccountsInLocation = async (dbInstance, location) => {
+export async function getBillableAccountsInLocation(dbInstance, location) {
     if (!location) return { success: false, error: "Location required." };
     try {
         const interruptionsRef = collection(dbInstance, serviceInterruptionsCollectionPath());
@@ -577,7 +578,7 @@ export const getBillableAccountsInLocation = async (dbInstance, location) => {
     }
 };
 
-export const generateBillsForMultipleAccounts = async (dbInstance, accounts) => {
+export async function generateBillsForMultipleAccounts(dbInstance, accounts) {
     const logs = [];
     let successCount = 0;
     let failCount = 0;
@@ -590,7 +591,7 @@ export const generateBillsForMultipleAccounts = async (dbInstance, accounts) => 
 };
 
 
-export const createUserProfile = async (dbInstance, userId, profileData) => {
+export async function createUserProfile(dbInstance, userId, profileData) {
     if (!userId) return { success: false, error: "User ID required." };
     try {
         const batch = writeBatch(dbInstance);
@@ -616,7 +617,7 @@ export const createUserProfile = async (dbInstance, userId, profileData) => {
     }
 };
 
-export const updateUserProfile = async (dbInstance, userId, profileUpdates) => {
+export async function updateUserProfile(dbInstance, userId, profileUpdates) {
      if (!userId) return { success: false, error: "User ID required." };
     try {
         const batch = writeBatch(dbInstance);
@@ -638,7 +639,7 @@ export const updateUserProfile = async (dbInstance, userId, profileUpdates) => {
     }
 };
 
-export const getAllUsersProfiles = async (dbInstance) => {
+export async function getAllUsersProfiles(dbInstance) {
     try {
         const snapshot = await getDocs(query(collection(dbInstance, profilesCollectionPath()), orderBy("displayNameLower", "asc")));
         return { success: true, data: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) };
@@ -647,7 +648,7 @@ export const getAllUsersProfiles = async (dbInstance) => {
     }
 };
 
-export const createSupportTicket = async (dbInstance, ticketData) => {
+export async function createSupportTicket(dbInstance, ticketData) {
     try {
         const docRef = await addDoc(collection(dbInstance, supportTicketsCollectionPath()), {
             ...ticketData,
@@ -663,7 +664,7 @@ export const createSupportTicket = async (dbInstance, ticketData) => {
     }
 };
 
-export const deleteSupportTicket = async (dbInstance, ticketId) => {
+export async function deleteSupportTicket(dbInstance, ticketId) {
     try {
         await deleteDoc(doc(dbInstance, supportTicketDocumentPath(ticketId)));
         return { success: true };
@@ -672,7 +673,7 @@ export const deleteSupportTicket = async (dbInstance, ticketId) => {
     }
 };
 
-export const addTicketReply = async (dbInstance, ticketId, replyData) => {
+export async function addTicketReply(dbInstance, ticketId, replyData) {
      if (!ticketId || !replyData?.text) return { success: false, error: "Ticket ID and reply text required." };
     try {
         const ticketRef = doc(dbInstance, supportTicketDocumentPath(ticketId));
@@ -698,7 +699,7 @@ export const addTicketReply = async (dbInstance, ticketId, replyData) => {
     }
 };
 
-export const getAllSupportTickets = async (dbInstance) => {
+export async function getAllSupportTickets(dbInstance) {
     try {
         const q = query(collection(dbInstance, supportTicketsCollectionPath()), orderBy("lastUpdatedAt", "desc"));
         const snapshot = await getDocs(q);
@@ -708,7 +709,7 @@ export const getAllSupportTickets = async (dbInstance) => {
     }
 };
 
-export const getTicketsByReporter = async (dbInstance, reporterId) => {
+export async function getTicketsByReporter(dbInstance, reporterId) {
     try {
         const q = query(collection(dbInstance, supportTicketsCollectionPath()), where("userId", "==", reporterId), orderBy("lastUpdatedAt", "desc"));
         const snapshot = await getDocs(q);
@@ -718,7 +719,7 @@ export const getTicketsByReporter = async (dbInstance, reporterId) => {
     }
 };
 
-export const updateSupportTicket = async (dbInstance, ticketId, updates) => {
+export async function updateSupportTicket(dbInstance, ticketId, updates) {
     try {
         await updateDoc(doc(dbInstance, supportTicketDocumentPath(ticketId)), { ...updates, lastUpdatedAt: serverTimestamp() });
         return { success: true };
@@ -727,7 +728,7 @@ export const updateSupportTicket = async (dbInstance, ticketId, updates) => {
     }
 };
 
-export const createAnnouncement = async (dbInstance, data) => {
+export async function createAnnouncement(dbInstance, data) {
     try {
         const docRef = await addDoc(collection(dbInstance, announcementsCollectionPath()), {
             ...data,
@@ -741,7 +742,7 @@ export const createAnnouncement = async (dbInstance, data) => {
     }
 };
 
-export const getAllAnnouncements = async (dbInstance, onlyActive = false) => {
+export async function getAllAnnouncements(dbInstance, onlyActive = false) {
     try {
         const constraints = onlyActive
             ? [where("status", "==", "active"), orderBy("startDate", "desc")]
@@ -754,7 +755,7 @@ export const getAllAnnouncements = async (dbInstance, onlyActive = false) => {
     }
 };
 
-export const updateAnnouncement = async (dbInstance, id, updates) => {
+export async function updateAnnouncement(dbInstance, id, updates) {
     try {
         await updateDoc(doc(dbInstance, announcementDocumentPath(id)), { ...updates, updatedAt: serverTimestamp() });
         return { success: true };
@@ -763,7 +764,7 @@ export const updateAnnouncement = async (dbInstance, id, updates) => {
     }
 };
 
-export const deleteAnnouncement = async (dbInstance, id) => {
+export async function deleteAnnouncement(dbInstance, id) {
     try {
         await deleteDoc(doc(dbInstance, announcementDocumentPath(id)));
         return { success: true };
@@ -772,7 +773,7 @@ export const deleteAnnouncement = async (dbInstance, id) => {
     }
 };
 
-export const getSystemSettings = async (dbInstance) => {
+export async function getSystemSettings(dbInstance) {
     try {
         const docSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
         return { success: true, data: docSnap.exists() ? docSnap.data() : null };
@@ -781,7 +782,7 @@ export const getSystemSettings = async (dbInstance) => {
     }
 };
 
-export const updateSystemSettings = async (dbInstance, settingsData) => {
+export async function updateSystemSettings(dbInstance, settingsData) {
     try {
         await setDoc(doc(dbInstance, systemSettingsDocumentPath()), settingsData, { merge: true });
         return { success: true };
@@ -790,7 +791,7 @@ export const updateSystemSettings = async (dbInstance, settingsData) => {
     }
 };
 
-export const getBillsForUser = async (dbInstance, userId) => {
+export async function getBillsForUser(dbInstance, userId) {
     try {
         const q = query(
             collection(dbInstance, allBillsCollectionPath()), 
@@ -807,7 +808,7 @@ export const getBillsForUser = async (dbInstance, userId) => {
     }
 };
 
-const awardRebatePoints = async (dbInstance, userId, bill, amountPaid, systemSettings) => {
+async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSettings) {
     if (!systemSettings?.isRebateProgramEnabled || !userId) {
         console.log(`dataService: Rebate program disabled or no user ID. Skipping points.`);
         return;
@@ -868,7 +869,7 @@ const awardRebatePoints = async (dbInstance, userId, bill, amountPaid, systemSet
     }
 };
 
-export const updateBill = async (dbInstance, billId, updates) => {
+export async function updateBill(dbInstance, billId, updates) {
     try {
         const billRef = doc(dbInstance, allBillDocumentPath(billId));
         
@@ -914,7 +915,7 @@ export const updateBill = async (dbInstance, billId, updates) => {
 };
 
 
-export const addMeterReading = async (dbInstance, readingData) => {
+export async function addMeterReading(dbInstance, readingData) {
     try {
         const readingDateObj = new Date(readingData.readingDate);
         if (isNaN(readingDateObj)) throw new Error("Invalid reading date format.");
@@ -933,7 +934,7 @@ export const addMeterReading = async (dbInstance, readingData) => {
     }
 };
 
-export const updateMeterReading = async (dbInstance, readingId, updates) => {
+export async function updateMeterReading(dbInstance, readingId, updates) {
     try {
         const readingRef = doc(dbInstance, allMeterReadingDocumentPath(readingId));
         const dataToUpdate = { ...updates, lastUpdatedAt: serverTimestamp() };
@@ -958,7 +959,7 @@ export const updateMeterReading = async (dbInstance, readingId, updates) => {
     }
 };
 
-export const deleteMeterReading = async (dbInstance, readingId) => {
+export async function deleteMeterReading(dbInstance, readingId) {
     try {
         await deleteDoc(doc(dbInstance, allMeterReadingDocumentPath(readingId)));
         return { success: true };
@@ -967,7 +968,7 @@ export const deleteMeterReading = async (dbInstance, readingId) => {
     }
 };
 
-export const getMeterReadingsForAccount = async (dbInstance, accountNumber) => {
+export async function getMeterReadingsForAccount(dbInstance, accountNumber) {
     try {
         const q = query(collection(dbInstance, allMeterReadingsCollectionPath()), where("accountNumber", "==", accountNumber), orderBy("readingDate", "desc"));
         const snapshot = await getDocs(q);
@@ -977,7 +978,7 @@ export const getMeterReadingsForAccount = async (dbInstance, accountNumber) => {
     }
 };
 
-export const getRoutesForReader = async (dbInstance, readerId) => {
+export async function getRoutesForReader(dbInstance, readerId) {
     try {
         const q = query(collection(dbInstance, meterRoutesCollectionPath()), where("assignedReaderId", "==", readerId), orderBy("name"));
         const snapshot = await getDocs(q);
@@ -987,7 +988,7 @@ export const getRoutesForReader = async (dbInstance, readerId) => {
     }
 };
 
-export const getDocuments = async (dbInstance, collectionPath, queryConstraints = []) => {
+export async function getDocuments(dbInstance, collectionPath, queryConstraints = []) {
     try {
         const q = query(collection(dbInstance, collectionPath), ...queryConstraints);
         const snapshot = await getDocs(q);
@@ -997,7 +998,7 @@ export const getDocuments = async (dbInstance, collectionPath, queryConstraints 
     }
 };
 
-export const getUsersStats = async (dbInstance) => {
+export async function getUsersStats(dbInstance) {
     try {
         const profilesRef = collection(dbInstance, profilesCollectionPath());
         const totalSnapshot = await getCountFromServer(profilesRef);
@@ -1013,7 +1014,7 @@ export const getUsersStats = async (dbInstance) => {
     }
 };
 
-export const getTicketsStats = async (dbInstance) => {
+export async function getTicketsStats(dbInstance) {
     try {
         const ticketsRef = collection(dbInstance, supportTicketsCollectionPath());
         const snapshot = await getDocs(ticketsRef);
@@ -1046,7 +1047,7 @@ export const getTicketsStats = async (dbInstance) => {
 };
 
 
-export const getAnnouncementsStats = async (dbInstance) => {
+export async function getAnnouncementsStats(dbInstance) {
     try {
         const annRef = collection(dbInstance, announcementsCollectionPath());
         const totalSnapshot = await getCountFromServer(annRef);
@@ -1058,7 +1059,7 @@ export const getAnnouncementsStats = async (dbInstance) => {
     }
 };
 
-export const getPaymentsByClerkForToday = async (dbInstance, clerkId) => {
+export async function getPaymentsByClerkForToday(dbInstance, clerkId) {
     if (!clerkId) return { success: false, error: "Clerk ID required." };
     try {
         const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
@@ -1093,7 +1094,7 @@ export const getPaymentsByClerkForToday = async (dbInstance, clerkId) => {
     }
 };
 
-export const createServiceInterruption = async (dbInstance, data) => {
+export async function createServiceInterruption(dbInstance, data) {
     try {
         const docRef = await addDoc(collection(dbInstance, serviceInterruptionsCollectionPath()), {
             ...data,
@@ -1110,7 +1111,7 @@ export const createServiceInterruption = async (dbInstance, data) => {
     }
 };
 
-export const updateServiceInterruption = async (dbInstance, id, updates) => {
+export async function updateServiceInterruption(dbInstance, id, updates) {
     try {
         const dataToUpdate = { ...updates, updatedAt: serverTimestamp() };
         if (dataToUpdate.startDate && typeof dataToUpdate.startDate === 'string') dataToUpdate.startDate = Timestamp.fromDate(new Date(dataToUpdate.startDate));
@@ -1124,7 +1125,7 @@ export const updateServiceInterruption = async (dbInstance, id, updates) => {
     }
 };
 
-export const deleteServiceInterruption = async (dbInstance, id) => {
+export async function deleteServiceInterruption(dbInstance, id) {
     try {
         await deleteDoc(doc(dbInstance, serviceInterruptionDocumentPath(id)));
         return { success: true };
@@ -1133,7 +1134,7 @@ export const deleteServiceInterruption = async (dbInstance, id) => {
     }
 };
 
-export const getActiveServiceInterruptions = async (dbInstance) => {
+export async function getActiveServiceInterruptions(dbInstance) {
     try {
         const now = Timestamp.now();
         const q = query(collection(dbInstance, serviceInterruptionsCollectionPath()),
@@ -1163,7 +1164,7 @@ export const getActiveServiceInterruptions = async (dbInstance) => {
     }
 };
 
-export const getAllServiceInterruptions = async (dbInstance) => {
+export async function getAllServiceInterruptions(dbInstance) {
     try {
         const q = query(collection(dbInstance, serviceInterruptionsCollectionPath()),
             orderBy('createdAt', 'desc')
@@ -1177,7 +1178,7 @@ export const getAllServiceInterruptions = async (dbInstance) => {
 
 
 export { serverTimestamp, Timestamp };
-export const getHourlyActivityStats = async (dbInstance) => {
+export async function getHourlyActivityStats(dbInstance) {
     try {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1210,7 +1211,7 @@ export const getHourlyActivityStats = async (dbInstance) => {
     }
 };
 
-export const getStaffActivityStats = async (dbInstance) => {
+export async function getStaffActivityStats(dbInstance) {
     try {
         const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
         const startOfTodayTs = Timestamp.fromDate(startOfDay);
@@ -1248,7 +1249,7 @@ export const getStaffActivityStats = async (dbInstance) => {
     }
 };
 
-export const getTechnicalStats = async (dbInstance) => {
+export async function getTechnicalStats(dbInstance) {
     try {
         const [routesSnap, interruptionsSnap, unassignedRoutesSnap] = await Promise.all([
             getDocs(collection(dbInstance, meterRoutesCollectionPath())),
@@ -1266,7 +1267,7 @@ export const getTechnicalStats = async (dbInstance) => {
         return handleFirestoreError('getting technical stats', error);
     }
 };
-export const getConsumptionStats = async (dbInstance) => {
+export async function getConsumptionStats(dbInstance) {
     try {
         const billsQuery = query(collection(dbInstance, allBillsCollectionPath()));
         const snapshot = await getDocs(billsQuery);
@@ -1288,7 +1289,7 @@ export const getConsumptionStats = async (dbInstance) => {
     }
 };
 
-export const getPaymentMethodStats = async (dbInstance) => {
+export async function getPaymentMethodStats(dbInstance) {
     try {
         const paidBillsQuery = query(collection(dbInstance, allBillsCollectionPath()), where("status", "==", "Paid"));
         const snapshot = await getDocs(paidBillsQuery);
@@ -1303,7 +1304,7 @@ export const getPaymentMethodStats = async (dbInstance) => {
     }
 };
 
-export const getUserGrowthStats = async (dbInstance) => {
+export async function getUserGrowthStats(dbInstance) {
     try {
         const profilesQuery = query(collection(dbInstance, profilesCollectionPath()), where("createdAt", "!=", null));
         const snapshot = await getDocs(profilesQuery);
@@ -1325,7 +1326,7 @@ export const getUserGrowthStats = async (dbInstance) => {
     }
 };
 
-export const getDiscountStats = async (dbInstance) => {
+export async function getDiscountStats(dbInstance) {
     try {
         const profilesRef = collection(dbInstance, profilesCollectionPath());
         const snapshot = await getDocs(query(profilesRef, where("role", "==", "customer")));

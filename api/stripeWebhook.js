@@ -68,20 +68,20 @@ const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
       const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
       if (daysEarly >= earlyPaymentDays) {
         pointsToAward += earlyPaymentBonus;
-        console.log(`Webhook: Awarding ${earlyPaymentBonus} early payment bonus.`);
+        console.log("Webhook: Awarding early payment bonus:", earlyPaymentBonus);
       }
     }
 
     const roundedPointsToAward = Math.round(pointsToAward);
     if (roundedPointsToAward <= 0) {
-      console.log(`Webhook: No points to award (rounded to ${roundedPointsToAward}).`);
+      console.log("Webhook: No points to award (rounded to 0).");
       return;
     }
 
     const userProfileRef = db.doc(profilesCollectionPath() + `/${userId}`);
     const userProfileSnap = await userProfileRef.get();
     if (!userProfileSnap.exists) {
-        console.error(`Webhook: User profile ${userId} not found. Cannot award points.`);
+        console.error("Webhook: User profile not found. Cannot award points:", userId);
         return;
     }
 
@@ -98,9 +98,9 @@ const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
     batch.update(userProfileRef, updates);
     batch.update(db.doc(userProfileDocumentPath(userId)), updates);
     await batch.commit();
-    console.log(`Webhook: Awarded ${roundedPointsToAward} points to ${userId}. New total: ${newTotalPoints}`);
+    console.log("Webhook: Awarded points. New total:", roundedPointsToAward, userId, newTotalPoints);
   } catch (error) {
-    console.error(`Webhook: Failed to award rebate points to ${userId}:`, error);
+    console.error("Webhook: Failed to award rebate points:", userId, error);
   }
 };
 
@@ -117,13 +117,13 @@ export default async function handler(req, res) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err) {
-    console.error(`Webhook signature verification failed:`, err);
+    console.error("Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: Signature verification failed.`);
   }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    console.log(`Webhook: Received checkout.session.completed for session ${session.id}`);
+    console.log("Webhook: Received checkout.session.completed for session", session.id);
 
     try {
       const metadata = session.metadata;
@@ -132,14 +132,14 @@ export default async function handler(req, res) {
       const amountPaid = session.amount_total / 100;
 
       if (!billId || !userId) {
-        console.error(`Webhook: Missing billId or userId in session metadata for session: ${session.id}`);
+        console.error("Webhook: Missing billId or userId in session metadata for session:", session.id);
         throw new Error(`Missing metadata for session`);
       }
 
       const billRef = db.doc(allBillDocumentPath(billId));
       const billSnap = await billRef.get();
       if (!billSnap.exists) {
-        console.error(`Webhook: Bill document not found: ${billId}`);
+        console.error("Webhook: Bill document not found:", billId);
         throw new Error(`Bill document not found`);
       }
       
@@ -154,7 +154,7 @@ export default async function handler(req, res) {
         paymentReference: session.id,
         lastUpdatedAt: admin.firestore.Timestamp.now()
       });
-      console.log(`Webhook: Successfully updated bill ${billId} to Paid.`);
+      console.log("Webhook: Successfully updated bill to Paid:", billId);
 
       const settingsSnap = await db.doc(systemSettingsDocumentPath()).get();
       const settings = settingsSnap.exists() ? settingsSnap.data() : {};
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
       await awardRebatePoints(userId, billData, amountPaid, settings);
 
     } catch (dbError) {
-      console.error(`Webhook: Firestore update error:`, dbError);
+      console.error("Webhook: Firestore update error:", dbError);
       return res.status(500).send({ error: `Internal Server Error` });
     }
   }
