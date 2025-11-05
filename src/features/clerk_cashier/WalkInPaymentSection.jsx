@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Banknote, UserCircle, Hash, FileText, CalendarDays, CheckCircle, Printer, Search, Loader2, AlertTriangle } from 'lucide-react';
+import { 
+    Banknote, UserCircle, Hash, FileText, CalendarDays, CheckCircle, Printer, Search, Loader2, AlertTriangle 
+} from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from '../../services/dataService.js';
 import { formatDate } from '../../utils/userUtils.js';
 import Barcode from '../../components/ui/Barcode.jsx';
+import { serverTimestamp } from 'firebase/firestore';
 
 const commonInputClass = "w-full px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 focus:outline-none transition duration-150 text-sm placeholder-gray-400";
 
@@ -107,7 +110,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
              return;
         }
         try {
-            const paymentTimestamp = DataService.serverTimestamp();
+            const paymentTimestamp = serverTimestamp();
             const paymentDate = new Date();
             const billUpdateResult = await DataService.updateBill(db, billToPay.id, {
                 status: 'Paid',

@@ -1179,7 +1179,6 @@ export async function getAllServiceInterruptions(dbInstance) {
 };
 
 
-export { serverTimestamp, Timestamp };
 export async function getHourlyActivityStats(dbInstance) {
     try {
         const now = new Date();
