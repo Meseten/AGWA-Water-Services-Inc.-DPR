@@ -19,14 +19,17 @@ import * as billingService from './billingService.js';
 import { determineServiceTypeAndRole } from '../utils/userUtils.js';
 
 const handleFirestoreError = (functionName, error) => {
-    console.error(`Firestore Error [${functionName}]:`, error.code, error.message, error.stack);
-    let userFriendlyMessage = `An error occurred while ${functionName.replace(/([A-Z])/g, ' $1').toLowerCase()}. Code: ${error.code}.`;
-    if (error.code === 'failed-precondition') {
-        userFriendlyMessage = `Query failed: ${error.message}. This almost always means you are missing a Firestore index. Check the console logs (on your server or browser) for a link to create the required index.`;
-    } else if (error.code === 'permission-denied') {
-         userFriendlyMessage += " You don't have permission for this action. Check Firestore rules.";
+    console.error(`Firestore Error [${functionName}]:`, error);
+    const code = error.code || 'unknown';
+    const message = error.message || 'An unexpected error occurred.';
+    let userFriendlyMessage = `An error occurred while ${functionName.replace(/([A-Z])/g, ' $1').toLowerCase()}. Code: ${code}.`;
+
+    if (code === 'failed-precondition') {
+        userFriendlyMessage = `Query failed: ${message}. This almost always means you are missing a Firestore index. Check the console logs (on your server or browser) for a link to create the required index.`;
+    } else if (code === 'permission-denied') {
+         userFriendlyMessage = `An error occurred: Permission denied. You don't have permission for this action. Please check your Firestore rules. (Function: ${functionName})`;
     } else {
-         userFriendlyMessage += " Please check your connection or contact support if the issue persists.";
+         userFriendlyMessage = `An error occurred in ${functionName}: ${message} (Code: ${code}). Please check your connection or contact support if the issue persists.`;
     }
     return { success: false, error: userFriendlyMessage };
 };
@@ -909,6 +912,7 @@ export const updateBill = async (dbInstance, billId, updates) => {
         return handleFirestoreError('updating bill', error);
     }
 };
+
 
 export const addMeterReading = async (dbInstance, readingData) => {
     try {

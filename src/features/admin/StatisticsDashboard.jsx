@@ -207,7 +207,12 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         newStats.outstandingBalance = result.value.data.totalOutstanding;
                     }
                 } else {
-                    const errorMsg = result.status === 'rejected' ? result.reason.message : result.value.error;
+                    let errorMsg = 'Unknown error';
+                    if (result.status === 'rejected') {
+                        errorMsg = result.reason?.message || result.reason.toString();
+                    } else if (result.value?.error) {
+                        errorMsg = result.value.error;
+                    }
                     partialError += `${name} stats failed: ${errorMsg} | `;
                 }
             };
@@ -235,7 +240,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [db, showNotification]);
+    }, [showNotification]);
 
     useEffect(() => {
         fetchStatistics();
@@ -248,26 +253,27 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         if (reportContent && printStyles) {
             const printWindow = window.open('', '', 'height=800,width=1000');
             printWindow.document.write('<html><head><title>System Analytics Report</title>');
-            printWindow.document.write('<style>body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }</style>');
-            printWindow.document.write(printStyles.innerHTML);
+            
+            printWindow.document.write('<style>' + printStyles.innerHTML + '</style>');
+            
             printWindow.document.write('</head><body><div class="printable-area">');
             
             const headerHtml = `
-                <header class="report-header" style="display: flex; justify-content: space-between; align-items: flex-start; text-align: left; border-bottom: 2px solid #000; padding-bottom: 1rem;">
+                <header class="report-header">
                     <div>
-                        <h1 class="logo-print" style="font-size: 2.5rem; font-weight: 700; color: #1e3a8a; line-height: 1; margin: 0;">AGWA</h1>
-                        <p class="tagline-print" style="font-size: 0.8rem; color: #1d4ed8; font-style: italic; margin: 0;">Ensuring Clarity, Sustaining Life.</p>
+                        <h1 class="logo-print">AGWA</h1>
+                        <p class="tagline-print">Ensuring Clarity, Sustaining Life.</p>
                     </div>
-                    <div class="company-address-print" style="text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151;">
+                    <div class="company-address-print">
                         <strong>AGWA Water Services, Inc.</strong><br/>
                         123 Aqua Drive, Hydro Business Park<br/>
                         Naic, Cavite, Philippines 4110
                     </div>
                 </header>
-                <h1 class="report-title" style="font-size: 1.5rem; font-weight: 700; color: #000; margin-top: 1.5rem; margin-bottom: 1rem; text-align: center; text-transform: uppercase;">
+                <h1 class="report-title">
                     SYSTEM ANALYTICS REPORT
                 </h1>
-                <p style="text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 2rem;">
+                <p class="report-generated-date">
                     Generated: ${new Date().toLocaleString()}
                 </p>
             `;
@@ -318,6 +324,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 .report-header .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; margin: 0; }
                 .report-header .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151 !important; }
                 h1.report-title { font-size: 1.5rem; font-weight: 700; color: #000 !important; margin-top: 1.5rem; margin-bottom: 1rem; text-align: center; text-transform: uppercase; }
+                p.report-generated-date { text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 2rem; }
                 .print-section { 
                     page-break-inside: avoid !important; 
                     margin-top: 1.5rem; 
@@ -343,6 +350,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     background-color: #F9FAFB !important; 
                 }
                 .bg-white { background-color: #FFFFFF !important; }
+                .grid { display: grid !important; }
                 .grid-cols-1 { grid-template-columns: repeat(1, 1fr) !important; }
                 .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
                 .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
@@ -350,6 +358,11 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
                 .lg\\:col-span-2 { grid-column: span 2 / span 2 !important; }
                 .lg\\:col-span-3 { grid-column: span 3 / span 3 !important; }
+                .gap-4 { gap: 1rem !important; }
+                .gap-6 { gap: 1.5rem !important; }
+                .p-4 { padding: 1rem !important; }
+                .mb-4 { margin-bottom: 1rem !important; }
+                .mb-6 { margin-bottom: 1.5rem !important; }
                 canvas { max-width: 100%; }
                 .h-72 { height: 18rem !important; }
              `}} />
@@ -439,7 +452,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                 <DoughnutChartComponent data={stats?.ticketStats} title="Support Tickets by Status" />
                             </div>
                              <div className="p-4 bg-gray-50 rounded-lg border lg:col-span-2">
-                                <DoughnutChartComponent 
+                                <DoughnoteChartComponent 
                                     data={stats?.discountStats} 
                                     title="Customer Discount Status"
                                     colorMap={{

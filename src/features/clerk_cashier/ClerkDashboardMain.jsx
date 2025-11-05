@@ -62,8 +62,9 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
         if (reportContent && printStyles) {
             const printWindow = window.open('', '', 'height=800,width=1000');
             printWindow.document.write('<html><head><title>Cashier Daily Collection Report</title>');
-            printWindow.document.write('<style>body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }</style>');
-            printWindow.document.write(printStyles.innerHTML);
+            
+            printWindow.document.write('<style>' + printStyles.innerHTML + '</style>');
+            
             printWindow.document.write('</head><body><div class="printable-area">');
             printWindow.document.write(reportContent.innerHTML);
             printWindow.document.write('</div><script>');
@@ -166,7 +167,7 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     padding-right: 1rem; 
                 }
                 .summary-grid { 
-                    display: grid; 
+                    display: grid !important; 
                     grid-template-columns: repeat(3, 1fr) !important; 
                     gap: 1.5rem; 
                 }
