@@ -57,7 +57,15 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
                      const calculatedCharges = billingService(bill.consumption ?? 0, currentUserData.serviceType, currentUserData.meterSize, currentSettings);
                      
                      const dynamicPenalty = calculateDynamicPenalty(bill, currentSettings);
-                     const finalAmount = (bill.amount || 0) + dynamicPenalty;
+                     const discount = bill.seniorCitizenDiscount || 0;
+                     const baseAmount = bill.amount || 0;
+                     
+                     let finalAmount = baseAmount;
+                     if (bill.status === 'Unpaid' && dynamicPenalty > 0) {
+                        finalAmount = baseAmount + dynamicPenalty - discount;
+                     } else {
+                        finalAmount = baseAmount;
+                     }
 
                      return { 
                          ...bill, 
@@ -175,6 +183,9 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
                                         {bill.status || 'Unknown'}
                                         {bill.displayPenalty > 0 && bill.status === 'Unpaid' && (
                                             <span className="text-xs text-red-500 block">(Includes ₱{bill.displayPenalty.toFixed(2)} penalty)</span>
+                                        )}
+                                        {bill.seniorCitizenDiscount > 0 && bill.status === 'Unpaid' && (
+                                            <span className="text-xs text-green-600 block">(Includes ₱{bill.seniorCitizenDiscount.toFixed(2)} discount)</span>
                                         )}
                                     </p>
                                 </div>

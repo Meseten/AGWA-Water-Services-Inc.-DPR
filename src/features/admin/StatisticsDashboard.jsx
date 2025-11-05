@@ -189,58 +189,42 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             
             let partialError = '';
             const newStats = {};
-
-            if (usersResult.status === 'fulfilled' && usersResult.value.success) {
-                newStats.usersByRole = usersResult.value.data.byRole;
-                newStats.totalUsers = usersResult.value.data.total;
-            } else partialError += `User stats failed. ${usersResult.reason?.message || usersResult.value?.error || ''} | `;
-
-            if (ticketsResult.status === 'fulfilled' && ticketsResult.value.success) {
-                 newStats.ticketStats = ticketsResult.value.data.byStatus;
-                 newStats.ticketsByType = ticketsResult.value.data.byType;
-                 newStats.totalTickets = ticketsResult.value.data.total;
-                 newStats.openTickets = ticketsResult.value.data.openCount;
-            } else partialError += `Ticket stats failed. ${ticketsResult.reason?.message || ticketsResult.value?.error || ''} | `;
-
-            if (revenueResult.status === 'fulfilled' && revenueResult.value.success) {
-                 newStats.monthlyRevenue = revenueResult.value.data;
-            } else partialError += `Monthly revenue failed. ${revenueResult.reason?.message || revenueResult.value?.error || ''} | `;
-
-            if (hourlyResult.status === 'fulfilled' && hourlyResult.value.success) {
-                 newStats.hourlyActivity = hourlyResult.value.data;
-            } else partialError += `Hourly activity failed. ${hourlyResult.reason?.message || hourlyResult.value?.error || ''} | `;
             
-            if (staffResult.status === 'fulfilled' && staffResult.value.success) {
-                 newStats.staffActivity = staffResult.value.data;
-            } else partialError += `Staff activity failed. ${staffResult.reason?.message || staffResult.value?.error || ''} | `;
+            const processResult = (result, name, dataKey) => {
+                if (result.status === 'fulfilled' && result.value.success) {
+                    newStats[dataKey] = result.value.data;
+                    if (name === 'users') {
+                        newStats.totalUsers = result.value.data.total;
+                        newStats.usersByRole = result.value.data.byRole;
+                    }
+                    if (name === 'tickets') {
+                        newStats.ticketStats = result.value.data.byStatus;
+                        newStats.ticketsByType = result.value.data.byType;
+                        newStats.totalTickets = result.value.data.total;
+                        newStats.openTickets = result.value.data.openCount;
+                    }
+                    if (name === 'outstanding') {
+                        newStats.outstandingBalance = result.value.data.totalOutstanding;
+                    }
+                } else {
+                    const errorMsg = result.status === 'rejected' ? result.reason.message : result.value.error;
+                    partialError += `${name} stats failed: ${errorMsg} | `;
+                }
+            };
             
-            if (techResult.status === 'fulfilled' && techResult.value.success) {
-                 newStats.techStats = techResult.value.data;
-            } else partialError += `Technical stats failed. ${techResult.reason?.message || techResult.value?.error || ''} | `;
+            processResult(usersResult, 'User', 'users');
+            processResult(ticketsResult, 'Ticket', 'tickets');
+            processResult(revenueResult, 'Monthly revenue', 'monthlyRevenue');
+            processResult(hourlyResult, 'Hourly activity', 'hourlyActivity');
+            processResult(staffResult, 'Staff activity', 'staffActivity');
+            processResult(techResult, 'Technical', 'techStats');
+            processResult(locationRevenueResult, 'Location revenue', 'revenueByLocation');
+            processResult(outstandingResult, 'Outstanding balance', 'outstanding');
+            processResult(consumptionResult, 'Consumption', 'monthlyConsumption');
+            processResult(paymentMethodResult, 'Payment methods', 'paymentMethods');
+            processResult(userGrowthResult, 'User growth', 'userGrowth');
+            processResult(discountResult, 'Discount', 'discountStats');
 
-            if (locationRevenueResult.status === 'fulfilled' && locationRevenueResult.value.success) {
-                 newStats.revenueByLocation = locationRevenueResult.value.data;
-            } else partialError += `Location revenue failed. ${locationRevenueResult.reason?.message || locationRevenueResult.value?.error || ''} | `;
-
-            if (outstandingResult.status === 'fulfilled' && outstandingResult.value.success) {
-                 newStats.outstandingBalance = outstandingResult.value.data.totalOutstanding;
-            } else partialError += `Outstanding balance failed. ${outstandingResult.reason?.message || outstandingResult.value?.error || ''} | `;
-
-            if (consumptionResult.status === 'fulfilled' && consumptionResult.value.success) {
-                 newStats.monthlyConsumption = consumptionResult.value.data;
-            } else partialError += `Consumption stats failed. ${consumptionResult.reason?.message || consumptionResult.value?.error || ''} | `;
-
-            if (paymentMethodResult.status === 'fulfilled' && paymentMethodResult.value.success) {
-                 newStats.paymentMethods = paymentMethodResult.value.data;
-            } else partialError += `Payment methods failed. ${paymentMethodResult.reason?.message || paymentMethodResult.value?.error || ''} | `;
-
-            if (userGrowthResult.status === 'fulfilled' && userGrowthResult.value.success) {
-                 newStats.userGrowth = userGrowthResult.value.data;
-            } else partialError += `User growth failed. ${userGrowthResult.reason?.message || userGrowthResult.value?.error || ''} | `;
-
-            if (discountResult.status === 'fulfilled' && discountResult.value.success) {
-                 newStats.discountStats = discountResult.value.data;
-            } else partialError += `Discount stats failed. ${discountResult.reason?.message || discountResult.value?.error || ''} | `;
 
             if (partialError) setError(partialError.trim().slice(0, -1));
             setStats(newStats);
@@ -251,7 +235,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [showNotification]);
+    }, [db, showNotification]);
 
     useEffect(() => {
         fetchStatistics();
@@ -264,18 +248,39 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         if (reportContent && printStyles) {
             const printWindow = window.open('', '', 'height=800,width=1000');
             printWindow.document.write('<html><head><title>System Analytics Report</title>');
-            printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+            printWindow.document.write('<style>body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }</style>');
             printWindow.document.write(printStyles.innerHTML);
             printWindow.document.write('</head><body><div class="printable-area">');
+            
+            const headerHtml = `
+                <header class="report-header" style="display: flex; justify-content: space-between; align-items: flex-start; text-align: left; border-bottom: 2px solid #000; padding-bottom: 1rem;">
+                    <div>
+                        <h1 class="logo-print" style="font-size: 2.5rem; font-weight: 700; color: #1e3a8a; line-height: 1; margin: 0;">AGWA</h1>
+                        <p class="tagline-print" style="font-size: 0.8rem; color: #1d4ed8; font-style: italic; margin: 0;">Ensuring Clarity, Sustaining Life.</p>
+                    </div>
+                    <div class="company-address-print" style="text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151;">
+                        <strong>AGWA Water Services, Inc.</strong><br/>
+                        123 Aqua Drive, Hydro Business Park<br/>
+                        Naic, Cavite, Philippines 4110
+                    </div>
+                </header>
+                <h1 class="report-title" style="font-size: 1.5rem; font-weight: 700; color: #000; margin-top: 1.5rem; margin-bottom: 1rem; text-align: center; text-transform: uppercase;">
+                    SYSTEM ANALYTICS REPORT
+                </h1>
+                <p style="text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 2rem;">
+                    Generated: ${new Date().toLocaleString()}
+                </p>
+            `;
+            printWindow.document.write(headerHtml);
             printWindow.document.write(reportContent.innerHTML);
             
             printWindow.document.write(`
                 <script>
                     window.onload = function() {
-                        setTimeout(function() { // A small delay for Tailwind
+                        setTimeout(function() {
                             window.print();
                             window.close();
-                        }, 500); 
+                        }, 750); 
                     };
                 </script>
             `);
@@ -299,46 +304,54 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     size: A4 portrait;
                     margin: 0.75in;
                 }
-                @media print {
-                    .no-print { display: none !important; }
-                    .print-section { 
-                        page-break-inside: avoid !important; 
-                        margin-bottom: 2rem; 
-                        border-top: 1px solid #eee !important; 
-                        padding-top: 1rem !important;
-                    }
-                    body, .bg-white { 
-                        background-color: #FFFFFF !important; 
-                        -webkit-print-color-adjust: exact !important; 
-                        print-color-adjust: exact !important;
-                        font-family: 'Times New Roman', Times, serif;
-                    }
-                    .shadow-xl, .shadow-md, .shadow-lg, .border { 
-                        border: none !important; 
-                        box-shadow: none !important; 
-                    }
-                    .bg-gray-50 { 
-                        background-color: #F9FAFB !important; 
-                        border: 1px solid #eee !important;
-                    }
-                    .printable-area {
-                        padding: 0 !important;
-                    }
-                    .printable-area h1 {
-                        font-size: 24pt;
-                        color: #1e3a8a !important;
-                    }
-                    .printable-area h3 {
-                        font-size: 16pt;
-                        color: #111827 !important;
-                    }
-                    .grid-cols-1, .grid-cols-2, .grid-cols-3, .grid-cols-4, .lg\\:grid-cols-2, .lg\\:grid-cols-3 {
-                         grid-template-columns: repeat(2, 1fr) !important;
-                    }
-                    .lg\\:col-span-2 {
-                         grid-column: span 2 / span 2 !important;
-                    }
+                body { 
+                    font-family: 'Times New Roman', Times, serif; 
+                    -webkit-print-color-adjust: exact !important; 
+                    print-color-adjust: exact !important;
+                    color: #000;
+                    font-size: 10pt;
                 }
+                .no-print { display: none !important; }
+                .printable-area { padding: 0 !important; max-width: 100%; margin: auto; }
+                .report-header { display: flex; justify-content: space-between; align-items: flex-start; text-align: left; border-bottom: 2px solid #000; padding-bottom: 1rem; }
+                .report-header .logo-print { font-size: 2.5rem; font-weight: 700; color: #1e3a8a !important; line-height: 1; margin: 0; }
+                .report-header .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; margin: 0; }
+                .report-header .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151 !important; }
+                h1.report-title { font-size: 1.5rem; font-weight: 700; color: #000 !important; margin-top: 1.5rem; margin-bottom: 1rem; text-align: center; text-transform: uppercase; }
+                .print-section { 
+                    page-break-inside: avoid !important; 
+                    margin-top: 1.5rem; 
+                    border-top: 1px solid #eee !important; 
+                    padding-top: 1.5rem !important;
+                }
+                h3.print-section-title {
+                    font-size: 1.25rem; 
+                    font-weight: 700; 
+                    border-bottom: 1px solid #4b5563; 
+                    padding-bottom: 0.25rem; 
+                    margin-bottom: 1rem; 
+                    color: #111827 !important;
+                    display: flex;
+                    align-items: center;
+                }
+                h3.print-section-title svg { display: none; }
+                .shadow-xl, .shadow-md, .shadow-lg, .border { 
+                    border: 1px solid #e5e7eb !important; 
+                    box-shadow: none !important; 
+                }
+                .bg-gray-50 { 
+                    background-color: #F9FAFB !important; 
+                }
+                .bg-white { background-color: #FFFFFF !important; }
+                .grid-cols-1 { grid-template-columns: repeat(1, 1fr) !important; }
+                .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+                .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+                .lg\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
+                .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
+                .lg\\:col-span-2 { grid-column: span 2 / span 2 !important; }
+                .lg\\:col-span-3 { grid-column: span 3 / span 3 !important; }
+                canvas { max-width: 100%; }
+                .h-72 { height: 18rem !important; }
              `}} />
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 no-print">
                 <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
@@ -358,14 +371,9 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             {error && <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 my-4 flex items-start no-print" role="alert"><Info size={20} className="mr-3 mt-1 flex-shrink-0" /><p className="text-sm">Could not load all statistics: <span className="font-mono text-xs break-all">{error}</span></p></div>}
 
             <div id="stats-print-area" className="printable-area">
-                 <header className="hidden print:block text-center mb-8">
-                    <h1 className="text-3xl font-bold text-blue-700">AGWA System Analytics Report</h1>
-                    <p className="text-sm text-gray-500">Generated: {new Date().toLocaleString()}</p>
-                </header>
-
                 <div className="space-y-8">
                     <section className="print-section">
-                         <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center"><DollarSign size={22} className="mr-2 text-green-600"/>Business Analytics</h3>
+                         <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center print-section-title"><DollarSign size={22} className="mr-2 text-green-600"/>Business Analytics</h3>
                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                             <StatCard title="Total Revenue (12 Mo.)" value={`₱${totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 0})}`} icon={DollarSign} color={chartColors.greenBorder}/>
                             <StatCard title="Total Outstanding" value={`₱${(stats?.outstandingBalance ?? 0).toLocaleString('en-US', {minimumFractionDigits: 0})}`} icon={AlertOctagon} color={chartColors.redBorder}/>
@@ -400,7 +408,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     </section>
                     
                     <section className="print-section pt-6 border-t">
-                         <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center"><Users size={22} className="mr-2 text-purple-600"/>User & Support Analytics</h3>
+                         <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center print-section-title"><Users size={22} className="mr-2 text-purple-600"/>User & Support Analytics</h3>
                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                             <StatCard title="Total Users" value={stats?.totalUsers ?? 'N/A'} icon={Users} color={chartColors.purpleBorder}/>
                             <StatCard title="Total Tickets" value={stats?.totalTickets ?? 'N/A'} icon={MessageSquare} color={chartColors.orangeBorder}/>
@@ -445,7 +453,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     </section>
 
                     <section className="print-section pt-6 border-t">
-                         <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center"><UserCheck size={22} className="mr-2 text-sky-600"/>Staff & Technical Analytics</h3>
+                         <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center print-section-title"><UserCheck size={22} className="mr-2 text-sky-600"/>Staff & Technical Analytics</h3>
                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                             <StatCard title="Total Routes" value={stats?.techStats?.totalRoutes ?? 'N/A'} icon={MapPinIcon} color={chartColors.tealBorder}/>
                             <StatCard title="Total Accounts" value={stats?.techStats?.totalAccounts ?? 'N/A'} icon={Users} color={chartColors.tealBorder}/>

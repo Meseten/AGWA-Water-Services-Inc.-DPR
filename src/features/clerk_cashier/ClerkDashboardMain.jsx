@@ -57,168 +57,19 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
 
     const handlePrintReport = () => {
         const reportContent = document.getElementById('eod-report-content');
-        if (reportContent) {
+        const printStyles = document.getElementById('clerk-print-styles');
+        
+        if (reportContent && printStyles) {
             const printWindow = window.open('', '', 'height=800,width=1000');
             printWindow.document.write('<html><head><title>Cashier Daily Collection Report</title>');
-            printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-            printWindow.document.write(`
-                <style>
-                    @page {
-                        size: A4 portrait;
-                        margin: 0.75in;
-                    }
-                    body { 
-                        font-family: 'Times New Roman', Times, serif; 
-                        -webkit-print-color-adjust: exact !important; 
-                        print-color-adjust: exact !important; 
-                        color: #000;
-                        font-size: 10pt;
-                    }
-                    .printable-area { 
-                        max-width: 100%;
-                        margin: auto; 
-                    }
-                    .report-header { 
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        text-align: left;
-                        border-bottom: 2px solid #000; 
-                        padding-bottom: 1rem; 
-                    }
-                    .report-header .logo-print { 
-                        font-size: 2.5rem; 
-                        font-weight: 700; 
-                        color: #1e3a8a !important; 
-                        line-height: 1;
-                        margin: 0; 
-                    }
-                    .report-header .tagline-print { 
-                        font-size: 0.8rem; 
-                        color: #1d4ed8 !important; 
-                        font-style: italic;
-                        margin: 0;
-                    }
-                    .report-header .company-address-print {
-                        text-align: right;
-                        font-size: 0.8rem;
-                        line-height: 1.4;
-                        color: #374151;
-                    }
-                    h1.report-title { 
-                        font-size: 1.5rem; 
-                        font-weight: 700; 
-                        color: #000 !important; 
-                        margin-top: 1.5rem; 
-                        margin-bottom: 1rem; 
-                        text-align: center;
-                        text-transform: uppercase;
-                    }
-                    .report-section { 
-                        margin-top: 1.5rem; 
-                        page-break-inside: avoid;
-                    }
-                    .report-section h2 { 
-                        font-size: 1.25rem; 
-                        font-weight: 700; 
-                        border-bottom: 1px solid #4b5563; 
-                        padding-bottom: 0.25rem; 
-                        margin-bottom: 1rem; 
-                        color: #111827 !important;
-                    }
-                    .info-table { 
-                        width: 100%; 
-                        font-size: 10pt;
-                    }
-                    .info-table td { 
-                        padding: 4px 0; 
-                        vertical-align: top;
-                    }
-                    .info-table td:nth-child(odd) { 
-                        font-weight: 700; 
-                        color: #374151 !important; 
-                        width: auto; 
-                        white-space: nowrap; 
-                        padding-right: 1rem; 
-                    }
-                    .summary-grid { 
-                        display: grid; 
-                        grid-template-columns: repeat(3, 1fr); 
-                        gap: 1.5rem; 
-                    }
-                    .summary-card { 
-                        background-color: #f9fafb !important; 
-                        border: 1px solid #e5e7eb; 
-                        padding: 1.25rem; 
-                        border-radius: 0.5rem; 
-                        text-align: center; 
-                    }
-                    .summary-card p { 
-                        margin: 0; 
-                        font-size: 0.875rem; 
-                        font-weight: 600;
-                        text-transform: uppercase; 
-                        color: #4b5563 !important; 
-                    }
-                    .summary-card span { 
-                        font-size: 1.875rem; 
-                        font-weight: 700; 
-                        color: #000 !important; 
-                        display: block; 
-                        margin-top: 0.25rem;
-                    }
-                    table.data-table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        margin-top: 1rem; 
-                        font-size: 9.5pt;
-                    }
-                    .data-table th, .data-table td { 
-                        border: 1px solid #d1d5db; 
-                        padding: 0.5rem 0.75rem; 
-                        text-align: left; 
-                    }
-                    .data-table th { 
-                        background-color: #f3f4f6 !important; 
-                        font-weight: 700; 
-                        text-transform: uppercase;
-                        font-size: 0.75rem;
-                        color: #374151 !important;
-                    }
-                    .data-table .text-right { text-align: right; }
-                    .data-table .font-mono { font-family: "Courier New", Courier, monospace; }
-                    .data-table .font-semibold { font-weight: 600; }
-                    .data-table .total-row td {
-                        font-weight: 700;
-                        font-size: 1.125rem;
-                        background-color: #f3f4f6 !important;
-                        border-top: 2px solid #374151;
-                    }
-                    .report-footer { 
-                        margin-top: 4rem; 
-                        padding-top: 2rem; 
-                        border-top: 1px solid #9ca3af; 
-                    }
-                    .signature-line { 
-                        width: 60%; 
-                        margin: 2rem auto 0 auto; 
-                        border-top: 1px solid #333; 
-                        padding-top: 8px; 
-                        text-align: center; 
-                    }
-                    @media print {
-                        .no-print { display: none !important; }
-                        body { margin: 0; font-size: 10pt; }
-                        .printable-area { padding: 0; box-shadow: none; border: none; }
-                        .summary-grid { grid-template-columns: repeat(3, 1fr); }
-                    }
-                </style>
-            `);
+            printWindow.document.write('<style>body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }</style>');
+            printWindow.document.write(printStyles.innerHTML);
             printWindow.document.write('</head><body><div class="printable-area">');
             printWindow.document.write(reportContent.innerHTML);
-            printWindow.document.write('</div></body></html>');
+            printWindow.document.write('</div><script>');
+            printWindow.document.write('window.onload = function() { setTimeout(function() { window.print(); window.close(); }, 750); };');
+            printWindow.document.write('</script></body></html>');
             printWindow.document.close();
-            setTimeout(() => printWindow.print(), 500);
         }
     };
 
@@ -235,6 +86,156 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
 
     return (
         <div className="space-y-8 animate-fadeIn">
+            <style id="clerk-print-styles">{`
+                @page {
+                    size: A4 portrait;
+                    margin: 0.75in;
+                }
+                body { 
+                    font-family: 'Times New Roman', Times, serif; 
+                    -webkit-print-color-adjust: exact !important; 
+                    print-color-adjust: exact !important; 
+                    color: #000;
+                    font-size: 10pt;
+                }
+                .printable-area { 
+                    max-width: 100%;
+                    margin: auto; 
+                }
+                .report-header { 
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    text-align: left;
+                    border-bottom: 2px solid #000; 
+                    padding-bottom: 1rem; 
+                }
+                .report-header .logo-print { 
+                    font-size: 2.5rem; 
+                    font-weight: 700; 
+                    color: #1e3a8a !important; 
+                    line-height: 1;
+                    margin: 0; 
+                }
+                .report-header .tagline-print { 
+                    font-size: 0.8rem; 
+                    color: #1d4ed8 !important; 
+                    font-style: italic;
+                    margin: 0;
+                }
+                .report-header .company-address-print {
+                    text-align: right;
+                    font-size: 0.8rem;
+                    line-height: 1.4;
+                    color: #374151 !important;
+                }
+                h1.report-title { 
+                    font-size: 1.5rem; 
+                    font-weight: 700; 
+                    color: #000 !important; 
+                    margin-top: 1.5rem; 
+                    margin-bottom: 1rem; 
+                    text-align: center;
+                    text-transform: uppercase;
+                }
+                .report-section { 
+                    margin-top: 1.5rem; 
+                    page-break-inside: avoid;
+                }
+                .report-section h2 { 
+                    font-size: 1.25rem; 
+                    font-weight: 700; 
+                    border-bottom: 1px solid #4b5563; 
+                    padding-bottom: 0.25rem; 
+                    margin-bottom: 1rem; 
+                    color: #111827 !important;
+                }
+                .info-table { 
+                    width: 100%; 
+                    font-size: 10pt;
+                }
+                .info-table td { 
+                    padding: 4px 0; 
+                    vertical-align: top;
+                }
+                .info-table td:nth-child(odd) { 
+                    font-weight: 700; 
+                    color: #374151 !important; 
+                    width: auto; 
+                    white-space: nowrap; 
+                    padding-right: 1rem; 
+                }
+                .summary-grid { 
+                    display: grid; 
+                    grid-template-columns: repeat(3, 1fr) !important; 
+                    gap: 1.5rem; 
+                }
+                .summary-card { 
+                    background-color: #f9fafb !important; 
+                    border: 1px solid #e5e7eb; 
+                    padding: 1.25rem; 
+                    border-radius: 0.5rem; 
+                    text-align: center; 
+                }
+                .summary-card p { 
+                    margin: 0; 
+                    font-size: 0.875rem; 
+                    font-weight: 600;
+                    text-transform: uppercase; 
+                    color: #4b5563 !important; 
+                }
+                .summary-card span { 
+                    font-size: 1.875rem; 
+                    font-weight: 700; 
+                    color: #000 !important; 
+                    display: block; 
+                    margin-top: 0.25rem;
+                }
+                table.data-table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-top: 1rem; 
+                    font-size: 9.5pt;
+                }
+                .data-table th, .data-table td { 
+                    border: 1px solid #d1d5db; 
+                    padding: 0.5rem 0.75rem; 
+                    text-align: left; 
+                }
+                .data-table th { 
+                    background-color: #f3f4f6 !important; 
+                    font-weight: 700; 
+                    text-transform: uppercase;
+                    font-size: 0.75rem;
+                    color: #374151 !important;
+                }
+                .data-table .text-right { text-align: right; }
+                .data-table .font-mono { font-family: "Courier New", Courier, monospace; }
+                .data-table .font-semibold { font-weight: 600; }
+                .data-table .total-row td {
+                    font-weight: 700;
+                    font-size: 1.125rem;
+                    background-color: #f3f4f6 !important;
+                    border-top: 2px solid #374151;
+                }
+                .report-footer { 
+                    margin-top: 4rem; 
+                    padding-top: 2rem; 
+                    border-top: 1px solid #9ca3af; 
+                }
+                .signature-line { 
+                    width: 60%; 
+                    margin: 2rem auto 0 auto; 
+                    border-top: 1px solid #333; 
+                    padding-top: 8px; 
+                    text-align: center; 
+                }
+                @media print {
+                    .no-print { display: none !important; }
+                    body { margin: 0; font-size: 10pt; }
+                    .printable-area { padding: 0 !important; box-shadow: none !important; border: none !important; }
+                }
+            `}</style>
             <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl shadow-xl no-print">
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                     <div>
@@ -401,144 +402,6 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     </footer>
                 </div>
             </div>
-
-            <style>
-                {`
-                    .printable-area { 
-                        font-family: 'Times New Roman', Times, serif; 
-                        color: #000;
-                    }
-                    .report-header { 
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        text-align: left;
-                        border-bottom: 2px solid #000; 
-                        padding-bottom: 1rem; 
-                    }
-                    .report-header .logo-print { 
-                        font-size: 2.5rem; 
-                        font-weight: 700; 
-                        color: #1e3a8a; 
-                        line-height: 1;
-                        margin: 0; 
-                    }
-                    .report-header .tagline-print { 
-                        font-size: 0.8rem; 
-                        color: #1d4ed8; 
-                        font-style: italic;
-                        margin: 0;
-                    }
-                    .report-header .company-address-print {
-                        text-align: right;
-                        font-size: 0.8rem;
-                        line-height: 1.4;
-                        color: #374151;
-                    }
-                    h1.report-title { 
-                        font-size: 1.5rem; 
-                        font-weight: 700; 
-                        color: #000; 
-                        margin-top: 1.5rem; 
-                        margin-bottom: 1rem; 
-                        text-align: center;
-                        text-transform: uppercase;
-                    }
-                    .report-section { 
-                        margin-top: 1.5rem; 
-                    }
-                    .report-section h2 { 
-                        font-size: 1.25rem; 
-                        font-weight: 700; 
-                        border-bottom: 1px solid #4b5563; 
-                        padding-bottom: 0.25rem; 
-                        margin-bottom: 1rem; 
-                        color: #111827;
-                    }
-                    .info-table { 
-                        width: 100%; 
-                    }
-                    .info-table td { 
-                        padding: 4px 0; 
-                        vertical-align: top;
-                    }
-                    .info-table td:nth-child(odd) { 
-                        font-weight: 700; 
-                        color: #374151; 
-                        width: auto; 
-                        white-space: nowrap; 
-                        padding-right: 1rem; 
-                    }
-                    .summary-grid { 
-                        display: grid; 
-                        grid-template-columns: repeat(1, 1fr);
-                    }
-                    @media (min-width: 640px) {
-                        .summary-grid { 
-                            grid-template-columns: repeat(3, 1fr); 
-                        }
-                    }
-                    .summary-card { 
-                        background-color: #f9fafb; 
-                        border: 1px solid #e5e7eb; 
-                        padding: 1.25rem; 
-                        border-radius: 0.5rem; 
-                        text-align: center; 
-                    }
-                    .summary-card p { 
-                        margin: 0; 
-                        font-size: 0.875rem; 
-                        font-weight: 600;
-                        text-transform: uppercase; 
-                        color: #4b5563; 
-                    }
-                    .summary-card span { 
-                        font-size: 1.875rem; 
-                        font-weight: 700; 
-                        color: #000; 
-                        display: block; 
-                        margin-top: 0.25rem;
-                    }
-                    table.data-table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        margin-top: 1rem; 
-                    }
-                    .data-table th, .data-table td { 
-                        border: 1px solid #d1d5db; 
-                        padding: 0.5rem 0.75rem; 
-                        text-align: left; 
-                    }
-                    .data-table th { 
-                        background-color: #f3f4f6; 
-                        font-weight: 700; 
-                        text-transform: uppercase;
-                        font-size: 0.75rem;
-                        color: #374151;
-                    }
-                    .data-table .text-right { text-align: right; }
-                    .data-table .font-mono { font-family: "Courier New", Courier, monospace; }
-                    .data-table .font-semibold { font-weight: 600; }
-                    .data-table .total-row td {
-                        font-weight: 700;
-                        font-size: 1.125rem;
-                        background-color: #f3f4f6;
-                        border-top: 2px solid #374151;
-                    }
-                    .report-footer { 
-                        margin-top: 4rem; 
-                        padding-top: 2rem; 
-                        border-top: 1px solid #9ca3af; 
-                    }
-                    .signature-line { 
-                        width: 60%; 
-                        margin: 2rem auto 0 auto; 
-                        border-top: 1px solid #333; 
-                        padding-top: 8px; 
-                        text-align: center; 
-                    }
-                `}
-            </style>
         </div>
     );
 };
