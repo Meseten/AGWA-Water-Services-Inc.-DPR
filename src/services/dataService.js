@@ -1125,7 +1125,7 @@ export async function updateServiceInterruption(dbInstance, id, updates) {
     }
 };
 
-export async function deleteServiceInterruption(dbInstance, id) {
+export async function deleteServiceInterruption(dbInstance, id) {.
     try {
         await deleteDoc(doc(dbInstance, serviceInterruptionDocumentPath(id)));
         return { success: true };
