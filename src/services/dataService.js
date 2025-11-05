@@ -1054,7 +1054,7 @@ export async function getAnnouncementsStats(dbInstance) {
         const annRef = collection(dbInstance, announcementsCollectionPath());
         const totalSnapshot = await getCountFromServer(annRef);
         const activeQuery = query(annRef, where('status', '==', 'active'));
-        const activeSnapshot = await getCountFromServer(activeQuery);
+        const activeSnapshot = await getCountFromServer(activeQuery).catch(() => ({ data: () => ({ count: 0 }) }));
         return { success: true, data: { total: totalSnapshot.data().count, active: activeSnapshot.data().count } };
     } catch(e) {
         return handleFirestoreError('getting announcements stats', e);

@@ -7,7 +7,7 @@ import {
     query,
     where,
     orderBy,
-    limit as firestoreLimit,
+    limit,
     onSnapshot
 } from 'firebase/firestore';
 
@@ -127,7 +127,7 @@ function useFirestoreQuery(
 export const firestoreQueryHelpers = {
     where,
     orderBy,
-    limit: firestoreLimit,
+    limit: limit,
 };
 
 export default useFirestoreQuery;
