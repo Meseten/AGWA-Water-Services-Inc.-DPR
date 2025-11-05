@@ -1257,12 +1257,12 @@ export async function getTechnicalStats(dbInstance) {
             getDocs(query(collection(dbInstance, serviceInterruptionsCollectionPath()), where("status", "in", ["Scheduled", "Ongoing"]))),
             getDocs(query(collection(dbInstance, meterRoutesCollectionPath()), where("assignedReaderId", "==", "")))
         ]);
-
+        
         const totalRoutes = routesSnap.size;
         const totalAccounts = routesSnap.docs.reduce((sum, doc) => sum + (doc.data().accountNumbers?.length || 0), 0);
         const activeInterrupts = interruptionsSnap.size;
         const unassignedRoutes = unassignedRoutes.size;
-
+        
         return { success: true, data: { totalRoutes, totalAccounts, activeInterrupts, unassignedRoutes } };
     } catch (error) {
         return handleFirestoreError('getting technical stats', error);
