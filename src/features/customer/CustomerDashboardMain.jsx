@@ -5,9 +5,9 @@ import Modal from "../../components/ui/Modal.jsx";
 import LoadingSpinner from "../../components/ui/LoadingSpinner.jsx";
 import * as DataService from "../../services/dataService.js";
 import { callDeepseekAPI } from "../../services/deepseekService.js";
-import { formatDate } from "../../utils/userUtils.js";
+import { formatDate, calculateDynamicPenalty } from "../../utils/userUtils.js";
 
-const CustomerDashboardMain = ({ user, userData, db, showNotification, setActiveSection, billingService: calculateBillDetails }) => {
+const CustomerDashboardMain = ({ user, userData, db, showNotification, setActiveSection, billingService: calculateBillDetails, systemSettings }) => {
     const [recentBills, setRecentBills] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [dataError, setDataError] = useState('');
@@ -31,8 +31,18 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
             const billsResult = await DataService.getBillsForUser(db, user.uid);
             if (billsResult.success) {
                 const billsWithCalculatedAmounts = billsResult.data.map(bill => {
-                    const charges = calculateBillDetails(bill.consumption, userData.serviceType, userData.meterSize, userData.systemSettings || {});
-                    return { ...bill, calculatedCharges: charges, billDateTimestamp: bill.billDate?.toDate ? bill.billDate.toDate() : new Date(bill.billDate) };
+                    const charges = calculateBillDetails(bill.consumption, userData.serviceType, userData.meterSize, systemSettings || {});
+                    
+                    const dynamicPenalty = calculateDynamicPenalty(bill, systemSettings);
+                    const finalAmount = (bill.amount || 0) + dynamicPenalty;
+
+                    return { 
+                        ...bill, 
+                        calculatedCharges: charges, 
+                        amount: finalAmount,
+                        displayPenalty: dynamicPenalty,
+                        billDateTimestamp: bill.billDate?.toDate ? bill.billDate.toDate() : new Date(bill.billDate) 
+                    };
                 }).sort((a, b) => b.billDateTimestamp - a.billDateTimestamp);
 
                 setRecentBills(billsWithCalculatedAmounts.slice(0, 3));
@@ -41,7 +51,9 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                 if (unpaidBills.length > 0) {
                     const sortedUnpaidBills = unpaidBills.sort((a, b) => new Date(a.dueDate?.toDate() || 0) - new Date(b.dueDate?.toDate() || 0));
                     const oldestDueBill = sortedUnpaidBills[0];
+                    
                     const totalBalance = unpaidBills.reduce((sum, bill) => sum + (bill.amount || 0), 0);
+                    
                     setCurrentBalance(totalBalance);
                     setNextDueDate(oldestDueBill.dueDate);
                 } else {
@@ -59,7 +71,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
             showNotification(errMsg, "error");
         }
         setIsLoadingData(false);
-    }, [user, userData, db, showNotification, calculateBillDetails]);
+    }, [user, userData, db, showNotification, calculateBillDetails, systemSettings]);
 
     useEffect(() => {
         fetchCustomerDashboardData();
@@ -125,6 +137,9 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                                         <p className="font-medium text-gray-800 text-sm">{bill.monthYear || bill.billingPeriod} - <span className="font-bold">₱{bill.amount?.toFixed(2)}</span></p>
                                         <p className={`text-xs mt-0.5 font-semibold ${bill.status === 'Paid' ? 'text-green-600' : 'text-orange-600'}`}>
                                             Status: {bill.status} {bill.status === 'Unpaid' && `(Due: ${formatDate(bill.dueDate, {month: 'short', day: 'numeric'})})`}
+                                            {bill.displayPenalty > 0 && bill.status === 'Unpaid' && (
+                                                <span className="text-xs text-red-500 font-semibold block">(Includes ₱{bill.displayPenalty.toFixed(2)} penalty)</span>
+                                            )}
                                         </p>
                                     </div>
                                     <div className="flex gap-2 mt-2 sm:mt-0">
@@ -147,7 +162,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                     )}
                 </div>
 
-                <div className="space-y-4 lg:flex lg:flex-col">
+                <div className="space-y-4 lg:space-y-6">
                      <button onClick={() => setActiveSection('myBills')} className={`${quickActionCardClass} focus:ring-green-500 border-l-4 border-green-500`}>
                         <CreditCard size={26} className="mb-2 text-green-500" />
                         <h4 className="font-semibold text-green-700 text-md">Pay My Bill</h4>

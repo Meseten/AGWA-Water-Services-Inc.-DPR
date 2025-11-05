@@ -39,3 +39,30 @@ export const formatDate = (timestamp, options = { year: 'numeric', month: 'long'
         return 'Invalid Date';
     }
 };
+export const calculateDynamicPenalty = (bill, systemSettings) => {
+    if (!bill || !systemSettings || bill.status === 'Paid') {
+        return 0;
+    }
+
+    const today = new Date();
+    const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : null;
+    
+    if (!dueDate) {
+        return 0;
+    }
+
+    if (today > dueDate) {
+        if (bill.penaltyAmount && bill.penaltyAmount > 0) {
+            return 0;
+        }
+
+        const penaltyRate = (systemSettings.latePaymentPenaltyPercentage || 2.0) / 100;
+        const currentCharges = bill.totalCalculatedCharges || 0;
+        
+        if (currentCharges > 0 && penaltyRate > 0) {
+            return parseFloat((currentCharges * penaltyRate).toFixed(2));
+        }
+    }
+
+    return 0;
+};

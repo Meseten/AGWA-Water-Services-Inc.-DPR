@@ -422,7 +422,6 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
     try {
         const settingsResult = await getSystemSettings(dbInstance);
         const systemSettings = settingsResult.success ? settingsResult.data : {};
-        const penaltyRate = (systemSettings.latePaymentPenaltyPercentage || 2.0) / 100;
         const gracePeriod = systemSettings.latePaymentPenaltyDelayDays || 15;
 
         const readingsQuery = query(
@@ -466,32 +465,22 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
 
         let previousUnpaidAmount = 0;
         let penaltyAmount = 0;
-        const today = new Date();
+        
         const prevBillQuery = query(
             collection(dbInstance, allBillsCollectionPath()),
             where("userId", "==", userId),
-            where("status", "==", "Unpaid"),
-            orderBy("dueDate", "desc")
+            where("status", "==", "Unpaid")
         );
         const prevBillSnapshot = await getDocs(prevBillQuery);
         
         if (!prevBillSnapshot.empty) {
              prevBillSnapshot.docs.forEach(doc => {
                 const prevBill = doc.data();
-                const prevBillTotal = prevBill.amount || 0;
-                previousUnpaidAmount += prevBillTotal; 
-                
-                const prevDueDate = prevBill.dueDate.toDate();
-                const daysPastDue = (today.getTime() - prevDueDate.getTime()) / (1000 * 60 * 60 * 24);
-
-                if (daysPastDue > 0 && !prevBill.penaltyAmount) {
-                    const prevBillCurrentCharges = prevBill.totalCalculatedCharges || 0;
-                    penaltyAmount += (prevBillCurrentCharges * penaltyRate);
-                }
+                previousUnpaidAmount += (prevBill.amount || 0); 
              });
         }
         
-        const totalAmountDue = currentCharges + previousUnpaidAmount + penaltyAmount - seniorCitizenDiscount;
+        const totalAmountDue = currentCharges + previousUnpaidAmount - seniorCitizenDiscount;
         const dueDate = new Date(billDate);
         dueDate.setDate(dueDate.getDate() + gracePeriod);
 
@@ -508,7 +497,7 @@ export const generateBillForUser = async (dbInstance, userId, userProfile) => {
             consumption: consumption,
             ...charges,
             
-            penaltyAmount: parseFloat(penaltyAmount.toFixed(2)),
+            penaltyAmount: 0,
             previousUnpaidAmount: parseFloat(previousUnpaidAmount.toFixed(2)),
             seniorCitizenDiscount: parseFloat(seniorCitizenDiscount.toFixed(2)),
             
@@ -611,7 +600,7 @@ export const createUserProfile = async (dbInstance, userId, profileData) => {
             displayNameLower: profileData.displayName ? profileData.displayName.toLowerCase() : '',
             rebatePoints: 0,
             rebateTier: 'Bronze',
-            discountStatus: 'none',
+            discountStatus: 'none', 
         };
 
         batch.set(doc(dbInstance, userProfileDocumentPath(userId)), dataForDb);
@@ -878,12 +867,29 @@ const awardRebatePoints = async (dbInstance, userId, bill, amountPaid, systemSet
 
 export const updateBill = async (dbInstance, billId, updates) => {
     try {
-        await updateDoc(doc(dbInstance, allBillDocumentPath(billId)), { ...updates, lastUpdatedAt: serverTimestamp() });
+        const billRef = doc(dbInstance, allBillDocumentPath(billId));
         
-        if (updates.status === 'Paid' && updates.amountPaid && (updates.paymentTimestamp || updates.paymentDate)) {
-            const billSnap = await getDoc(doc(dbInstance, allBillDocumentPath(billId)));
+        if (updates.status === 'Paid') {
+            const billSnap = await getDoc(billRef);
             if (billSnap.exists()) {
                 const bill = billSnap.data();
+                const today = new Date();
+                const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : null;
+                
+                if (dueDate && today > dueDate && !bill.penaltyAmount) {
+                    const settingsSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
+                    const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+                    const penaltyRate = (settings.latePaymentPenaltyPercentage || 2.0) / 100;
+                    const currentCharges = bill.totalCalculatedCharges || 0;
+                    
+                    updates.penaltyAmount = parseFloat((currentCharges * penaltyRate).toFixed(2));
+                    updates.amount = (bill.amount || 0) + updates.penaltyAmount;
+                    
+                    if (!updates.amountPaid || updates.amountPaid < updates.amount) {
+                        updates.amountPaid = updates.amount;
+                    }
+                }
+
                 if (bill.userId) {
                     const settingsSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
                     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
@@ -892,11 +898,13 @@ export const updateBill = async (dbInstance, billId, updates) => {
             }
         }
         
+        await updateDoc(billRef, { ...updates, lastUpdatedAt: serverTimestamp() });
         return { success: true };
     } catch (error) {
         return handleFirestoreError('updating bill', error);
     }
 };
+
 
 export const addMeterReading = async (dbInstance, readingData) => {
     try {
@@ -1243,7 +1251,7 @@ export const getTechnicalStats = async (dbInstance) => {
         const totalRoutes = routesSnap.size;
         const totalAccounts = routesSnap.docs.reduce((sum, doc) => sum + (doc.data().accountNumbers?.length || 0), 0);
         const activeInterrupts = interruptionsSnap.size;
-        const unassignedRoutes = unassignedRoutesSnap.size;
+        const unassignedRoutes = unassignedRoutes.size;
 
         return { success: true, data: { totalRoutes, totalAccounts, activeInterrupts, unassignedRoutes } };
     } catch (error) {
@@ -1308,6 +1316,7 @@ export const getUserGrowthStats = async (dbInstance) => {
         return handleFirestoreError('getting user growth stats', error);
     }
 };
+
 export const getDiscountStats = async (dbInstance) => {
     try {
         const profilesRef = collection(dbInstance, profilesCollectionPath());

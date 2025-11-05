@@ -6,7 +6,7 @@ import CheckoutModal from './CheckoutModal.jsx';
 import InvoiceView from '../../components/ui/InvoiceView.jsx';
 import * as DataService from '../../services/dataService.js';
 import { explainBillWithAI } from '../../services/deepseekService.js';
-import { formatDate } from '../../utils/userUtils.js';
+import { formatDate, calculateDynamicPenalty } from '../../utils/userUtils.js';
 import DOMPurify from 'dompurify';
 import { Timestamp } from 'firebase/firestore';
 import { getStripe } from '../../services/stripeService.js';
@@ -36,6 +36,7 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
             setIsLoading(true);
             setError('');
             const currentUserData = JSON.parse(userDataJson);
+            const currentSettings = JSON.parse(settingsJson);
 
             if (!user?.uid || !currentUserData?.serviceType) {
                 setError("Missing user data for fetching bills.");
@@ -45,7 +46,7 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
 
             const result = await DataService.getBillsForUser(db, user.uid);
             if (result.success) {
-                const currentSettings = JSON.parse(settingsJson);
+                
                 const sortedBills = result.data.sort((a, b) => {
                     const dateA = a.billDate?.toDate ? a.billDate.toDate() : new Date(0);
                     const dateB = b.billDate?.toDate ? b.billDate.toDate() : new Date(0);
@@ -54,7 +55,16 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
 
                  const billsWithDetails = sortedBills.map(bill => {
                      const calculatedCharges = billingService(bill.consumption ?? 0, currentUserData.serviceType, currentUserData.meterSize, currentSettings);
-                     return { ...bill, calculatedCharges: calculatedCharges };
+                     
+                     const dynamicPenalty = calculateDynamicPenalty(bill, currentSettings);
+                     const finalAmount = (bill.amount || 0) + dynamicPenalty;
+
+                     return { 
+                         ...bill, 
+                         calculatedCharges: calculatedCharges,
+                         amount: finalAmount,
+                         displayPenalty: dynamicPenalty
+                     };
                  }).filter(bill => bill.amount !== undefined);
 
 
@@ -163,6 +173,9 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
                                     <p className="text-2xl font-bold text-gray-700">₱{bill.amount?.toFixed(2) ?? '0.00'}</p>
                                     <p className={`text-sm font-semibold ${bill.status === 'Paid' ? 'text-green-600' : 'text-red-600'}`}>
                                         {bill.status || 'Unknown'}
+                                        {bill.displayPenalty > 0 && bill.status === 'Unpaid' && (
+                                            <span className="text-xs text-red-500 block">(Includes ₱{bill.displayPenalty.toFixed(2)} penalty)</span>
+                                        )}
                                     </p>
                                 </div>
                             </div>
@@ -201,7 +214,15 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
             )}
 
             {isInvoiceViewOpen && billToView && (
-                <InvoiceView isOpen={isInvoiceViewOpen} onClose={() => setIsInvoiceViewOpen(false)} bill={billToView} userData={userData} calculateBillDetails={billingService} showNotification={showNotification} />
+                <InvoiceView 
+                    isOpen={isInvoiceViewOpen} 
+                    onClose={() => setIsInvoiceViewOpen(false)} 
+                    bill={billToView} 
+                    userData={userData} 
+                    calculateBillDetails={billingService} 
+                    showNotification={showNotification}
+                    systemSettings={systemSettings}
+                />
             )}
         </div>
     );
