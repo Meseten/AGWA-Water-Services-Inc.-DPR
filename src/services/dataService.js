@@ -1,7 +1,7 @@
 import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
-    Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
+    Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit as firestoreLimit,
     FieldPath, documentId
 } from 'firebase/firestore';
 import {
