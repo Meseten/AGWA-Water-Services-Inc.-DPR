@@ -869,6 +869,8 @@ export const updateBill = async (dbInstance, billId, updates) => {
     try {
         const billRef = doc(dbInstance, allBillDocumentPath(billId));
         
+        const actualAmountPaid = updates.amountPaid; 
+
         if (updates.status === 'Paid') {
             const billSnap = await getDoc(billRef);
             if (billSnap.exists()) {
@@ -882,18 +884,21 @@ export const updateBill = async (dbInstance, billId, updates) => {
                     const penaltyRate = (settings.latePaymentPenaltyPercentage || 2.0) / 100;
                     const currentCharges = bill.totalCalculatedCharges || 0;
                     
-                    updates.penaltyAmount = parseFloat((currentCharges * penaltyRate).toFixed(2));
-                    updates.amount = (bill.amount || 0) + updates.penaltyAmount;
-                    
-                    if (!updates.amountPaid || updates.amountPaid < updates.amount) {
-                        updates.amountPaid = updates.amount;
+                    if (currentCharges > 0 && penaltyRate > 0) {
+                        updates.penaltyAmount = parseFloat((currentCharges * penaltyRate).toFixed(2));
+                        updates.amount = (bill.amount || 0) + updates.penaltyAmount;
+                        
+                        if (!updates.amountPaid || updates.amountPaid < updates.amount) {
+                            updates.amountPaid = updates.amount;
+                        }
                     }
                 }
 
-                if (bill.userId) {
+                if (bill.userId && actualAmountPaid > 0) {
                     const settingsSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
                     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
-                    await awardRebatePoints(dbInstance, bill.userId, bill, updates.amountPaid, settings);
+                    
+                    await awardRebatePoints(dbInstance, bill.userId, bill, actualAmountPaid, settings);
                 }
             }
         }
@@ -904,7 +909,6 @@ export const updateBill = async (dbInstance, billId, updates) => {
         return handleFirestoreError('updating bill', error);
     }
 };
-
 
 export const addMeterReading = async (dbInstance, readingData) => {
     try {
