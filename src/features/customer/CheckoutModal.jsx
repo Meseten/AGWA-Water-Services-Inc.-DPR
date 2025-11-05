@@ -26,10 +26,11 @@ const CheckoutModal = ({ isOpen, onClose, billToPay, userData, showNotification,
                 userData.accountNumber
             );
             
-            if (sessionUrl) {
+            if (sessionUrl && (sessionUrl.startsWith('https://checkout.stripe.com/') || sessionUrl.startsWith('https://test.stripe.com/'))) {
                 window.location.href = sessionUrl;
             } else {
-                throw new Error("Did not receive a valid session URL.");
+                console.error("Invalid or untrusted session URL received:", sessionUrl);
+                throw new Error("Received an invalid payment URL. Please try again.");
             }
 
         } catch (err) {
@@ -38,7 +39,6 @@ const CheckoutModal = ({ isOpen, onClose, billToPay, userData, showNotification,
             showNotification("Failed to create payment session. Please try again.", 'error');
             setIsLoading(false); 
         }
-        
     };
 
     if (!isOpen) return null;

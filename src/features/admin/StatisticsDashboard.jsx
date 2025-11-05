@@ -258,7 +258,31 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
     }, [fetchStatistics]);
 
     const handlePrintReport = () => {
-        window.print();
+        const reportContent = document.getElementById('stats-print-area');
+        const printStyles = document.getElementById('stats-print-styles');
+        
+        if (reportContent && printStyles) {
+            const printWindow = window.open('', '', 'height=800,width=1000');
+            printWindow.document.write('<html><head><title>System Analytics Report</title>');
+            printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+            printWindow.document.write(printStyles.innerHTML);
+            printWindow.document.write('</head><body><div class="printable-area">');
+            printWindow.document.write(reportContent.innerHTML);
+            
+            printWindow.document.write(`
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() { // A small delay for Tailwind
+                            window.print();
+                            window.close();
+                        }, 500); 
+                    };
+                </script>
+            `);
+
+            printWindow.document.write('</div></body></html>');
+            printWindow.document.close();
+        }
     };
 
     const totalRevenue = useMemo(() => stats?.monthlyRevenue ? Object.values(stats.monthlyRevenue).reduce((sum, val) => sum + val, 0) : 0, [stats?.monthlyRevenue]);
@@ -270,6 +294,52 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
 
     return (
         <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn">
+             <style id="stats-print-styles" dangerouslySetInnerHTML={{ __html: `
+                @page {
+                    size: A4 portrait;
+                    margin: 0.75in;
+                }
+                @media print {
+                    .no-print { display: none !important; }
+                    .print-section { 
+                        page-break-inside: avoid !important; 
+                        margin-bottom: 2rem; 
+                        border-top: 1px solid #eee !important; 
+                        padding-top: 1rem !important;
+                    }
+                    body, .bg-white { 
+                        background-color: #FFFFFF !important; 
+                        -webkit-print-color-adjust: exact !important; 
+                        print-color-adjust: exact !important;
+                        font-family: 'Times New Roman', Times, serif;
+                    }
+                    .shadow-xl, .shadow-md, .shadow-lg, .border { 
+                        border: none !important; 
+                        box-shadow: none !important; 
+                    }
+                    .bg-gray-50 { 
+                        background-color: #F9FAFB !important; 
+                        border: 1px solid #eee !important;
+                    }
+                    .printable-area {
+                        padding: 0 !important;
+                    }
+                    .printable-area h1 {
+                        font-size: 24pt;
+                        color: #1e3a8a !important;
+                    }
+                    .printable-area h3 {
+                        font-size: 16pt;
+                        color: #111827 !important;
+                    }
+                    .grid-cols-1, .grid-cols-2, .grid-cols-3, .grid-cols-4, .lg\\:grid-cols-2, .lg\\:grid-cols-3 {
+                         grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                    .lg\\:col-span-2 {
+                         grid-column: span 2 / span 2 !important;
+                    }
+                }
+             `}} />
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 no-print">
                 <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                     <BarChart3 size={30} className="mr-3 text-orange-600" /> System Analytics
@@ -287,7 +357,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
 
             {error && <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 my-4 flex items-start no-print" role="alert"><Info size={20} className="mr-3 mt-1 flex-shrink-0" /><p className="text-sm">Could not load all statistics: <span className="font-mono text-xs break-all">{error}</span></p></div>}
 
-            <div id="stats-print-area">
+            <div id="stats-print-area" className="printable-area">
                  <header className="hidden print:block text-center mb-8">
                     <h1 className="text-3xl font-bold text-blue-700">AGWA System Analytics Report</h1>
                     <p className="text-sm text-gray-500">Generated: {new Date().toLocaleString()}</p>
@@ -408,33 +478,6 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     </section>
                 </div>
             </div>
-             <style>
-                {`
-                @page {
-                    size: A4 portrait;
-                    margin: 0.75in;
-                }
-                @media print {
-                    .no-print { display: none !important; }
-                    .print-section { 
-                        page-break-inside: avoid !important; 
-                        margin-bottom: 2rem; 
-                        border-top: 1px solid #eee !important; 
-                        padding-top: 1rem !important;
-                    }
-                    body, .bg-white { background-color: #FFFFFF !important; }
-                    .shadow-xl, .shadow-md, .shadow-lg, .border { border: none !important; box-shadow: none !important; }
-                    .bg-gray-50 { background-color: #F9FAFB !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    
-                    div.lg\\:pl-64 {
-                        padding-left: 0 !important;
-                    }
-                    main.print\\:p-4 {
-                        padding: 1rem !important;
-                    }
-                }
-                `}
-             </style>
         </div>
     );
 };

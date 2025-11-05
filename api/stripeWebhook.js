@@ -117,8 +117,8 @@ export default async function handler(req, res) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err) {
-    console.error(`Webhook signature verification failed: ${err.message}`);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error(`Webhook signature verification failed:`, err);
+    return res.status(400).send(`Webhook Error: Signature verification failed.`);
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -132,13 +132,15 @@ export default async function handler(req, res) {
       const amountPaid = session.amount_total / 100;
 
       if (!billId || !userId) {
-        throw new Error(`Missing billId or userId in session metadata: ${session.id}`);
+        console.error(`Webhook: Missing billId or userId in session metadata for session: ${session.id}`);
+        throw new Error(`Missing metadata for session`);
       }
 
       const billRef = db.doc(allBillDocumentPath(billId));
       const billSnap = await billRef.get();
       if (!billSnap.exists) {
-        throw new Error(`Bill document not found: ${billId}`);
+        console.error(`Webhook: Bill document not found: ${billId}`);
+        throw new Error(`Bill document not found`);
       }
       
       const billData = billSnap.data();
@@ -161,7 +163,7 @@ export default async function handler(req, res) {
 
     } catch (dbError) {
       console.error(`Webhook: Firestore update error:`, dbError);
-      return res.status(500).send({ error: `Database error: ${dbError.message}` });
+      return res.status(500).send({ error: `Internal Server Error` });
     }
   }
 

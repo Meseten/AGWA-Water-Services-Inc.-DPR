@@ -39,7 +39,6 @@ const InvoiceView = ({
     
     const finalTotalAmount = (bill.amount || 0).toFixed(2);
 
-
     const billDateObj = bill.billDate?.toDate ? bill.billDate.toDate() : null;
     const formattedDateForInvoiceNum = billDateObj ? `${billDateObj.getFullYear()}${String(billDateObj.getMonth() + 1).padStart(2, '0')}${String(billDateObj.getDate()).padStart(2, '0')}` : Date.now().toString().slice(-6);
     const invoiceNumber = bill.invoiceNumber || `AGWA-${bill.id?.slice(0,4).toUpperCase()}-${formattedDateForInvoiceNum}`;
@@ -52,151 +51,165 @@ const InvoiceView = ({
 
     const handlePrint = () => {
         const printableContent = document.getElementById('invoice-content-to-print-modal-fullscreen');
-        if (printableContent) {
-            const sanitizedContent = DOMPurify.sanitize(printableContent.innerHTML, { ADD_TAGS: ['style'] });
-            const printWindow = window.open('', '_blank', 'height=800,width=1000,scrollbars=yes');
-            printWindow.document.write('<html><head><title>AGWA Invoice ' + invoiceNumber + '</title>');
-            printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-            printWindow.document.write(document.getElementById('invoice-print-styles').innerHTML);
-            printWindow.document.write('</head><body>');
-            printWindow.document.write(sanitizedContent);
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            setTimeout(() => {
-                printWindow.print();
-            }, 700);
-        } else {
-            if (showNotification) showNotification("Invoice content element not found for printing.", "error");
+        const printStyles = document.getElementById('invoice-print-styles');
+        
+        if (!printableContent || !printStyles) {
+            showNotification("Print content not found.", "error");
+            return;
         }
+
+        const printWindow = window.open('', '_blank', 'height=800,width=1000,scrollbars=yes');
+        printWindow.document.write('<html><head><title>AGWA Invoice ' + invoiceNumber + '</title>');
+        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+        
+        printWindow.document.write(printStyles.innerHTML);
+        
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(printableContent.innerHTML);
+        
+        printWindow.document.write(`
+            <script>
+                window.onload = function() {
+                    setTimeout(function() { // A small delay for Tailwind to apply styles
+                        window.print();
+                        window.close();
+                    }, 500); 
+                };
+            </script>
+        `);
+        
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
     };
+
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="" size="full" modalDialogClassName="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl w-[95vw] h-[95vh]" contentClassName="p-0 bg-gray-200">
-            <style id="invoice-print-styles">
-                {`
-                    @media print {
-                        @page {
-                            size: A4 portrait;
-                            margin: 0.75in;
-                        }
-                        body { 
-                            -webkit-print-color-adjust: exact !important; 
-                            print-color-adjust: exact !important; 
-                        }
+            <style id="invoice-print-styles" dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    @page {
+                        size: A4 portrait;
+                        margin: 0.75in;
                     }
-                    .invoice-container-print {
-                        width: 210mm;
-                        min-height: 297mm;
-                        margin: 1rem auto;
-                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-                        position: relative;
+                    body { 
+                        -webkit-print-color-adjust: exact !important; 
+                        print-color-adjust: exact !important; 
                         font-family: 'Times New Roman', Times, serif;
-                        color: #000;
-                        padding: 2rem;
+                        font-size: 10pt;
                     }
-                    .paid-stamp-print {
-                        position: absolute;
-                        top: 35%;
-                        left: 50%;
-                        transform: translate(-50%, -50%) rotate(-25deg);
-                        color: rgba(220, 38, 38, 0.2);
-                        border: 10px double rgba(220, 38, 38, 0.2);
-                        padding: 1rem 2rem;
-                        border-radius: 8px;
-                        font-family: 'Arial', sans-serif;
-                        text-align: center;
-                        opacity: 1;
-                        z-index: 10;
-                        pointer-events: none;
-                    }
-                    .paid-stamp-main-print { font-size: 5rem; font-weight: 700; line-height: 1; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); }
-                    .paid-stamp-date-print { font-size: 1.25rem; font-weight: 600; margin-top: 8px; display: block; }
-                    .invoice-header-print {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        padding-bottom: 1rem;
-                        border-bottom: 4px solid #1e3a8a;
-                    }
-                    .invoice-header-print .logo-print { font-size: 3rem; font-weight: bold; color: #1e3a8a; line-height: 1; }
-                    .invoice-header-print .tagline-print { font-size: 0.8rem; color: #1d4ed8; font-style: italic; }
-                    .invoice-header-print .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151; }
-                    .invoice-title-print { text-align: center; margin: 1.5rem 0; }
-                    .invoice-title-print h1 { font-size: 1.8rem; font-weight: 700; margin: 0; letter-spacing: 1px; }
-                    .invoice-title-print p { font-size: 0.9rem; margin: 0; }
-                    .invoice-details-grid-print {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 1.5rem;
-                    }
-                    .invoice-box-print { border: 1px solid #d1d5db; border-radius: 6px; }
-                    .invoice-box-print h2 {
-                        background-color: #f3f4f6;
-                        padding: 0.5rem 1rem;
-                        font-size: 0.9rem;
-                        font-weight: 700;
-                        border-bottom: 1px solid #d1d5db;
-                        margin: 0;
-                    }
-                    .invoice-box-print div { padding: 1rem; font-size: 0.9rem; }
-                    .invoice-box-print .detail-row { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed #e5e7eb; }
-                    .invoice-box-print .detail-row span:first-child { color: #4b5563; }
-                    .invoice-box-print .detail-row span:last-child { font-weight: 600; text-align: right; }
-                    .invoice-table-print { width: 100%; margin: 2rem 0; border-collapse: collapse; }
-                    .invoice-table-print th, .invoice-table-print td { border: 1px solid #d1d5db; padding: 0.6rem 0.8rem; font-size: 0.9rem; }
-                    .invoice-table-print th { background-color: #f3f4f6; text-align: left; }
-                    .invoice-table-print td:last-child { text-align: right; }
-                    .invoice-totals-print {
-                        width: 50%;
-                        margin-left: auto;
-                        font-size: 0.9rem;
-                    }
-                    .invoice-totals-print .detail-row {
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 0.5rem 0;
-                    }
-                    .invoice-totals-print .detail-row span:first-child { color: #4b5563; }
-                    .invoice-totals-print .detail-row span:last-child { font-weight: 600; text-align: right; }
-                    .invoice-totals-print .grand-total-print {
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 0.8rem;
-                        margin-top: 0.5rem;
-                        background-color: #f3f4f6;
-                        border: 1px solid #d1d5db;
-                        border-radius: 4px;
-                        font-size: 1rem;
-                    }
-                    .invoice-totals-print .grand-total-print-final {
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 0.8rem;
-                        margin-top: 0.25rem;
-                        background-color: #1e3a8a;
-                        color: white;
-                        border-radius: 4px;
-                        font-size: 1.1rem;
-                    }
-                    .invoice-footer-print {
-                        padding: 2rem 0 0 0;
-                        margin-top: 1rem;
-                        border-top: 2px solid #e5e7eb;
-                        font-size: 0.8rem;
-                        color: #4b5563;
-                        text-align: center;
-                    }
-                    .payment-stub-print {
-                        margin-top: 2rem;
-                        padding: 1rem;
-                        border: 2px dashed #4b5563;
-                        background-color: #f9fafb;
-                        page-break-before: always;
-                    }
-                    .payment-stub-print h2 { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 1rem; }
-                    .payment-stub-print .barcode-container { max-width: 300px; margin: 0.5rem auto 0 auto; }
-                `}
-            </style>
+                }
+                .invoice-container-print {
+                    width: 210mm;
+                    min-height: 297mm;
+                    margin: 1rem auto;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    position: relative;
+                    font-family: 'Times New Roman', Times, serif;
+                    color: #000;
+                    padding: 2rem;
+                }
+                .paid-stamp-print {
+                    position: absolute;
+                    top: 35%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) rotate(-25deg);
+                    color: rgba(220, 38, 38, 0.2) !important;
+                    border: 10px double rgba(220, 38, 38, 0.2) !important;
+                    padding: 1rem 2rem;
+                    border-radius: 8px;
+                    font-family: 'Arial', sans-serif;
+                    text-align: center;
+                    opacity: 1;
+                    z-index: 10;
+                    pointer-events: none;
+                }
+                .paid-stamp-main-print { font-size: 5rem; font-weight: 700; line-height: 1; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); }
+                .paid-stamp-date-print { font-size: 1.25rem; font-weight: 600; margin-top: 8px; display: block; }
+                .invoice-header-print {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    padding-bottom: 1rem;
+                    border-bottom: 4px solid #1e3a8a;
+                }
+                .invoice-header-print .logo-print { font-size: 3rem; font-weight: bold; color: #1e3a8a !important; line-height: 1; }
+                .invoice-header-print .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; }
+                .invoice-header-print .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151; }
+                .invoice-title-print { text-align: center; margin: 1.5rem 0; }
+                .invoice-title-print h1 { font-size: 1.8rem; font-weight: 700; margin: 0; letter-spacing: 1px; }
+                .invoice-title-print p { font-size: 0.9rem; margin: 0; }
+                .invoice-details-grid-print {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1.5rem;
+                }
+                .invoice-box-print { border: 1px solid #d1d5db; border-radius: 6px; }
+                .invoice-box-print h2 {
+                    background-color: #f3f4f6 !important;
+                    padding: 0.5rem 1rem;
+                    font-size: 0.9rem;
+                    font-weight: 700;
+                    border-bottom: 1px solid #d1d5db;
+                    margin: 0;
+                }
+                .invoice-box-print div { padding: 1rem; font-size: 0.9rem; }
+                .invoice-box-print .detail-row { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed #e5e7eb; }
+                .invoice-box-print .detail-row span:first-child { color: #4b5563; }
+                .invoice-box-print .detail-row span:last-child { font-weight: 600; text-align: right; }
+                .invoice-table-print { width: 100%; margin: 2rem 0; border-collapse: collapse; }
+                .invoice-table-print th, .invoice-table-print td { border: 1px solid #d1d5db; padding: 0.6rem 0.8rem; font-size: 0.9rem; }
+                .invoice-table-print th { background-color: #f3f4f6 !important; text-align: left; }
+                .invoice-table-print td:last-child { text-align: right; }
+                .invoice-totals-print {
+                    width: 50%;
+                    margin-left: auto;
+                    font-size: 0.9rem;
+                }
+                .invoice-totals-print .detail-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0.5rem 0;
+                }
+                .invoice-totals-print .detail-row span:first-child { color: #4b5563; }
+                .invoice-totals-print .detail-row span:last-child { font-weight: 600; text-align: right; }
+                .invoice-totals-print .grand-total-print {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0.8rem;
+                    margin-top: 0.5rem;
+                    background-color: #f3f4f6 !important;
+                    border: 1px solid #d1d5db;
+                    border-radius: 4px;
+                    font-size: 1rem;
+                }
+                .invoice-totals-print .grand-total-print-final {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0.8rem;
+                    margin-top: 0.25rem;
+                    background-color: #1e3a8a !important;
+                    color: white !important;
+                    border-radius: 4px;
+                    font-size: 1.1rem;
+                }
+                .invoice-footer-print {
+                    padding: 2rem 0 0 0;
+                    margin-top: 1rem;
+                    border-top: 2px solid #e5e7eb;
+                    font-size: 0.8rem;
+                    color: #4b5563;
+                    text-align: center;
+                }
+                .payment-stub-print {
+                    margin-top: 2rem;
+                    padding: 1rem;
+                    border: 2px dashed #4b5563;
+                    background-color: #f9fafb !important;
+                    page-break-before: always;
+                }
+                .payment-stub-print h2 { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 1rem; }
+                .payment-stub-print .barcode-container { max-width: 300px; margin: 0.5rem auto 0 auto; }
+            `}} />
             
             <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-300 bg-gray-100 rounded-t-xl sticky top-0 z-20">
                 <h3 className="text-md sm:text-lg font-semibold text-gray-800 truncate" title={invoiceNumber}>
