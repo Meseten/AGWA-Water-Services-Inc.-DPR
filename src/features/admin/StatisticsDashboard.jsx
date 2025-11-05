@@ -177,14 +177,14 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 DataService.getConsumptionStats(db),
                 DataService.getPaymentMethodStats(db),
                 DataService.getUserGrowthStats(db),
-                DataService.getDiscountStats(db),
+                DataService.getDiscountStats(db), 
             ]);
 
             const [
                 usersResult, ticketsResult, revenueResult, hourlyResult, 
                 staffResult, techResult, locationRevenueResult, outstandingResult,
                 consumptionResult, paymentMethodResult, userGrowthResult,
-                discountResult
+                discountResult 
             ] = results;
             
             let partialError = '';
@@ -410,16 +410,20 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             </div>
              <style>
                 {`
+                @page {
+                    size: A4 portrait;
+                    margin: 0.75in;
+                }
                 @media print {
                     .no-print { display: none !important; }
                     .print-section { 
-                        page-break-inside: avoid; 
+                        page-break-inside: avoid !important; 
                         margin-bottom: 2rem; 
                         border-top: 1px solid #eee !important; 
                         padding-top: 1rem !important;
                     }
                     body, .bg-white { background-color: #FFFFFF !important; }
-                    .shadow-xl, .shadow-md, .shadow-lg, .border { border: none !important; box-shadow: none !imporant; }
+                    .shadow-xl, .shadow-md, .shadow-lg, .border { border: none !important; box-shadow: none !important; }
                     .bg-gray-50 { background-color: #F9FAFB !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     
                     div.lg\\:pl-64 {

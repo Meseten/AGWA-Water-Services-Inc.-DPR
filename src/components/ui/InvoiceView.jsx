@@ -24,20 +24,20 @@ const InvoiceView = ({
     
     const penaltyRate = (systemSettings.latePaymentPenaltyPercentage || 2.0) / 100;
     
-    
     const totalCurrentCharges = parseFloat(bill.totalCalculatedCharges?.toFixed(2) || 0);
-    
     const previousUnpaidAmount = parseFloat((bill.previousUnpaidAmount || 0).toFixed(2));
-    
     const existingPenalty = parseFloat((bill.penaltyAmount || 0).toFixed(2));
-    
     const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
     const amountDueOnOrBeforeDate = totalCurrentCharges + previousUnpaidAmount + existingPenalty - seniorCitizenDiscount;
 
-    const newLatePenalty = parseFloat((totalCurrentCharges * penaltyRate).toFixed(2));
+    const newLatePenalty = (bill.status === 'Paid' || bill.penaltyAmount > 0) 
+        ? 0
+        : parseFloat((totalCurrentCharges * penaltyRate).toFixed(2));
     
     const amountDueAfterDate = amountDueOnOrBeforeDate + newLatePenalty;
+    
+    const finalTotalAmount = (bill.amount || 0).toFixed(2);
 
 
     const billDateObj = bill.billDate?.toDate ? bill.billDate.toDate() : null;
@@ -57,7 +57,9 @@ const InvoiceView = ({
             const printWindow = window.open('', '_blank', 'height=800,width=1000,scrollbars=yes');
             printWindow.document.write('<html><head><title>AGWA Invoice ' + invoiceNumber + '</title>');
             printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-            printWindow.document.write(printableContent.innerHTML); 
+            printWindow.document.write(document.getElementById('invoice-print-styles').innerHTML);
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(sanitizedContent);
             printWindow.document.write('</body></html>');
             printWindow.document.close();
             setTimeout(() => {
@@ -70,9 +72,13 @@ const InvoiceView = ({
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="" size="full" modalDialogClassName="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl w-[95vw] h-[95vh]" contentClassName="p-0 bg-gray-200">
-            <style>
+            <style id="invoice-print-styles">
                 {`
                     @media print {
+                        @page {
+                            size: A4 portrait;
+                            margin: 0.75in;
+                        }
                         body { 
                             -webkit-print-color-adjust: exact !important; 
                             print-color-adjust: exact !important; 
@@ -311,16 +317,21 @@ const InvoiceView = ({
                                 <span className="font-bold">Amount Due on or Before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}</span>
                                 <span className="font-bold">₱{amountDueOnOrBeforeDate.toFixed(2)}</span>
                             </div>
-
-                            <div className="detail-row mt-4">
-                                <span>Late Payment Penalty (if paid after due date)</span>
-                                <span>PHP {newLatePenalty.toFixed(2)}</span>
-                            </div>
                             
-                            <div className="grand-total-print-final">
-                                <span className="font-bold">TOTAL AMOUNT DUE AFTER Due Date</span>
-                                <span className="font-bold">₱{amountDueAfterDate.toFixed(2)}</span>
-                            </div>
+                            {bill.status !== 'Paid' && (
+                                <>
+                                    <div className="detail-row mt-4">
+                                        <span>Late Payment Penalty (if paid after {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})})</span>
+                                        <span className="text-red-600">PHP {newLatePenalty.toFixed(2)}</span>
+                                    </div>
+                                    
+                                    <div className="grand-total-print-final">
+                                        <span className="font-bold">TOTAL AMOUNT DUE AFTER Due Date</span>
+                                        <span className="font-bold">₱{amountDueAfterDate.toFixed(2)}</span>
+                                    </div>
+                                </>
+                            )}
+                            
                             <div className="text-right text-red-600 font-bold text-sm mt-1">
                                 Due Date: {formatDate(bill.dueDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A'}
                             </div>
@@ -337,7 +348,9 @@ const InvoiceView = ({
                             <div className="detail-row"><span>Account No.:</span> <span>{userData.accountNumber}</span></div>
                             <div className="detail-row"><span>Invoice No.:</span> <span>{invoiceNumber}</span></div>
                             <div className="detail-row"><span>Amount Due (on or before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}):</span> <span className="text-lg font-bold">₱{amountDueOnOrBeforeDate.toFixed(2)}</span></div>
-                            <div className="detail-row"><span>Amount Due (after {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}):</span> <span className="text-lg font-bold">₱{amountDueAfterDate.toFixed(2)}</span></div>
+                            {bill.status !== 'Paid' && (
+                                <div className="detail-row"><span>Amount Due (after {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}):</span> <span className="text-lg font-bold">₱{amountDueAfterDate.toFixed(2)}</span></div>
+                            )}
                             <div className="barcode-container">
                                 <Barcode value={invoiceNumber} />
                             </div>

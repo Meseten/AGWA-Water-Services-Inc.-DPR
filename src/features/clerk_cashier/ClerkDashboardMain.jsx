@@ -63,6 +63,10 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
             printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
             printWindow.document.write(`
                 <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 0.75in;
+                    }
                     body { 
                         font-family: 'Times New Roman', Times, serif; 
                         -webkit-print-color-adjust: exact !important; 
@@ -71,9 +75,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         font-size: 10pt;
                     }
                     .printable-area { 
-                        max-width: 800px; 
+                        max-width: 100%;
                         margin: auto; 
-                        padding: 2.5rem; 
                     }
                     .report-header { 
                         display: flex;
@@ -206,7 +209,7 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                     @media print {
                         .no-print { display: none !important; }
                         body { margin: 0; font-size: 10pt; }
-                        .printable-area { padding: 0.5rem; box-shadow: none; border: none; }
+                        .printable-area { padding: 0; box-shadow: none; border: none; }
                         .summary-grid { grid-template-columns: repeat(3, 1fr); }
                     }
                 </style>

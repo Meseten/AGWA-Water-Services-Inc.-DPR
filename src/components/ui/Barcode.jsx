@@ -24,7 +24,7 @@ const Barcode = ({ value }) => {
             <div
                 key={index}
                 className={`h-full ${bar === '1' ? 'bg-black' : 'bg-transparent'}`}
-                style={{ width: '1px' }} 
+                style={{ width: '1px' }}
             ></div>
         ));
     };
