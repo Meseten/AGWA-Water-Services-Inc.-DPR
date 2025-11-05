@@ -1,7 +1,7 @@
 import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
-    Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit as firestoreLimit,
+    Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
     FieldPath, documentId
 } from 'firebase/firestore';
 import {
@@ -68,7 +68,7 @@ export async function deleteUserProfile(dbInstance, userId) {
 
 async function deleteAllFromCollection(dbInstance, collectionPath) {
     try {
-        const snapshot = await getDocs(query(collection(dbInstance, collectionPath), firestoreLimit(500)));
+        const snapshot = await getDocs(query(collection(dbInstance, collectionPath), limit(500)));
         if (snapshot.empty) return { success: true, count: 0 };
 
         let count = 0;
@@ -83,7 +83,7 @@ async function deleteAllFromCollection(dbInstance, collectionPath) {
             
             if (lastSnapshot.size < 500) break;
             
-            lastSnapshot = await getDocs(query(collection(dbInstance, collectionPath), firestoreLimit(500)));
+            lastSnapshot = await getDocs(query(collection(dbInstance, collectionPath), limit(500)));
         }
         
         return { success: true, count };
@@ -433,7 +433,7 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
             collection(dbInstance, allMeterReadingsCollectionPath()),
             where("userId", "==", userId),
             orderBy("readingDate", "desc"),
-            firestoreLimit(2)
+            limit(2)
         );
         const readingsSnapshot = await getDocs(readingsQuery);
         if (readingsSnapshot.docs.length < 2) {
@@ -553,7 +553,7 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
             const userProfile = { id: userDoc.id, ...userDoc.data() };
             if (!userProfile.accountNumber) continue;
 
-            const readingsQuery = query(collection(dbInstance, allMeterReadingsCollectionPath()), where("userId", "==", userProfile.id), orderBy("readingDate", "desc"), firestoreLimit(2));
+            const readingsQuery = query(collection(dbInstance, allMeterReadingsCollectionPath()), where("userId", "==", userProfile.id), orderBy("readingDate", "desc"), limit(2));
             const readingsSnapshot = await getDocs(readingsQuery);
 
             if (readingsSnapshot.docs.length < 2) continue;
@@ -565,7 +565,7 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
                 collection(dbInstance, allBillsCollectionPath()),
                 where("userId", "==", userProfile.id),
                 where("monthYear", "==", billMonthYear),
-                 firestoreLimit(1)
+                 limit(1)
             );
             const existingBillSnapshot = await getDocs(existingBillQuery);
 
