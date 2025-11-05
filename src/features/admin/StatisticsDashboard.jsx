@@ -452,7 +452,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                 <DoughnutChartComponent data={stats?.ticketStats} title="Support Tickets by Status" />
                             </div>
                              <div className="p-4 bg-gray-50 rounded-lg border lg:col-span-2">
-                                <DoughnoteChartComponent 
+                                <DoughnutChartComponent 
                                     data={stats?.discountStats} 
                                     title="Customer Discount Status"
                                     colorMap={{

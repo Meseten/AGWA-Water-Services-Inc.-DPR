@@ -60,9 +60,10 @@ const InvoiceView = ({
 
         const printWindow = window.open('', '_blank', 'height=800,width=1000,scrollbars=yes');
         printWindow.document.write('<html><head><title>AGWA Invoice ' + invoiceNumber + '</title>');
-        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
         
-        printWindow.document.write(printStyles.innerHTML);
+        const styleSheet = printWindow.document.createElement('style');
+        styleSheet.innerHTML = printStyles.innerHTML;
+        printWindow.document.head.appendChild(styleSheet);
         
         printWindow.document.write('</head><body>');
         printWindow.document.write(printableContent.innerHTML);
@@ -70,10 +71,10 @@ const InvoiceView = ({
         printWindow.document.write(`
             <script>
                 window.onload = function() {
-                    setTimeout(function() { // A small delay for Tailwind to apply styles
+                    setTimeout(function() {
                         window.print();
                         window.close();
-                    }, 500); 
+                    }, 750); 
                 };
             </script>
         `);
