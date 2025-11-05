@@ -474,7 +474,8 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
         const prevBillQuery = query(
             collection(dbInstance, allBillsCollectionPath()),
             where("userId", "==", userId),
-            where("status", "==", "Unpaid")
+            where("status", "==", "Unpaid"),
+            orderBy("dueDate", "desc")
         );
         const prevBillSnapshot = await getDocs(prevBillQuery);
         
@@ -540,7 +541,7 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
             return { success: true, data: [] };
         }
     
-        const accountsInLocQuery = query(collection(dbInstance, profilesCollectionPath()), where("serviceAddress.barangay", "==", location));
+        const accountsInLocQuery = query(collection(dbInstance, profilesCollectionPath()), where("serviceAddress.barangay", "==", location), orderBy("name", "asc"));
         const usersSnapshot = await getDocs(accountsInLocQuery);
         if (usersSnapshot.empty) return { success: true, data: [] };
 
@@ -1254,8 +1255,8 @@ export async function getTechnicalStats(dbInstance) {
     try {
         const [routesSnap, interruptionsSnap, unassignedRoutesSnap] = await Promise.all([
             getDocs(collection(dbInstance, meterRoutesCollectionPath())),
-            getDocs(query(collection(dbInstance, serviceInterruptionsCollectionPath()), where("status", "in", ["Scheduled", "Ongoing"]))),
-            getDocs(query(collection(dbInstance, meterRoutesCollectionPath()), where("assignedReaderId", "==", "")))
+            getDocs(query(collection(dbInstance, serviceInterruptionsCollectionPath()), where("status", "in", ["Scheduled", "Ongoing"]), orderBy("startDate", "desc"))),
+            getDocs(query(collection(dbInstance, meterRoutesCollectionPath()), where("assignedReaderId", "==", ""), orderBy("name", "asc")))
         ]);
 
         const totalRoutes = routesSnap.size;
