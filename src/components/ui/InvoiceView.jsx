@@ -31,11 +31,10 @@ const InvoiceView = ({
 
     const amountDueOnOrBeforeDate = totalCurrentCharges + previousUnpaidAmount + existingPenalty - seniorCitizenDiscount;
 
-    const newLatePenalty = (bill.status === 'Paid' || bill.penaltyAmount > 0) 
-        ? 0
-        : parseFloat((totalCurrentCharges * penaltyRate).toFixed(2));
+    const baseAmount = bill.baseAmount || amountDueOnOrBeforeDate;
+    const potentialPenalty = bill.potentialPenalty || 0;
     
-    const amountDueAfterDate = amountDueOnOrBeforeDate + newLatePenalty;
+    const amountDueAfterDate = baseAmount + potentialPenalty;
     
     const finalTotalAmount = (bill.amount || 0).toFixed(2);
 
@@ -90,24 +89,25 @@ const InvoiceView = ({
                 @media print {
                     @page {
                         size: A4 portrait;
-                        margin: 0.75in;
+                        margin: 0.5in; /* Reduced page margin */
                     }
                     body { 
                         -webkit-print-color-adjust: exact !important; 
                         print-color-adjust: exact !important; 
                         font-family: 'Times New Roman', Times, serif;
-                        font-size: 10pt;
+                        font-size: 9pt; /* Reduced base font size */
                     }
                 }
                 .invoice-container-print {
-                    width: 210mm;
-                    min-height: 297mm;
-                    margin: 1rem auto;
+                    width: 100%;
+                    max-width: 210mm;
+                    min-height: 290mm; /* Slightly less than A4 height */
+                    margin: 0 auto;
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                     position: relative;
                     font-family: 'Times New Roman', Times, serif;
                     color: #000;
-                    padding: 2rem;
+                    padding: 1rem; /* Reduced container padding */
                     display: flex;
                     flex-direction: column;
                 }
@@ -121,7 +121,7 @@ const InvoiceView = ({
                     transform: translate(-50%, -50%) rotate(-25deg);
                     color: rgba(220, 38, 38, 0.2) !important;
                     border: 10px double rgba(220, 38, 38, 0.2) !important;
-                    padding: 1rem 2rem;
+                    padding: 0.5rem 1rem;
                     border-radius: 8px;
                     font-family: 'Arial', sans-serif;
                     text-align: center;
@@ -129,59 +129,64 @@ const InvoiceView = ({
                     z-index: 10;
                     pointer-events: none;
                 }
-                .paid-stamp-main-print { font-size: 5rem; font-weight: 700; line-height: 1; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); }
-                .paid-stamp-date-print { font-size: 1.25rem; font-weight: 600; margin-top: 8px; display: block; }
+                .paid-stamp-main-print { font-size: 4rem; font-weight: 700; line-height: 1; }
+                .paid-stamp-date-print { font-size: 1rem; font-weight: 600; margin-top: 4px; display: block; }
+                
                 .invoice-header-print {
                     display: flex;
                     justify-content: space-between;
                     align-items: flex-start;
-                    padding-bottom: 1rem;
-                    border-bottom: 4px solid #1e3a8a;
+                    padding-bottom: 0.5rem; /* Reduced */
+                    border-bottom: 3px solid #1e3a8a;
                 }
-                .invoice-header-print .logo-print { font-size: 3rem; font-weight: bold; color: #1e3a8a !important; line-height: 1; }
+                .invoice-header-print .logo-print { font-size: 2.5rem; font-weight: bold; color: #1e3a8a !important; line-height: 1; }
                 .invoice-header-print .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; }
-                .invoice-header-print .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151; }
-                .invoice-title-print { text-align: center; margin: 1.5rem 0; }
-                .invoice-title-print h1 { font-size: 1.8rem; font-weight: 700; margin: 0; letter-spacing: 1px; }
+                .invoice-header-print .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.3; color: #374151; }
+                
+                .invoice-title-print { text-align: center; margin: 1rem 0; } /* Reduced */
+                .invoice-title-print h1 { font-size: 1.6rem; font-weight: 700; margin: 0; } /* Reduced */
                 .invoice-title-print p { font-size: 0.9rem; margin: 0; }
+                
                 .invoice-details-grid-print {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 1.5rem;
+                    gap: 1rem; /* Reduced */
                 }
                 .invoice-box-print { border: 1px solid #d1d5db; border-radius: 6px; }
                 .invoice-box-print h2 {
                     background-color: #f3f4f6 !important;
-                    padding: 0.5rem 1rem;
+                    padding: 0.4rem 0.75rem; /* Reduced */
                     font-size: 0.9rem;
                     font-weight: 700;
                     border-bottom: 1px solid #d1d5db;
                     margin: 0;
                 }
-                .invoice-box-print div { padding: 1rem; font-size: 0.9rem; }
-                .invoice-box-print .detail-row { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed #e5e7eb; }
+                .invoice-box-print div { padding: 0.75rem; font-size: 0.9rem; } /* Reduced */
+                .invoice-box-print .detail-row { display: flex; justify-content: space-between; padding: 0.25rem 0; border-bottom: 1px dashed #e5e7eb; } /* Reduced */
                 .invoice-box-print .detail-row span:first-child { color: #4b5563; }
                 .invoice-box-print .detail-row span:last-child { font-weight: 600; text-align: right; }
-                .invoice-table-print { width: 100%; margin: 2rem 0; border-collapse: collapse; }
-                .invoice-table-print th, .invoice-table-print td { border: 1px solid #d1d5db; padding: 0.6rem 0.8rem; font-size: 0.9rem; }
+                
+                .invoice-table-print { width: 100%; margin: 1.5rem 0; border-collapse: collapse; } /* Reduced */
+                .invoice-table-print th, .invoice-table-print td { border: 1px solid #d1d5db; padding: 0.4rem 0.6rem; font-size: 0.9rem; } /* Reduced */
                 .invoice-table-print th { background-color: #f3f4f6 !important; text-align: left; }
                 .invoice-table-print td:last-child { text-align: right; }
+                
                 .invoice-totals-print {
-                    width: 50%;
+                    width: 55%; /* Slightly wider */
                     margin-left: auto;
                     font-size: 0.9rem;
                 }
                 .invoice-totals-print .detail-row {
                     display: flex;
                     justify-content: space-between;
-                    padding: 0.5rem 0;
+                    padding: 0.35rem 0; /* Reduced */
                 }
                 .invoice-totals-print .detail-row span:first-child { color: #4b5563; }
                 .invoice-totals-print .detail-row span:last-child { font-weight: 600; text-align: right; }
                 .invoice-totals-print .grand-total-print {
                     display: flex;
                     justify-content: space-between;
-                    padding: 0.8rem;
+                    padding: 0.6rem 0.8rem; /* Reduced */
                     margin-top: 0.5rem;
                     background-color: #f3f4f6 !important;
                     border: 1px solid #d1d5db;
@@ -191,21 +196,26 @@ const InvoiceView = ({
                 .invoice-totals-print .grand-total-print-final {
                     display: flex;
                     justify-content: space-between;
-                    padding: 0.8rem;
+                    padding: 0.6rem 0.8rem; /* Reduced */
                     margin-top: 0.25rem;
                     background-color: #1e3a8a !important;
                     color: white !important;
                     border-radius: 4px;
                     font-size: 1.1rem;
                 }
+                
                 .invoice-footer-print {
-                    padding: 2rem 0 0 0;
+                    padding: 1.5rem 0 0 0; /* Reduced */
                     margin-top: auto;
-                    border-top: 2px solid #e5e7eb;
-                    font-size: 0.8rem;
+                    border-top: 1px solid #e5e7eb;
+                    font-size: 0.75rem; /* Reduced */
                     color: #4b5563;
                     text-align: center;
                     page-break-before: avoid;
+                }
+                .barcode-container-print {
+                    max-width: 280px;
+                    margin: 0.5rem auto 0 auto; /* Reduced */
                 }
             `}} />
             
@@ -283,7 +293,7 @@ const InvoiceView = ({
                         </section>
 
                         <section>
-                            <h2 className="section-title-print" style={{margin: '2rem 0 0 0'}}>CHARGES BREAKDOWN</h2>
+                            <h2 className="section-title-print" style={{margin: '1.5rem 0 0 0', fontSize: '1.1rem', fontWeight: 700}}>CHARGES BREAKDOWN</h2>
                             <table className="invoice-table-print">
                                 <thead>
                                     <tr>
@@ -298,10 +308,10 @@ const InvoiceView = ({
                                     <tr><td>Environmental Charge (EC)</td><td>{charges.environmentalCharge?.toFixed(2)}</td></tr>
                                     <tr><td>Sewerage Charge (SC)</td><td>{charges.sewerageCharge?.toFixed(2)}</td></tr>
                                     <tr><td>Maintenance Service Charge</td><td>{charges.maintenanceServiceCharge?.toFixed(2)}</td></tr>
-                                    <tr className="bg-gray-50 font-semibold"><td>SUB-TOTAL (Water & Other Charges)</td><td>{charges.subTotalBeforeTaxes?.toFixed(2)}</td></tr>
+                                    <tr className="bg-gray-50 font-semibold" style={{backgroundColor: '#f9fafb !important'}}><td>SUB-TOTAL (Water & Other Charges)</td><td>{charges.subTotalBeforeTaxes?.toFixed(2)}</td></tr>
                                     <tr><td>Government Taxes (Local Franchise Tax)</td><td>{charges.governmentTaxes?.toFixed(2)}</td></tr>
                                     <tr><td>Value Added Tax (VAT 12%)</td><td>{charges.vat?.toFixed(2)}</td></tr>
-                                    <tr className="bg-gray-100 font-bold text-base"><td>Total Current Charges</td><td>{totalCurrentCharges.toFixed(2)}</td></tr>
+                                    <tr className="bg-gray-100 font-bold" style={{backgroundColor: '#f3f4f6 !important', fontSize: '10pt'}}><td>Total Current Charges</td><td>{totalCurrentCharges.toFixed(2)}</td></tr>
                                 </tbody>
                             </table>
                         </section>
@@ -313,27 +323,27 @@ const InvoiceView = ({
                             </div>
                             <div className="detail-row">
                                 <span>Previous Unpaid Amount:</span> 
-                                <span className={previousUnpaidAmount > 0 ? 'text-red-600' : ''}>PHP {previousUnpaidAmount.toFixed(2)}</span>
+                                <span style={{color: previousUnpaidAmount > 0 ? '#dc2626' : 'inherit'}}>PHP {previousUnpaidAmount.toFixed(2)}</span>
                             </div>
                             <div className="detail-row">
                                 <span>Penalties from Previous Bills:</span> 
-                                <span className={existingPenalty > 0 ? 'text-red-600' : ''}>PHP {existingPenalty.toFixed(2)}</span>
+                                <span style={{color: existingPenalty > 0 ? '#dc2626' : 'inherit'}}>PHP {existingPenalty.toFixed(2)}</span>
                             </div>
                             <div className="detail-row">
                                 <span>Senior Citizen/PWD Discount:</span> 
-                                <span className={seniorCitizenDiscount > 0 ? 'text-green-600' : ''}>PHP ({seniorCitizenDiscount.toFixed(2)})</span>
+                                <span style={{color: seniorCitizenDiscount > 0 ? '#059669' : 'inherit'}}>PHP ({seniorCitizenDiscount.toFixed(2)})</span>
                             </div>
                             
                             <div className="grand-total-print">
                                 <span className="font-bold">Amount Due on or Before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}</span>
-                                <span className="font-bold">₱{amountDueOnOrBeforeDate.toFixed(2)}</span>
+                                <span className="font-bold">₱{baseAmount.toFixed(2)}</span>
                             </div>
                             
                             {bill.status !== 'Paid' && (
                                 <>
-                                    <div className="detail-row mt-4">
+                                    <div className="detail-row mt-2">
                                         <span>Late Payment Penalty (if paid after {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})})</span>
-                                        <span className="text-red-600">PHP {newLatePenalty.toFixed(2)}</span>
+                                        <span style={{color: '#dc2626'}}>PHP {potentialPenalty.toFixed(2)}</span>
                                     </div>
                                     
                                     <div className="grand-total-print-final">
@@ -343,7 +353,7 @@ const InvoiceView = ({
                                 </>
                             )}
                             
-                            <div className="text-right text-red-600 font-bold text-sm mt-1">
+                            <div className="text-right font-bold mt-1" style={{color: '#dc2626', fontSize: '10pt'}}>
                                 Due Date: {formatDate(bill.dueDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A'}
                             </div>
                         </section>
@@ -353,7 +363,7 @@ const InvoiceView = ({
                     <footer className="invoice-footer-print">
                         <p>Please pay on or before the due date to avoid disconnection and late payment penalties.</p>
                         <p>This is a system-generated statement. For inquiries, please call our 24/7 hotline at <strong>1627-AGWA</strong> or email us at <strong>support@agwa-waterservices.com.ph</strong>.</p>
-                        <div className="barcode-container-print" style={{ maxWidth: '300px', margin: '1rem auto 0 auto' }}>
+                        <div className="barcode-container-print">
                             <Barcode value={invoiceNumber} />
                         </div>
                     </footer>
