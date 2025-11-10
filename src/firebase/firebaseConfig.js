@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { 
-    getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence,
+    getFirestore, connectFirestoreEmulator, enableMultiTabIndexedDbPersistence,
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
@@ -41,7 +41,7 @@ if (USE_EMULATOR) {
     console.log("🚀 Connecting to Production Firebase Services 🚀");
 }
 
-enableIndexedDbPersistence(db, { synchronization: 'MULTI_TAB' })
+enableMultiTabIndexedDbPersistence(db)
   .then(() => {
     console.log("Firestore offline persistence enabled for multiple tabs.");
   })

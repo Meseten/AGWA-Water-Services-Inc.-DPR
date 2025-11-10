@@ -1002,14 +1002,13 @@ export async function getDocuments(dbInstance, collectionPath, queryConstraints 
 export async function getUsersStats(dbInstance) {
     try {
         const profilesRef = collection(dbInstance, profilesCollectionPath());
-        const totalSnapshot = await getCountFromServer(profilesRef);
         const allProfilesSnapshot = await getDocs(profilesRef);
         const byRole = allProfilesSnapshot.docs.reduce((acc, doc) => {
             const role = doc.data().role || 'unknown';
             acc[role] = (acc[role] || 0) + 1;
             return acc;
         }, {});
-        return { success: true, data: { total: totalSnapshot.data().count, byRole } };
+        return { success: true, data: { total: allProfilesSnapshot.size, byRole } };
     } catch(e) {
         return handleFirestoreError('getting users stats', e);
     }
@@ -1018,8 +1017,7 @@ export async function getUsersStats(dbInstance) {
 export async function getTicketsStats(dbInstance) {
     try {
         const ticketsRef = collection(dbInstance, supportTicketsCollectionPath());
-        const q = query(ticketsRef, orderBy("lastUpdatedAt", "asc"));
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(ticketsRef);
         
         let openCount = 0;
         const stats = {
