@@ -60,7 +60,6 @@ export const getChatbotReply = async (chatHistory, systemPrompt) => {
         ...messages
     ];
 
-    // Use the new stable model
     return callDeepseekAPI(fullMessages, 'llama-3.1-8b-instant');
 };
 
@@ -160,7 +159,6 @@ export const categorizeTicketWithAI = async (description, availableCategories) =
      `;
      try {
          const messages = [{ role: "user", content: prompt }];
-         // Use the new stable model
          let category = await callDeepseekAPI(messages, 'llama-3.1-8b-instant');
          category = category.replace(/["'.*]/g, "").trim();
          if (availableCategories.includes(category)) {
@@ -184,4 +182,25 @@ export const draftIssueDescriptionWithAI = async (userInput) => {
      `;
     const messages = [{ role: "user", content: prompt }];
     return callDeepseekAPI(messages);
+};
+
+export const generateChartAnalysis = async (chartTitle, chartData) => {
+    const dataString = Array.isArray(chartData) 
+        ? JSON.stringify(chartData)
+        : JSON.stringify(Object.entries(chartData).map(([key, value]) => ({ [key]: value })));
+    const prompt = `
+        You are a formal, senior business analyst for AGWA Water Services, writing an internal report.
+        Analyze the following dataset for a specific chart and provide a concise, data-driven analysis (2-3 sentences).
+        
+        - Do NOT use markdown headers (like ##) or titles.
+        - The response MUST start with "<strong>Analysis:</strong>".
+        - Use a professional, corporate, and technical tone.
+        - Explain what the data *implies* for business operations, revenue, or user behavior.
+        - Use simple HTML (<p>, <strong>, <em>) for formatting.
+
+        Chart Title: "${chartTitle}"
+        Data: ${dataString}
+    `;
+    const messages = [{ role: "user", content: prompt }];
+    return callDeepseekAPI(messages, 'llama-3.1-8b-instant');
 };

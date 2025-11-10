@@ -5,7 +5,7 @@ import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, Cal
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from "../../services/dataService.js";
 import { db } from "../../firebase/firebaseConfig.js";
-import { callDeepseekAPI } from "../../services/deepseekService.js";
+import { generateChartAnalysis } from "../../services/deepseekService.js";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
@@ -163,9 +163,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
     const [stats, setStats] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-
-    const [reportNarrative, setReportNarrative] = useState('');
-    const [isGeneratingNarrative, setIsGeneratingNarrative] = useState(false);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
     const fetchStatistics = useCallback(async () => {
         setIsLoading(true);
@@ -254,150 +252,158 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         fetchStatistics();
     }, [fetchStatistics]);
 
-    const generateReportNarrative = async (currentStats) => {
-        if (!currentStats) return "No data available to analyze.";
-        setIsGeneratingNarrative(true);
-        setReportNarrative('');
-
-        const statsSummary = {
-            business: {
-                totalRevenue_12mo: totalRevenue,
-                totalOutstanding: currentStats.outstandingBalance,
-                totalConsumption_12mo: totalConsumption,
-                revenueByLocation: currentStats.revenueByLocation,
-                paymentMethods: currentStats.paymentMethods,
-            },
-            userSupport: {
-                totalUsers: currentStats.totalUsers,
-                usersByRole: currentStats.usersByRole,
-                totalTickets: currentStats.totalTickets,
-                openTickets: currentStats.openTickets,
-                ticketsByStatus: currentStats.ticketStats,
-                ticketsByType: currentStats.ticketsByType,
-                discountStats: currentStats.discountStats,
-            },
-            technical: {
-                totalRoutes: currentStats.techStats?.totalRoutes,
-                totalAccounts: currentStats.techStats?.totalAccounts,
-                activeInterrupts: currentStats.techStats?.activeInterrupts,
-                unassignedRoutes: currentStats.techStats?.unassignedRoutes,
-            },
-            activity: {
-                staffReadings: currentStats.staffActivity?.readerActivity,
-                staffPayments: currentStats.staffActivity?.clerkActivity,
-            }
-        };
-
-        const prompt = `
-            You are 'Agie', an AI analyst for AGWA Water Services.
-            Analyze the following JSON data and generate a professional, high-level "Executive Summary" narrative for a printed report.
-            - Start with "Executive Summary".
-            - Use simple HTML for formatting: <p>, <strong>, <ul>, <li>.
-            - Do not use <h2> or <h3>.
-            - Write 3-4 short paragraphs.
-            - Paragraph 1: Cover Business Analytics (Revenue, Outstanding Balance).
-            - Paragraph 2: Cover User & Support Analytics (User totals, ticket status).
-            - Paragraph 3: Cover Technical & Staff Operations (Routes, Interruptions, Staff Activity).
-            - Be concise and highlight the most important numbers (e.g., total users, total revenue, open tickets, active interruptions).
-            - Data: ${JSON.stringify(statsSummary)}
-        `;
+    const handlePrintReport = async () => {
+        if (isGeneratingReport || !stats) return;
+        setIsGeneratingReport(true);
+        showNotification("Generating report... This may take a moment.", "info");
 
         try {
-            const narrative = await callDeepseekAPI([{ role: 'user', content: prompt }]);
-            setReportNarrative(narrative);
-            return narrative;
-        } catch (error) {
-            console.error("AI Narrative Generation Failed:", error);
-            const errorMsg = "<p><strong>Executive Summary</strong></p><p><i>AI narrative generation failed. Please check the API connection or key.</i></p>";
-            setReportNarrative(errorMsg);
-            return errorMsg;
-        } finally {
-            setIsGeneratingNarrative(false);
-        }
-    };
+            const chartCanvases = document.getElementById('stats-print-area').querySelectorAll('canvas');
+            const chartImagePromises = Array.from(chartCanvases).map(canvas => {
+                return new Promise((resolve) => {
+                    const chartInstance = Object.values(ChartJS.instances).find(c => c.canvas === canvas);
+                    if (chartInstance) {
+                        const chartId = canvas.closest('[data-chart-id]')?.dataset.chartId;
+                        if (chartId) {
+                            resolve({ id: chartId, dataUrl: chartInstance.toBase64Image('image/png', 1.0) });
+                        } else {
+                            resolve(null);
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                });
+            });
+            const chartImageResults = (await Promise.all(chartImagePromises)).filter(Boolean);
+            const chartImages = chartImageResults.reduce((acc, img) => {
+                acc[img.id] = img.dataUrl;
+                return acc;
+            }, {});
 
-    const handlePrintReport = async () => {
-        setIsGeneratingNarrative(true);
-        const narrativeHtml = await generateReportNarrative(stats);
-        setIsGeneratingNarrative(false);
+            const analysisPromises = [
+                generateChartAnalysis("Monthly Collected Revenue (Last 12 Months)", stats.monthlyRevenue || {}),
+                generateChartAnalysis("Monthly Water Consumption (Last 12 Months)", stats.monthlyConsumption || {}),
+                generateChartAnalysis("Revenue by Location", stats.revenueByLocation || {}),
+                generateChartAnalysis("Payments by Method", stats.paymentMethods || {}),
+                generateChartAnalysis("New User Signups (Last 12 Months)", stats.userGrowth || {}),
+                generateChartAnalysis("Users by Role", stats.usersByRole || {}),
+                generateChartAnalysis("Tickets by Type", stats.ticketsByType || {}),
+                generateChartAnalysis("Support Tickets by Status", stats.ticketStats || {}),
+                generateChartAnalysis("Customer Discount Status", stats.discountStats || {}),
+                generateChartAnalysis("Readings Submitted Today (by Staff)", stats.staffActivity?.readerActivity || {}),
+                generateChartAnalysis("Payments Processed Today (by Staff)", stats.staffActivity?.clerkActivity || {}),
+                generateChartAnalysis("Hourly Portal Activity (Today)", stats.hourlyActivity || []),
+            ];
+            const analysisResults = await Promise.allSettled(analysisPromises);
+            const analyses = {
+                revenue: analysisResults[0].status === 'fulfilled' ? analysisResults[0].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                consumption: analysisResults[1].status === 'fulfilled' ? analysisResults[1].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                locationRevenue: analysisResults[2].status === 'fulfilled' ? analysisResults[2].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                paymentMethods: analysisResults[3].status === 'fulfilled' ? analysisResults[3].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                userGrowth: analysisResults[4].status === 'fulfilled' ? analysisResults[4].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                userRoles: analysisResults[5].status === 'fulfilled' ? analysisResults[5].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                ticketTypes: analysisResults[6].status === 'fulfilled' ? analysisResults[6].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                ticketStatus: analysisResults[7].status === 'fulfilled' ? analysisResults[7].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                discountStatus: analysisResults[8].status === 'fulfilled' ? analysisResults[8].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                staffReadings: analysisResults[9].status === 'fulfilled' ? analysisResults[9].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                staffPayments: analysisResults[10].status === 'fulfilled' ? analysisResults[10].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                hourlyActivity: analysisResults[11].status === 'fulfilled' ? analysisResults[11].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+            };
 
-        const reportContentNode = document.getElementById('stats-print-area');
-        if (!reportContentNode) return;
-
-        const contentToPrint = reportContentNode.cloneNode(true);
-        const canvases = contentToPrint.querySelectorAll('canvas');
-        
-        canvases.forEach(canvas => {
-            const originalCanvas = document.querySelector(`canvas[width="${canvas.width}"][height="${canvas.height}"]`);
-            if (originalCanvas) {
-                const dataUrl = originalCanvas.toDataURL('image/png', 1.0);
-                const img = document.createElement('img');
-                img.src = dataUrl;
-                img.style.width = '100%';
-                img.style.height = 'auto';
-                img.style.border = '1px solid #eee';
-                img.style.borderRadius = '8px';
-                
-                if (canvas.parentNode) {
-                    canvas.parentNode.parentNode.replaceChild(img, canvas.parentNode);
-                }
-            }
-        });
-
-        const printStyles = document.getElementById('stats-print-styles')?.innerHTML || '';
-        
-        const printWindow = window.open('', '', 'height=800,width=1000');
-        printWindow.document.write('<html><head><title>System Analytics Report</title>');
-        
-        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-        
-        printWindow.document.write('<style>' + printStyles + '</style>');
-        
-        printWindow.document.write('</head><body><div class="printable-area p-4 md:p-8 lg:p-12">');
-        
-        const headerHtml = `
-            <header class="report-header">
-                <div>
-                    <h1 class="logo-print">AGWA</h1>
-                    <p class="tagline-print">Ensuring Clarity, Sustaining Life.</p>
-                </div>
-                <div class="company-address-print">
-                    <strong>AGWA Water Services, Inc.</strong><br/>
-                    123 Aqua Drive, Hydro Business Park<br/>
-                    Naic, Cavite, Philippines 4110
-                </div>
-            </header>
-            <h1 class="report-title">
-                SYSTEM ANALYTICS REPORT
-            </h1>
-            <p class="report-generated-date">
-                Generated: ${new Date().toLocaleString()}
-            </p>
+            const printStyles = document.getElementById('stats-print-styles')?.innerHTML || '';
+            const printWindow = window.open('', '', 'height=800,width=1200');
             
-            <section class="print-section" id="ai-narrative">
-                <div class="prose prose-sm max-w-none">
-                    ${narrativeHtml}
-                </div>
-            </section>
-        `;
-        printWindow.document.write(headerHtml);
-        
-        printWindow.document.write(contentToPrint.innerHTML);
-        
-        printWindow.document.write(`
-            <script>
-                window.onload = function() {
-                    // Give Tailwind, images, and AI content time to load
-                    setTimeout(function() { 
-                        window.print();
-                        window.close();
-                    }, 1000); 
-                };
-            </script>
-        `);
+            printWindow.document.write('<html><head><title>System Analytics Report</title>');
+            printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+            printWindow.document.write(`<style>${printStyles}</style>`);
+            printWindow.document.write('</head><body class="bg-white">');
+            
+            const headerHtml = `
+                <div class="printable-area p-8">
+                    <header class="report-header">
+                        <div>
+                            <h1 class="logo-print">AGWA</h1>
+                            <p class="tagline-print">Ensuring Clarity, Sustaining Life.</p>
+                        </div>
+                        <div class="company-address-print">
+                            <strong>AGWA Water Services, Inc.</strong><br/>
+                            123 Aqua Drive, Hydro Business Park<br/>
+                            Naic, Cavite, Philippines 4110
+                        </div>
+                    </header>
+                    <h1 class="report-title">SYSTEM ANALYTICS REPORT</h1>
+                    <p class="report-generated-date">Generated: ${new Date().toLocaleString()}</p>
+            `;
+            printWindow.document.write(headerHtml);
 
-        printWindow.document.write('</div></body></html>');
-        printWindow.document.close();
+            const createFigure = (chartId, analysisHtml, colSpan = 'lg:col-span-1') => {
+                const chartImg = chartImages[chartId];
+                if (!chartImg) return `<div class="chart-container ${colSpan}"><div class="analysis-narrative"><p><strong>Analysis:</strong> <em>Chart data not found.</em></p></div></div>`;
+                
+                return `
+                    <div class="chart-container ${colSpan}">
+                        <img src="${chartImg}" alt="${chartId} Chart" />
+                        <div class="analysis-narrative">
+                            ${analysisHtml}
+                        </div>
+                    </div>
+                `;
+            };
+
+            let reportBody = `
+                <section class="print-section">
+                    <h3 class="print-section-title">Business Analytics</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        ${createFigure('revenue', analyses.revenue)}
+                        ${createFigure('consumption', analyses.consumption)}
+                        ${createFigure('locationRevenue', analyses.locationRevenue)}
+                        ${createFigure('paymentMethods', analyses.paymentMethods)}
+                    </div>
+                </section>
+
+                <section class="print-section">
+                    <h3 class="print-section-title">User & Support Analytics</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        ${createFigure('userGrowth', analyses.userGrowth)}
+                        ${createFigure('userRoles', analyses.userRoles)}
+                        ${createFigure('ticketTypes', analyses.ticketTypes)}
+                        ${createFigure('ticketStatus', analyses.ticketStatus)}
+                        ${createFigure('discountStatus', analyses.discountStatus, 'lg:col-span-2')}
+                    </div>
+                </section>
+
+                <section class="print-section">
+                    <h3 class="print-section-title">Staff & Technical Analytics</h3>
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        ${createFigure('staffReadings', analyses.staffReadings)}
+                        ${createFigure('staffPayments', analyses.staffPayments)}
+                        ${createFigure('hourlyActivity', analyses.hourlyActivity)}
+                    </div>
+                </section>
+            `;
+            
+            printWindow.document.write(reportBody);
+            
+            printWindow.document.write(`
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() { 
+                                window.print();
+                                window.close();
+                            }, 1000); 
+                        };
+                    </script>
+                </div></body></html>
+            `);
+            
+            printWindow.document.close();
+
+        } catch (err) {
+            console.error("Print Report Error:", err);
+            showNotification("Failed to generate the full report.", "error");
+        } finally {
+            setIsGeneratingReport(false);
+        }
     };
 
 
@@ -421,7 +427,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         -webkit-print-color-adjust: exact !important; 
                         print-color-adjust: exact !important;
                         color: #000;
-                        font-size: 10pt;
+                        font-size: 11pt; /* Slightly larger base font */
                     }
                     .no-print { display: none !important; }
                     .printable-area { padding: 0 !important; max-width: 100%; margin: auto; }
@@ -429,47 +435,64 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     .report-header .logo-print { font-size: 2.5rem; font-weight: 700; color: #1e3a8a !important; line-height: 1; margin: 0; }
                     .report-header .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; margin: 0; }
                     .report-header .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151 !important; }
-                    h1.report-title { font-size: 1.5rem; font-weight: 700; color: #000 !important; margin-top: 1.5rem; margin-bottom: 1rem; text-align: center; text-transform: uppercase; }
-                    p.report-generated-date { text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 2rem; }
+                    h1.report-title { font-size: 1.5rem; font-weight: 700; color: #000 !important; margin-top: 1.5rem; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase; }
+                    p.report-generated-date { text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 1.5rem; }
+                    
                     .print-section { 
                         page-break-inside: avoid !important; 
                         margin-top: 1.5rem; 
-                        border-top: 1px solid #eee !important; 
                         padding-top: 1.5rem !important;
                     }
-                    /* NEW: Styles for AI Narrative */
-                    #ai-narrative {
-                        background-color: #f3f4f6 !important;
-                        border: 1px solid #e5e7eb !important;
-                        border-radius: 8px;
-                        padding: 1.25rem;
-                        font-size: 0.95rem;
-                        line-height: 1.6;
-                        color: #374151 !important;
+                    .print-section:first-of-type {
+                        border-top: none !important;
                     }
-                    #ai-narrative p { margin-bottom: 0.75rem; }
-                    #ai-narrative strong { color: #111827 !important; }
-                    #ai-narrative ul { margin-left: 1.25rem; list-style-type: disc; }
 
                     h3.print-section-title {
-                        font-size: 1.25rem; 
+                        font-size: 1.3rem; 
                         font-weight: 700; 
                         border-bottom: 1px solid #4b5563; 
                         padding-bottom: 0.25rem; 
                         margin-bottom: 1rem; 
                         color: #111827 !important;
-                        display: flex;
-                        align-items: center;
                     }
                     h3.print-section-title svg { display: none; }
+
+                    .chart-container {
+                        page-break-inside: avoid !important;
+                        margin-bottom: 1.5rem;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        padding: 1rem;
+                        background-color: #F9FAFB !important;
+                    }
+                    .chart-container img {
+                        width: 100%;
+                        height: auto;
+                        border-bottom: 1px solid #e5e7eb;
+                        padding-bottom: 1rem;
+                        margin-bottom: 1rem;
+                    }
+                    .analysis-narrative {
+                        font-size: 10pt;
+                        color: #374151 !important;
+                        font-family: 'Georgia', serif;
+                    }
+                    .analysis-narrative p {
+                        margin-bottom: 0.5rem;
+                    }
+                    .analysis-narrative strong {
+                        color: #111827 !important;
+                        font-weight: 600;
+                    }
+                    .analysis-narrative em {
+                        font-style: italic;
+                    }
+
+                    /* Hide all UI elements that are not part of the report content */
                     .shadow-xl, .shadow-md, .shadow-lg, .border { 
-                        border: 1px solid #e5e7eb !important; 
                         box-shadow: none !important; 
                     }
-                    .bg-gray-50 { 
-                        background-color: #F9FAFB !important; 
-                    }
-                    .bg-white { background-color: #FFFFFF !important; }
+                    .bg-gray-50, .bg-white { background-color: transparent !important; }
                     .h-72 { height: auto !important; }
                 }
              `}} />
@@ -478,13 +501,13 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     <BarChart3 size={30} className="mr-3 text-orange-600" /> System Analytics
                 </h2>
                 <div className="flex items-center gap-2">
-                    <button onClick={fetchStatistics} disabled={isLoading || isGeneratingNarrative} className="flex items-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg border border-gray-300 disabled:opacity-50">
+                    <button onClick={fetchStatistics} disabled={isLoading || isGeneratingReport} className="flex items-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg border border-gray-300 disabled:opacity-50">
                         {isLoading ? <Loader2 size={16} className="animate-spin mr-2"/> : <RotateCcw size={16} className="mr-2" />}
                         Refresh
                     </button>
-                    <button onClick={handlePrintReport} disabled={isLoading || isGeneratingNarrative} className="flex items-center text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg disabled:bg-gray-400">
-                        {isGeneratingNarrative ? <Loader2 size={16} className="animate-spin mr-2"/> : <Printer size={16} className="mr-2"/>}
-                        {isGeneratingNarrative ? 'Generating Report...' : 'Print Report'}
+                    <button onClick={handlePrintReport} disabled={isLoading || isGeneratingReport} className="flex items-center text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg disabled:bg-gray-400">
+                        {isGeneratingReport ? <Loader2 size={16} className="animate-spin mr-2"/> : <Printer size={16} className="mr-2"/>}
+                        {isGeneratingReport ? 'Generating Report...' : 'Print Report'}
                     </button>
                 </div>
             </div>
@@ -495,13 +518,13 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 <div className="space-y-8">
                     <section className="print-section">
                          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center print-section-title"><DollarSign size={22} className="mr-2 text-green-600"/>Business Analytics</h3>
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 no-print">
                             <StatCard title="Total Revenue (12 Mo.)" value={`₱${totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 0})}`} icon={DollarSign} color={chartColors.greenBorder}/>
                             <StatCard title="Total Outstanding" value={`₱${(stats?.outstandingBalance ?? 0).toLocaleString('en-US', {minimumFractionDigits: 0})}`} icon={AlertOctagon} color={chartColors.redBorder}/>
                             <StatCard title="Total Consumption (12 Mo.)" value={`${totalConsumption.toLocaleString('en-US')} m³`} icon={Droplets} color={chartColors.blueBorder}/>
                          </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="revenue">
                                 <BarChartComponent
                                     data={stats?.monthlyRevenue || {}}
                                     title="Monthly Collected Revenue (Last 12 Months)"
@@ -510,7 +533,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                     borderColor={chartColors.greenBorder}
                                 />
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="consumption">
                                 <BarChartComponent
                                     data={stats?.monthlyConsumption || {}}
                                     title="Monthly Water Consumption (Last 12 Months)"
@@ -519,10 +542,10 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                     borderColor={chartColors.blueBorder}
                                 />
                             </div>
-                             <div className="p-4 bg-gray-50 rounded-lg border">
+                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="locationRevenue">
                                 <DoughnutChartComponent data={stats?.revenueByLocation} title="Revenue by Location" />
                             </div>
-                             <div className="p-4 bg-gray-50 rounded-lg border">
+                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="paymentMethods">
                                 <DoughnutChartComponent data={stats?.paymentMethods} title="Payments by Method" />
                             </div>
                         </div>
@@ -530,14 +553,14 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     
                     <section className="print-section pt-6 border-t">
                          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center print-section-title"><Users size={22} className="mr-2 text-purple-600"/>User & Support Analytics</h3>
-                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 no-print">
                             <StatCard title="Total Users" value={stats?.totalUsers ?? 'N/A'} icon={Users} color={chartColors.purpleBorder}/>
                             <StatCard title="Total Tickets" value={stats?.totalTickets ?? 'N/A'} icon={MessageSquare} color={chartColors.orangeBorder}/>
                             <StatCard title="Open Tickets" value={stats?.openTickets ?? '0'} icon={AlertTriangle} color={chartColors.redBorder}/>
                             <StatCard title="Verified Discounts" value={stats?.discountStats?.verified ?? 'N/A'} icon={Percent} color={chartColors.greenBorder}/>
                         </div>
                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                             <div className="p-4 bg-gray-50 rounded-lg border">
+                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="userGrowth">
                                 <LineChartComponent 
                                     data={stats?.userGrowth || {}} 
                                     title="New User Signups (Last 12 Months)"
@@ -550,16 +573,16 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                     }]}
                                 />
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="userRoles">
                                 <DoughnutChartComponent data={stats?.usersByRole} title="Users by Role" />
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="ticketTypes">
                                 <PieChartComponent data={stats?.ticketsByType} title="Tickets by Type" />
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="ticketStatus">
                                 <DoughnutChartComponent data={stats?.ticketStats} title="Support Tickets by Status" />
                             </div>
-                             <div className="p-4 bg-gray-50 rounded-lg border lg:col-span-2">
+                             <div className="p-4 bg-gray-50 rounded-lg border lg:col-span-2" data-chart-id="discountStatus">
                                 <DoughnutChartComponent 
                                     data={stats?.discountStats} 
                                     title="Customer Discount Status"
@@ -575,14 +598,14 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
 
                     <section className="print-section pt-6 border-t">
                          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center print-section-title"><UserCheck size={22} className="mr-2 text-sky-600"/>Staff & Technical Analytics</h3>
-                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 no-print">
                             <StatCard title="Total Routes" value={stats?.techStats?.totalRoutes ?? 'N/A'} icon={MapPinIcon} color={chartColors.tealBorder}/>
                             <StatCard title="Total Accounts" value={stats?.techStats?.totalAccounts ?? 'N/A'} icon={Users} color={chartColors.tealBorder}/>
                             <StatCard title="Active Interruptions" value={stats?.techStats?.activeInterrupts ?? 'N/A'} icon={AlertTriangle} color={chartColors.redBorder}/>
                             <StatCard title="Unassigned Routes" value={stats?.techStats?.unassignedRoutes ?? 'N/A'} icon={Settings} color={chartColors.orangeBorder}/>
                          </div>
                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                             <div className="p-4 bg-gray-50 rounded-lg border">
+                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="staffReadings">
                                 <BarChartComponent
                                     data={stats?.staffActivity?.readerActivity || {}}
                                     title="Readings Submitted Today (by Staff)"
@@ -591,7 +614,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                     borderColor={chartColors.skyBorder}
                                 />
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="staffPayments">
                                 <BarChartComponent
                                     data={stats?.staffActivity?.clerkActivity || {}}
                                     title="Payments Processed Today (by Staff)"
@@ -600,7 +623,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                     borderColor={chartColors.purpleBorder}
                                 />
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="hourlyActivity">
                                 <LineChartComponent data={stats?.hourlyActivity || []} title="Hourly Portal Activity (Today)" />
                             </div>
                         </div>
