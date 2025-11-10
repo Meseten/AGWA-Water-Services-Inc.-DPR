@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Bar, Line, Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
-import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, Calendar, MapPin as MapPinIcon, DollarSign, Clock, UserCheck, Settings, AlertTriangle, TrendingUp, AlertOctagon, Droplets, CreditCard, UserPlus, Percent } from "lucide-react";
+import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, Calendar, MapPin as MapPinIcon, DollarSign, Clock, UserCheck, Settings, AlertTriangle, TrendingUp, AlertOctagon, Droplets, CreditCard, UserPlus, Percent, Sparkles } from "lucide-react";
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from "../../services/dataService.js";
 import { db } from "../../firebase/firebaseConfig.js";
+import { callDeepseekAPI } from "../../services/deepseekService.js";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
@@ -31,11 +32,10 @@ const chartColors = {
     grayBorder: 'rgba(107, 114, 128, 1)',
 };
 
-// FIX 1: Disable animations so charts render instantly
 const commonChartOptions = (title) => ({
     responsive: true,
     maintainAspectRatio: false,
-    animation: false, // <-- This is the crucial fix for printing
+    animation: false,
     plugins: {
         legend: { display: true, position: 'bottom' },
         title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -109,7 +109,7 @@ const DoughnutChartComponent = ({ data, title, colorMap }) => {
     const options = {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false, // <-- This is the crucial fix for printing
+        animation: false,
         plugins: {
             legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15 } },
             title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -133,7 +133,7 @@ const PieChartComponent = ({ data, title }) => {
     const options = {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false, // <-- This is the crucial fix for printing
+        animation: false,
         plugins: {
             legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15 } },
             title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -163,6 +163,9 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
     const [stats, setStats] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+
+    const [reportNarrative, setReportNarrative] = useState('');
+    const [isGeneratingNarrative, setIsGeneratingNarrative] = useState(false);
 
     const fetchStatistics = useCallback(async () => {
         setIsLoading(true);
@@ -251,25 +254,83 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         fetchStatistics();
     }, [fetchStatistics]);
 
-    // FIX 2: This function is now heavily modified
-    const handlePrintReport = () => {
+    const generateReportNarrative = async (currentStats) => {
+        if (!currentStats) return "No data available to analyze.";
+        setIsGeneratingNarrative(true);
+        setReportNarrative('');
+
+        const statsSummary = {
+            business: {
+                totalRevenue_12mo: totalRevenue,
+                totalOutstanding: currentStats.outstandingBalance,
+                totalConsumption_12mo: totalConsumption,
+                revenueByLocation: currentStats.revenueByLocation,
+                paymentMethods: currentStats.paymentMethods,
+            },
+            userSupport: {
+                totalUsers: currentStats.totalUsers,
+                usersByRole: currentStats.usersByRole,
+                totalTickets: currentStats.totalTickets,
+                openTickets: currentStats.openTickets,
+                ticketsByStatus: currentStats.ticketStats,
+                ticketsByType: currentStats.ticketsByType,
+                discountStats: currentStats.discountStats,
+            },
+            technical: {
+                totalRoutes: currentStats.techStats?.totalRoutes,
+                totalAccounts: currentStats.techStats?.totalAccounts,
+                activeInterrupts: currentStats.techStats?.activeInterrupts,
+                unassignedRoutes: currentStats.techStats?.unassignedRoutes,
+            },
+            activity: {
+                staffReadings: currentStats.staffActivity?.readerActivity,
+                staffPayments: currentStats.staffActivity?.clerkActivity,
+            }
+        };
+
+        const prompt = `
+            You are 'Agie', an AI analyst for AGWA Water Services.
+            Analyze the following JSON data and generate a professional, high-level "Executive Summary" narrative for a printed report.
+            - Start with "Executive Summary".
+            - Use simple HTML for formatting: <p>, <strong>, <ul>, <li>.
+            - Do not use <h2> or <h3>.
+            - Write 3-4 short paragraphs.
+            - Paragraph 1: Cover Business Analytics (Revenue, Outstanding Balance).
+            - Paragraph 2: Cover User & Support Analytics (User totals, ticket status).
+            - Paragraph 3: Cover Technical & Staff Operations (Routes, Interruptions, Staff Activity).
+            - Be concise and highlight the most important numbers (e.g., total users, total revenue, open tickets, active interruptions).
+            - Data: ${JSON.stringify(statsSummary)}
+        `;
+
+        try {
+            const narrative = await callDeepseekAPI([{ role: 'user', content: prompt }]);
+            setReportNarrative(narrative);
+            return narrative;
+        } catch (error) {
+            console.error("AI Narrative Generation Failed:", error);
+            const errorMsg = "<p><strong>Executive Summary</strong></p><p><i>AI narrative generation failed. Please check the API connection or key.</i></p>";
+            setReportNarrative(errorMsg);
+            return errorMsg;
+        } finally {
+            setIsGeneratingNarrative(false);
+        }
+    };
+
+    const handlePrintReport = async () => {
+        setIsGeneratingNarrative(true);
+        const narrativeHtml = await generateReportNarrative(stats);
+        setIsGeneratingNarrative(false);
+
         const reportContentNode = document.getElementById('stats-print-area');
         if (!reportContentNode) return;
 
-        // Clone the node to avoid modifying the live DOM
         const contentToPrint = reportContentNode.cloneNode(true);
-
-        // Find all canvas elements in the clone
         const canvases = contentToPrint.querySelectorAll('canvas');
         
         canvases.forEach(canvas => {
-            // Find the corresponding original canvas in the live DOM to get its data
             const originalCanvas = document.querySelector(`canvas[width="${canvas.width}"][height="${canvas.height}"]`);
             if (originalCanvas) {
-                // Get the base64 image data from the *original* canvas
-                const dataUrl = originalCanvas.toDataURL('image/png');
-                
-                // Create a new image element
+                const dataUrl = originalCanvas.toDataURL('image/png', 1.0);
                 const img = document.createElement('img');
                 img.src = dataUrl;
                 img.style.width = '100%';
@@ -277,26 +338,22 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 img.style.border = '1px solid #eee';
                 img.style.borderRadius = '8px';
                 
-                // Replace the canvas's parent (which has height styles) with the image
                 if (canvas.parentNode) {
                     canvas.parentNode.parentNode.replaceChild(img, canvas.parentNode);
                 }
             }
         });
 
-        // Get the custom print styles
         const printStyles = document.getElementById('stats-print-styles')?.innerHTML || '';
         
         const printWindow = window.open('', '', 'height=800,width=1000');
         printWindow.document.write('<html><head><title>System Analytics Report</title>');
         
-        // FIX 3: Inject Tailwind CSS CDN to fix layout
         printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
         
-        // Add your custom print styles
         printWindow.document.write('<style>' + printStyles + '</style>');
         
-        printWindow.document.write('</head><body><div class="printable-area">');
+        printWindow.document.write('</head><body><div class="printable-area p-4 md:p-8 lg:p-12">');
         
         const headerHtml = `
             <header class="report-header">
@@ -316,20 +373,25 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             <p class="report-generated-date">
                 Generated: ${new Date().toLocaleString()}
             </p>
+            
+            <section class="print-section" id="ai-narrative">
+                <div class="prose prose-sm max-w-none">
+                    ${narrativeHtml}
+                </div>
+            </section>
         `;
         printWindow.document.write(headerHtml);
         
-        // Write the modified content (with <img> tags)
         printWindow.document.write(contentToPrint.innerHTML);
         
         printWindow.document.write(`
             <script>
                 window.onload = function() {
-                    // Give Tailwind and images time to load before printing
+                    // Give Tailwind, images, and AI content time to load
                     setTimeout(function() { 
                         window.print();
                         window.close();
-                    }, 1000); // Increased timeout for images
+                    }, 1000); 
                 };
             </script>
         `);
@@ -375,6 +437,20 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         border-top: 1px solid #eee !important; 
                         padding-top: 1.5rem !important;
                     }
+                    /* NEW: Styles for AI Narrative */
+                    #ai-narrative {
+                        background-color: #f3f4f6 !important;
+                        border: 1px solid #e5e7eb !important;
+                        border-radius: 8px;
+                        padding: 1.25rem;
+                        font-size: 0.95rem;
+                        line-height: 1.6;
+                        color: #374151 !important;
+                    }
+                    #ai-narrative p { margin-bottom: 0.75rem; }
+                    #ai-narrative strong { color: #111827 !important; }
+                    #ai-narrative ul { margin-left: 1.25rem; list-style-type: disc; }
+
                     h3.print-section-title {
                         font-size: 1.25rem; 
                         font-weight: 700; 
@@ -386,8 +462,6 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         align-items: center;
                     }
                     h3.print-section-title svg { display: none; }
-                    
-                    /* Keep border styles for non-Tailwind elements */
                     .shadow-xl, .shadow-md, .shadow-lg, .border { 
                         border: 1px solid #e5e7eb !important; 
                         box-shadow: none !important; 
@@ -396,8 +470,6 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         background-color: #F9FAFB !important; 
                     }
                     .bg-white { background-color: #FFFFFF !important; }
-                    
-                    /* Remove canvas height, as img will replace it */
                     .h-72 { height: auto !important; }
                 }
              `}} />
@@ -406,13 +478,13 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     <BarChart3 size={30} className="mr-3 text-orange-600" /> System Analytics
                 </h2>
                 <div className="flex items-center gap-2">
-                    <button onClick={fetchStatistics} disabled={isLoading} className="flex items-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg border border-gray-300">
+                    <button onClick={fetchStatistics} disabled={isLoading || isGeneratingNarrative} className="flex items-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg border border-gray-300 disabled:opacity-50">
                         {isLoading ? <Loader2 size={16} className="animate-spin mr-2"/> : <RotateCcw size={16} className="mr-2" />}
                         Refresh
                     </button>
-                    {/* FIX 4: Disable button while loading */ }
-                    <button onClick={handlePrintReport} disabled={isLoading} className="flex items-center text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg disabled:bg-gray-400">
-                        <Printer size={16} className="mr-2"/> Print Report
+                    <button onClick={handlePrintReport} disabled={isLoading || isGeneratingNarrative} className="flex items-center text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg disabled:bg-gray-400">
+                        {isGeneratingNarrative ? <Loader2 size={16} className="animate-spin mr-2"/> : <Printer size={16} className="mr-2"/>}
+                        {isGeneratingNarrative ? 'Generating Report...' : 'Print Report'}
                     </button>
                 </div>
             </div>
