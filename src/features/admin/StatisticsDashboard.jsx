@@ -193,17 +193,19 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             const processResult = (result, name, dataKey) => {
                 if (result.status === 'fulfilled' && result.value.success) {
                     newStats[dataKey] = result.value.data;
-                    if (name === 'users') {
+                    
+                    // FIX: Check against the correct string ('User', 'Ticket', etc.)
+                    if (name === 'User') {
                         newStats.totalUsers = result.value.data.total;
                         newStats.usersByRole = result.value.data.byRole;
                     }
-                    if (name === 'tickets') {
+                    if (name === 'Ticket') {
                         newStats.ticketStats = result.value.data.byStatus;
                         newStats.ticketsByType = result.value.data.byType;
                         newStats.totalTickets = result.value.data.total;
                         newStats.openTickets = result.value.data.openCount;
                     }
-                    if (name === 'outstanding') {
+                    if (name === 'Outstanding balance') {
                         newStats.outstandingBalance = result.value.data.totalOutstanding;
                     }
                 } else {
