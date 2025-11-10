@@ -86,7 +86,20 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                 ? `for a household in ${userData.serviceAddress.barangay}`
                 : 'for a household';
             
-            const prompt = `You are Agie, a friendly and knowledgeable water conservation expert from AGWA. Provide a mix of 8-10 engaging items for a customer. Include practical water-saving tips, surprising water trivia/facts, and at least one local-context tip for the Philippines. Format them as a fun, easy-to-read list using markdown (e.g., using emojis like 💧 or ✨, and bolding for emphasis).`;
+            const prompt = `
+                You are Agie, a professional and helpful AI assistant for AGWA Water Services.
+                Please provide 8 practical water-saving tips and 2 surprising water trivia facts for a customer in the Philippines.
+                
+                Instructions:
+                1.  Provide a short, friendly opening paragraph (e.g., "Hello! I'm Agie...").
+                2.  Create a section titled "<strong>Practical Water-Saving Tips</strong>".
+                3.  List 8 tips using a <ul> with <li> elements.
+                4.  Include at least one Philippines-specific tip (like using a "tabo" or "timba" / pail).
+                5.  Create a second section titled "<strong>Water Trivia</strong>".
+                6.  List 2 surprising facts, also in a <ul>.
+                7.  Wrap all content in simple HTML tags: <p>, <ul>, <li>, <strong>.
+                8.  Do NOT use any markdown (like *, **, or #).
+            `;
             
             const messages = [{ role: 'user', content: prompt }];
             const tips = await callDeepseekAPI(messages);
@@ -95,7 +108,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
         } catch (error) {
             const errorMessage = error?.message || "Could not fetch water saving tips at the moment.";
             showNotification(errorMessage, "error");
-            setWaterSavingTips("Sorry, couldn't fetch tips right now. Try checking online for general water conservation advice!");
+            setWaterSavingTips("<p>Sorry, couldn't fetch tips right now. A simple tip: Always check for leaky faucets and toilets, as they are the most common sources of water waste!</p>");
         } finally {
             setIsLoadingTips(false);
         }
@@ -188,9 +201,10 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                 {isLoadingTips ? (
                     <div className="flex justify-center items-center h-40"><LoadingSpinner message="Agie is thinking of the best tips for you..." /></div>
                 ) : (
-                    <div className="prose prose-sm sm:prose max-w-none whitespace-pre-line p-2 leading-relaxed text-gray-700">
-                        {waterSavingTips || "No tips available at the moment. Please try again!"}
-                    </div>
+                    <div 
+                        className="prose prose-sm sm:prose max-w-none p-2 leading-relaxed text-gray-700" 
+                        dangerouslySetInnerHTML={{ __html: waterSavingTips || "<p>No tips available at the moment. Please try again!</p>" }} 
+                    />
                 )}
             </Modal>
         </div>

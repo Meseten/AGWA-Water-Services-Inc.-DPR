@@ -809,6 +809,7 @@ export async function getBillsForUser(dbInstance, userId) {
     }
 };
 
+
 async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSettings) {
     if (!systemSettings?.isRebateProgramEnabled || !userId) {
         console.log(`dataService: Rebate program disabled or no user ID. Skipping points.`);
@@ -817,13 +818,18 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
 
     try {
         const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso) || 0;
+        if (pointsPerPeso === 0) {
+            console.log(`dataService: pointsPerPeso is 0 or invalid. Skipping point award.`);
+            return;
+        }
+
         const earlyPaymentDays = parseInt(systemSettings.earlyPaymentDaysThreshold, 10) || 7;
         const earlyPaymentBonus = parseInt(systemSettings.earlyPaymentBonusPoints, 10) || 10;
 
         let pointsToAward = (amountPaid * pointsPerPeso);
 
         const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : (bill.dueDate?.seconds ? new Date(bill.dueDate.seconds * 1000) : null);
-        const paymentDate = new Date(); 
+        const paymentDate = bill.paymentDate?.toDate ? bill.paymentDate.toDate() : new Date(); 
         
         if(dueDate) {
             const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -875,14 +881,17 @@ export async function updateBill(dbInstance, billId, updates) {
         const billRef = doc(dbInstance, allBillDocumentPath(billId));
         
         const actualAmountPaid = updates.amountPaid; 
+        let finalBillData = {};
 
         if (updates.status === 'Paid') {
             const billSnap = await getDoc(billRef);
             if (billSnap.exists()) {
                 const bill = billSnap.data();
-                const today = new Date();
+                const today = updates.paymentDate || new Date(); 
                 const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : null;
                 
+                const finalUpdates = { ...updates, lastUpdatedAt: serverTimestamp() };
+
                 if (dueDate && today > dueDate && !bill.penaltyAmount) {
                     const settingsSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
                     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
@@ -890,30 +899,44 @@ export async function updateBill(dbInstance, billId, updates) {
                     const currentCharges = bill.totalCalculatedCharges || 0;
                     
                     if (currentCharges > 0 && penaltyRate > 0) {
-                        updates.penaltyAmount = parseFloat((currentCharges * penaltyRate).toFixed(2));
-                        updates.amount = (bill.amount || 0) + updates.penaltyAmount;
+                        const newPenalty = parseFloat((currentCharges * penaltyRate).toFixed(2));
+                        finalUpdates.penaltyAmount = newPenalty;
                         
-                        if (!updates.amountPaid || updates.amountPaid < updates.amount) {
-                            updates.amountPaid = updates.amount;
+                        const baseAmount = bill.amount || (bill.totalCalculatedCharges + (bill.previousUnpaidAmount || 0) - (bill.seniorCitizenDiscount || 0));
+                        finalUpdates.amount = baseAmount + newPenalty;
+                        
+                        if (!finalUpdates.amountPaid || finalUpdates.amountPaid < finalUpdates.amount) {
+                            finalUpdates.amountPaid = finalUpdates.amount;
                         }
                     }
                 }
+                
+                finalBillData = { ...bill, ...finalUpdates };
+
+                await updateDoc(billRef, finalUpdates);
 
                 if (bill.userId && actualAmountPaid > 0) {
                     const settingsSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
                     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
                     
-                    await awardRebatePoints(dbInstance, bill.userId, bill, actualAmountPaid, settings);
+                    await awardRebatePoints(dbInstance, bill.userId, finalBillData, actualAmountPaid, settings);
                 }
+
+                return { success: true };
+
+            } else {
+                throw new Error("Bill document not found.");
             }
         }
         
         await updateDoc(billRef, { ...updates, lastUpdatedAt: serverTimestamp() });
         return { success: true };
+
     } catch (error) {
         return handleFirestoreError('updating bill', error);
     }
 };
+
 
 
 export async function addMeterReading(dbInstance, readingData) {
@@ -1002,13 +1025,14 @@ export async function getDocuments(dbInstance, collectionPath, queryConstraints 
 export async function getUsersStats(dbInstance) {
     try {
         const profilesRef = collection(dbInstance, profilesCollectionPath());
+        const totalSnapshot = await getCountFromServer(profilesRef);
         const allProfilesSnapshot = await getDocs(profilesRef);
         const byRole = allProfilesSnapshot.docs.reduce((acc, doc) => {
             const role = doc.data().role || 'unknown';
             acc[role] = (acc[role] || 0) + 1;
             return acc;
         }, {});
-        return { success: true, data: { total: allProfilesSnapshot.size, byRole } };
+        return { success: true, data: { total: totalSnapshot.data().count, byRole } };
     } catch(e) {
         return handleFirestoreError('getting users stats', e);
     }
@@ -1017,7 +1041,8 @@ export async function getUsersStats(dbInstance) {
 export async function getTicketsStats(dbInstance) {
     try {
         const ticketsRef = collection(dbInstance, supportTicketsCollectionPath());
-        const snapshot = await getDocs(ticketsRef);
+        const q = query(ticketsRef, orderBy("lastUpdatedAt", "asc"));
+        const snapshot = await getDocs(q);
         
         let openCount = 0;
         const stats = {

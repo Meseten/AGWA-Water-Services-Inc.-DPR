@@ -1,6 +1,6 @@
 import React from 'react';
 import Modal from './Modal';
-import { Printer, X, Download, FileText } from 'lucide-react';
+import { Printer, X, Download, FileText, CheckCircle } from 'lucide-react';
 import { formatDate } from '../../utils/userUtils';
 import Barcode from './Barcode.jsx';
 import DOMPurify from 'dompurify';
@@ -211,6 +211,18 @@ const InvoiceView = ({
                     color: #dc2626;
                     font-size: 9pt;
                 }
+                /* NEW: Styles for the "Paid" total */
+                .invoice-totals-print .grand-total-paid {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0.8rem;
+                    margin-top: 0.5rem;
+                    background-color: #dcfce7 !important; /* green-100 */
+                    border: 1px solid #86efac; /* green-300 */
+                    color: #166534 !important; /* green-800 */
+                    border-radius: 4px;
+                    font-size: 1.1rem;
+                }
                 
                 .invoice-footer-print {
                     padding: 1rem 0 0 0; /* Reduced */
@@ -342,13 +354,13 @@ const InvoiceView = ({
                                 <span style={{color: seniorCitizenDiscount > 0 ? '#059669' : 'inherit'}}>PHP ({seniorCitizenDiscount.toFixed(2)})</span>
                             </div>
                             
-                            <div className="grand-total-print">
-                                <span className="font-bold">Amount Due on or Before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}</span>
-                                <span className="font-bold">₱{baseAmount.toFixed(2)}</span>
-                            </div>
-                            
-                            {bill.status !== 'Paid' && (
+                            {bill.status !== 'Paid' ? (
                                 <>
+                                    <div className="grand-total-print">
+                                        <span className="font-bold">Amount Due on or Before {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})}</span>
+                                        <span className="font-bold">₱{baseAmount.toFixed(2)}</span>
+                                    </div>
+                                
                                     <div className="detail-row mt-2">
                                         <span>Late Payment Penalty (if paid after {formatDate(bill.dueDate, {month: 'short', day: 'numeric'})})</span>
                                         <span style={{color: '#dc2626'}}>PHP {potentialPenalty.toFixed(2)}</span>
@@ -358,12 +370,22 @@ const InvoiceView = ({
                                         <span className="font-bold">TOTAL AMOUNT DUE AFTER Due Date</span>
                                         <span className="font-bold">₱{amountDueAfterDate.toFixed(2)}</span>
                                     </div>
+
+                                    <div className="due-date-text-print">
+                                        Due Date: {formatDate(bill.dueDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A'}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="grand-total-paid">
+                                        <span className="font-bold flex items-center"><CheckCircle size={16} className="mr-2"/>TOTAL AMOUNT PAID</span>
+                                        <span className="font-bold">₱{(bill.amountPaid || bill.amount).toFixed(2)}</span>
+                                    </div>
+                                    <div className="text-right text-sm font-medium text-gray-700 mt-1">
+                                        Paid on: {formatDate(bill.paymentDate, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                    </div>
                                 </>
                             )}
-                            
-                            <div className="due-date-text-print">
-                                Due Date: {formatDate(bill.dueDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A'}
-                            </div>
                         </section>
                         
                     </div>

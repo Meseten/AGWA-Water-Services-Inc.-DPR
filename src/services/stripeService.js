@@ -22,6 +22,9 @@ export const createCheckoutSession = async (
     const token = await user.getIdToken();
     const amountInCents = Math.round(amount * 100);
 
+    const successUrl = `${window.location.origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${window.location.origin}/?payment=cancel`;
+
     const response = await fetch('/api/createStripeCheckoutSession', {
       method: 'POST',
       headers: {
@@ -34,8 +37,8 @@ export const createCheckoutSession = async (
         userEmail: userEmail,
         userId: userId,
         accountNumber: accountNumber,
-        successUrl: `${window.location.origin}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${window.location.origin}/dashboard?payment=cancel`,
+        successUrl: successUrl,
+        cancelUrl: cancelUrl,
       }),
     });
 
