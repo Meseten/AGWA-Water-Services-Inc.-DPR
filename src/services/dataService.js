@@ -3,7 +3,7 @@ import {
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
     FieldPath, documentId
-} from 'firebase/firestore';
+} from '../firebase/firebaseConfig.js';
 import {
     userProfileDocumentPath,
     supportTicketsCollectionPath, supportTicketDocumentPath,

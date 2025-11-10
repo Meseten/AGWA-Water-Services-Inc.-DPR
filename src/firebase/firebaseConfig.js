@@ -1,6 +1,12 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from 'firebase/firestore';
+import { 
+    getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence,
+    doc, setDoc, getDoc, addDoc, collection, updateDoc,
+    deleteDoc, query, where, getDocs, serverTimestamp,
+    Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
+    FieldPath, documentId 
+} from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
@@ -49,4 +55,10 @@ enableIndexedDbPersistence(db, { synchronization: 'MULTI_TAB' })
     }
   });
 
-export { app, auth, db, functions };
+export { 
+    app, auth, db, functions,
+    doc, setDoc, getDoc, addDoc, collection, updateDoc,
+    deleteDoc, query, where, getDocs, serverTimestamp,
+    Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
+    FieldPath, documentId
+};
