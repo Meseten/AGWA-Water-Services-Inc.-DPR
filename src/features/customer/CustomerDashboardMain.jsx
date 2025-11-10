@@ -144,25 +144,31 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                         <LoadingSpinner message="Loading recent bills..." />
                     ) : recentBills.length > 0 ? (
                         <div className="space-y-3">
-                            {recentBills.map(bill => (
-                                <div key={bill.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-3.5 border rounded-lg hover:bg-gray-50/70 transition-colors duration-150 ${bill.status === 'Paid' ? 'border-green-200 bg-green-50/50' : 'border-yellow-200 bg-yellow-50/30'}`}>
+                            {recentBills.map(bill => {
+                                const isPaid = bill.status === 'Paid';
+                                const amountToShow = isPaid ? (bill.amountPaid || bill.amount) : bill.amount;
+                                
+                                return (
+                                <div key={bill.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-3.5 border rounded-lg hover:bg-gray-50/70 transition-colors duration-150 ${isPaid ? 'border-green-200 bg-green-50/50' : 'border-yellow-200 bg-yellow-50/30'}`}>
                                     <div>
-                                        <p className="font-medium text-gray-800 text-sm">{bill.monthYear || bill.billingPeriod} - <span className="font-bold">₱{bill.amount?.toFixed(2)}</span></p>
-                                        <p className={`text-xs mt-0.5 font-semibold ${bill.status === 'Paid' ? 'text-green-600' : 'text-orange-600'}`}>
-                                            Status: {bill.status} {bill.status === 'Unpaid' && `(Due: ${formatDate(bill.dueDate, {month: 'short', day: 'numeric'})})`}
-                                            {bill.displayPenalty > 0 && bill.status === 'Unpaid' && (
+                                        <p className="font-medium text-gray-800 text-sm">
+                                            {bill.monthYear || bill.billingPeriod} - <span className="font-bold">₱{amountToShow?.toFixed(2)}</span>
+                                        </p>
+                                        <p className={`text-xs mt-0.5 font-semibold ${isPaid ? 'text-green-600' : 'text-orange-600'}`}>
+                                            Status: {bill.status} {!isPaid && `(Due: ${formatDate(bill.dueDate, {month: 'short', day: 'numeric'})})`}
+                                            {bill.displayPenalty > 0 && !isPaid && (
                                                 <span className="text-xs text-red-500 font-semibold block">(Includes ₱{bill.displayPenalty.toFixed(2)} penalty)</span>
                                             )}
                                         </p>
                                     </div>
                                     <div className="flex gap-2 mt-2 sm:mt-0">
-                                        {bill.status === 'Unpaid' && (
+                                        {!isPaid && (
                                             <button onClick={() => setActiveSection('myBills')} className="text-xs bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded-md transition-all active:scale-95 font-medium">Pay Now</button>
                                         )}
                                         <button onClick={() => setActiveSection('myBills')} className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 py-1.5 px-3 rounded-md transition-all font-medium">View Details</button>
                                     </div>
                                 </div>
-                            ))}
+                            )})}
                              <button onClick={() => setActiveSection('myBills')} className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline">
                                 View All Bills & Payment History &rarr;
                             </button>

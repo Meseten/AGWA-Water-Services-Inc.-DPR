@@ -6,6 +6,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from "../../services/dataService.js";
 import { db } from "../../firebase/firebaseConfig.js";
 import { generateChartAnalysis, callDeepseekAPI } from "../../services/deepseekService.js";
+import DOMPurify from 'dompurify';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
@@ -35,7 +36,7 @@ const chartColors = {
 const commonChartOptions = (title) => ({
     responsive: true,
     maintainAspectRatio: false,
-    animation: false,
+    animation: false, 
     plugins: {
         legend: { display: true, position: 'bottom' },
         title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -389,7 +390,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     <p class="report-generated-date">Generated: ${new Date().toLocaleString()}</p>
                     
                     <section class="print-section" id="ai-summary">
-                        ${analyses.summary}
+                        ${DOMPurify.sanitize(analyses.summary)}
                     </section>
             `;
             printWindow.document.write(headerHtml);
@@ -402,7 +403,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     <div class="chart-container ${colSpan}">
                         <img src="${chartImg}" alt="${chartId} Chart" />
                         <div class="analysis-narrative">
-                            ${analysisHtml}
+                            ${DOMPurify.sanitize(analysisHtml)}
                         </div>
                     </div>
                 `;
@@ -445,7 +446,6 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             printWindow.document.write(`
                     <script>
                         window.onload = function() {
-                            // Give Tailwind and images time to load
                             setTimeout(function() { 
                                 window.print();
                                 window.close();
@@ -486,7 +486,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         -webkit-print-color-adjust: exact !important; 
                         print-color-adjust: exact !important;
                         color: #000;
-                        font-size: 11pt; /* Slightly larger base font */
+                        font-size: 11pt; 
                     }
                     .no-print { display: none !important; }
                     .printable-area { padding: 0 !important; max-width: 100%; margin: auto; }
@@ -550,7 +550,6 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     .analysis-narrative strong { color: #111827 !important; font-weight: 600; }
                     .analysis-narrative em { font-style: italic; }
 
-                    /* Hide all UI elements that are not part of the report content */
                     .shadow-xl, .shadow-md, .shadow-lg, .border { 
                         box-shadow: none !important; 
                     }
