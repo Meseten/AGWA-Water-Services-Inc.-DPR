@@ -1261,7 +1261,7 @@ export async function getTechnicalStats(dbInstance) {
         const totalRoutes = routesSnap.size;
         const totalAccounts = routesSnap.docs.reduce((sum, doc) => sum + (doc.data().accountNumbers?.length || 0), 0);
         const activeInterrupts = interruptionsSnap.size;
-        const unassignedRoutes = unassignedRoutes.size;
+        const unassignedRoutes = unassignedRoutesSnap.size;
 
         return { success: true, data: { totalRoutes, totalAccounts, activeInterrupts, unassignedRoutes } };
     } catch (error) {
