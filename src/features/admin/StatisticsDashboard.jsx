@@ -31,9 +31,11 @@ const chartColors = {
     grayBorder: 'rgba(107, 114, 128, 1)',
 };
 
+// FIX 1: Disable animations so charts render instantly
 const commonChartOptions = (title) => ({
     responsive: true,
     maintainAspectRatio: false,
+    animation: false, // <-- This is the crucial fix for printing
     plugins: {
         legend: { display: true, position: 'bottom' },
         title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -107,6 +109,7 @@ const DoughnutChartComponent = ({ data, title, colorMap }) => {
     const options = {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false, // <-- This is the crucial fix for printing
         plugins: {
             legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15 } },
             title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -130,6 +133,7 @@ const PieChartComponent = ({ data, title }) => {
     const options = {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false, // <-- This is the crucial fix for printing
         plugins: {
             legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15 } },
             title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -194,7 +198,6 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 if (result.status === 'fulfilled' && result.value.success) {
                     newStats[dataKey] = result.value.data;
                     
-                    // FIX: Check against the correct string ('User', 'Ticket', etc.)
                     if (name === 'User') {
                         newStats.totalUsers = result.value.data.total;
                         newStats.usersByRole = result.value.data.byRole;
@@ -248,55 +251,93 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         fetchStatistics();
     }, [fetchStatistics]);
 
+    // FIX 2: This function is now heavily modified
     const handlePrintReport = () => {
-        const reportContent = document.getElementById('stats-print-area');
-        const printStyles = document.getElementById('stats-print-styles');
-        
-        if (reportContent && printStyles) {
-            const printWindow = window.open('', '', 'height=800,width=1000');
-            printWindow.document.write('<html><head><title>System Analytics Report</title>');
-            
-            printWindow.document.write('<style>' + printStyles.innerHTML + '</style>');
-            
-            printWindow.document.write('</head><body><div class="printable-area">');
-            
-            const headerHtml = `
-                <header class="report-header">
-                    <div>
-                        <h1 class="logo-print">AGWA</h1>
-                        <p class="tagline-print">Ensuring Clarity, Sustaining Life.</p>
-                    </div>
-                    <div class="company-address-print">
-                        <strong>AGWA Water Services, Inc.</strong><br/>
-                        123 Aqua Drive, Hydro Business Park<br/>
-                        Naic, Cavite, Philippines 4110
-                    </div>
-                </header>
-                <h1 class="report-title">
-                    SYSTEM ANALYTICS REPORT
-                </h1>
-                <p class="report-generated-date">
-                    Generated: ${new Date().toLocaleString()}
-                </p>
-            `;
-            printWindow.document.write(headerHtml);
-            printWindow.document.write(reportContent.innerHTML);
-            
-            printWindow.document.write(`
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            window.close();
-                        }, 750); 
-                    };
-                </script>
-            `);
+        const reportContentNode = document.getElementById('stats-print-area');
+        if (!reportContentNode) return;
 
-            printWindow.document.write('</div></body></html>');
-            printWindow.document.close();
-        }
+        // Clone the node to avoid modifying the live DOM
+        const contentToPrint = reportContentNode.cloneNode(true);
+
+        // Find all canvas elements in the clone
+        const canvases = contentToPrint.querySelectorAll('canvas');
+        
+        canvases.forEach(canvas => {
+            // Find the corresponding original canvas in the live DOM to get its data
+            const originalCanvas = document.querySelector(`canvas[width="${canvas.width}"][height="${canvas.height}"]`);
+            if (originalCanvas) {
+                // Get the base64 image data from the *original* canvas
+                const dataUrl = originalCanvas.toDataURL('image/png');
+                
+                // Create a new image element
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.style.border = '1px solid #eee';
+                img.style.borderRadius = '8px';
+                
+                // Replace the canvas's parent (which has height styles) with the image
+                if (canvas.parentNode) {
+                    canvas.parentNode.parentNode.replaceChild(img, canvas.parentNode);
+                }
+            }
+        });
+
+        // Get the custom print styles
+        const printStyles = document.getElementById('stats-print-styles')?.innerHTML || '';
+        
+        const printWindow = window.open('', '', 'height=800,width=1000');
+        printWindow.document.write('<html><head><title>System Analytics Report</title>');
+        
+        // FIX 3: Inject Tailwind CSS CDN to fix layout
+        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+        
+        // Add your custom print styles
+        printWindow.document.write('<style>' + printStyles + '</style>');
+        
+        printWindow.document.write('</head><body><div class="printable-area">');
+        
+        const headerHtml = `
+            <header class="report-header">
+                <div>
+                    <h1 class="logo-print">AGWA</h1>
+                    <p class="tagline-print">Ensuring Clarity, Sustaining Life.</p>
+                </div>
+                <div class="company-address-print">
+                    <strong>AGWA Water Services, Inc.</strong><br/>
+                    123 Aqua Drive, Hydro Business Park<br/>
+                    Naic, Cavite, Philippines 4110
+                </div>
+            </header>
+            <h1 class="report-title">
+                SYSTEM ANALYTICS REPORT
+            </h1>
+            <p class="report-generated-date">
+                Generated: ${new Date().toLocaleString()}
+            </p>
+        `;
+        printWindow.document.write(headerHtml);
+        
+        // Write the modified content (with <img> tags)
+        printWindow.document.write(contentToPrint.innerHTML);
+        
+        printWindow.document.write(`
+            <script>
+                window.onload = function() {
+                    // Give Tailwind and images time to load before printing
+                    setTimeout(function() { 
+                        window.print();
+                        window.close();
+                    }, 1000); // Increased timeout for images
+                };
+            </script>
+        `);
+
+        printWindow.document.write('</div></body></html>');
+        printWindow.document.close();
     };
+
 
     const totalRevenue = useMemo(() => stats?.monthlyRevenue ? Object.values(stats.monthlyRevenue).reduce((sum, val) => sum + val, 0) : 0, [stats?.monthlyRevenue]);
     const totalConsumption = useMemo(() => stats?.monthlyConsumption ? Object.values(stats.monthlyConsumption).reduce((sum, val) => sum + val, 0) : 0, [stats?.monthlyConsumption]);
@@ -345,6 +386,8 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         align-items: center;
                     }
                     h3.print-section-title svg { display: none; }
+                    
+                    /* Keep border styles for non-Tailwind elements */
                     .shadow-xl, .shadow-md, .shadow-lg, .border { 
                         border: 1px solid #e5e7eb !important; 
                         box-shadow: none !important; 
@@ -353,21 +396,9 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         background-color: #F9FAFB !important; 
                     }
                     .bg-white { background-color: #FFFFFF !important; }
-                    .grid { display: grid !important; }
-                    .grid-cols-1 { grid-template-columns: repeat(1, 1fr) !important; }
-                    .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
-                    .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
-                    .lg\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
-                    .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
-                    .lg\\:col-span-2 { grid-column: span 2 / span 2 !important; }
-                    .lg\\:col-span-3 { grid-column: span 3 / span 3 !important; }
-                    .gap-4 { gap: 1rem !important; }
-                    .gap-6 { gap: 1.5rem !important; }
-                    .p-4 { padding: 1rem !important; }
-                    .mb-4 { margin-bottom: 1rem !important; }
-                    .mb-6 { margin-bottom: 1.5rem !important; }
-                    canvas { max-width: 100%; }
-                    .h-72 { height: 18rem !important; }
+                    
+                    /* Remove canvas height, as img will replace it */
+                    .h-72 { height: auto !important; }
                 }
              `}} />
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 no-print">
@@ -379,7 +410,8 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         {isLoading ? <Loader2 size={16} className="animate-spin mr-2"/> : <RotateCcw size={16} className="mr-2" />}
                         Refresh
                     </button>
-                    <button onClick={handlePrintReport} className="flex items-center text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg">
+                    {/* FIX 4: Disable button while loading */ }
+                    <button onClick={handlePrintReport} disabled={isLoading} className="flex items-center text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg disabled:bg-gray-400">
                         <Printer size={16} className="mr-2"/> Print Report
                     </button>
                 </div>
