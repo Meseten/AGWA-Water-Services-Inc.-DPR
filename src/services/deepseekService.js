@@ -188,12 +188,15 @@ export const generateChartAnalysis = async (chartTitle, chartData) => {
     const dataString = Array.isArray(chartData) 
         ? JSON.stringify(chartData)
         : JSON.stringify(Object.entries(chartData).map(([key, value]) => ({ [key]: value })));
+
     const prompt = `
         You are a formal, senior business analyst for AGWA Water Services, writing an internal report.
+        The currency for all financial data is **Philippine Pesos (PHP)**, not dollars ($).
+        
         Analyze the following dataset for a specific chart and provide a concise, data-driven analysis (2-3 sentences).
         
-        - Do NOT use markdown headers (like ##) or titles.
-        - The response MUST start with "<strong>Analysis:</strong>".
+        - Do NOT use markdown headers (like ##) or titles. The response must be a single block of HTML.
+        - The response MUST start with "<p><strong>Analysis:</strong>".
         - Use a professional, corporate, and technical tone.
         - Explain what the data *implies* for business operations, revenue, or user behavior.
         - Use simple HTML (<p>, <strong>, <em>) for formatting.

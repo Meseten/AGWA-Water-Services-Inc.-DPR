@@ -5,7 +5,7 @@ import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, Cal
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from "../../services/dataService.js";
 import { db } from "../../firebase/firebaseConfig.js";
-import { generateChartAnalysis } from "../../services/deepseekService.js";
+import { generateChartAnalysis, callDeepseekAPI } from "../../services/deepseekService.js";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
@@ -252,6 +252,27 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
         fetchStatistics();
     }, [fetchStatistics]);
 
+    const generateExecutiveSummary = async (statsSummary) => {
+        const prompt = `
+            You are 'Agie', an AI analyst for AGWA Water Services. The currency is **Philippine Pesos (PHP)**.
+            Analyze the following JSON data and generate a professional, high-level "Executive Summary" narrative for a printed report.
+            - Start with "<h3 class='print-section-title'>Executive Summary</h3>".
+            - Use simple HTML for formatting: <p>, <strong>, <ul>, <li>.
+            - Write 2-3 short paragraphs.
+            - Paragraph 1: Cover Business Analytics (Revenue, Outstanding Balance in PHP).
+            - Paragraph 2: Cover User & Support Analytics (User totals, ticket status).
+            - Paragraph 3: Cover Technical & Staff Operations (Routes, Interruptions, Staff Activity).
+            - Be concise and highlight the most important numbers (e.g., total users, total revenue (PHP), open tickets, active interruptions).
+            - Data: ${JSON.stringify(statsSummary)}
+        `;
+        try {
+            return await callDeepseekAPI([{ role: 'user', content: prompt }], 'llama-3.1-8b-instant');
+        } catch (error) {
+            console.error("AI Executive Summary Generation Failed:", error);
+            return "<h3 class='print-section-title'>Executive Summary</h3><p><strong>Analysis:</strong> <em>AI narrative generation failed. Please check the API connection or key.</em></p>";
+        }
+    };
+
     const handlePrintReport = async () => {
         if (isGeneratingReport || !stats) return;
         setIsGeneratingReport(true);
@@ -280,7 +301,37 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 return acc;
             }, {});
 
+            const statsSummary = {
+                business: {
+                    totalRevenue_12mo_PHP: totalRevenue,
+                    totalOutstanding_PHP: stats.outstandingBalance,
+                    totalConsumption_12mo_m3: totalConsumption,
+                    revenueByLocation_PHP: stats.revenueByLocation,
+                    paymentMethods: stats.paymentMethods,
+                },
+                userSupport: {
+                    totalUsers: stats.totalUsers,
+                    usersByRole: stats.usersByRole,
+                    totalTickets: stats.totalTickets,
+                    openTickets: stats.openTickets,
+                    ticketsByStatus: stats.ticketStats,
+                    ticketsByType: stats.ticketsByType,
+                    discountStats: stats.discountStats,
+                },
+                technical: {
+                    totalRoutes: stats.techStats?.totalRoutes,
+                    totalAccounts: stats.techStats?.totalAccounts,
+                    activeInterrupts: stats.techStats?.activeInterrupts,
+                    unassignedRoutes: stats.techStats?.unassignedRoutes,
+                },
+                activity: {
+                    staffReadings: stats.staffActivity?.readerActivity,
+                    staffPayments: stats.staffActivity?.clerkActivity,
+                }
+            };
+            
             const analysisPromises = [
+                generateExecutiveSummary(statsSummary),
                 generateChartAnalysis("Monthly Collected Revenue (Last 12 Months)", stats.monthlyRevenue || {}),
                 generateChartAnalysis("Monthly Water Consumption (Last 12 Months)", stats.monthlyConsumption || {}),
                 generateChartAnalysis("Revenue by Location", stats.revenueByLocation || {}),
@@ -295,19 +346,22 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 generateChartAnalysis("Hourly Portal Activity (Today)", stats.hourlyActivity || []),
             ];
             const analysisResults = await Promise.allSettled(analysisPromises);
+            const getAnalysis = (index, fallback) => (analysisResults[index].status === 'fulfilled' ? analysisResults[index].value : `<p><strong>Analysis:</strong> <em>${fallback}</em></p>`);
+
             const analyses = {
-                revenue: analysisResults[0].status === 'fulfilled' ? analysisResults[0].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                consumption: analysisResults[1].status === 'fulfilled' ? analysisResults[1].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                locationRevenue: analysisResults[2].status === 'fulfilled' ? analysisResults[2].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                paymentMethods: analysisResults[3].status === 'fulfilled' ? analysisResults[3].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                userGrowth: analysisResults[4].status === 'fulfilled' ? analysisResults[4].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                userRoles: analysisResults[5].status === 'fulfilled' ? analysisResults[5].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                ticketTypes: analysisResults[6].status === 'fulfilled' ? analysisResults[6].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                ticketStatus: analysisResults[7].status === 'fulfilled' ? analysisResults[7].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                discountStatus: analysisResults[8].status === 'fulfilled' ? analysisResults[8].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                staffReadings: analysisResults[9].status === 'fulfilled' ? analysisResults[9].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                staffPayments: analysisResults[10].status === 'fulfilled' ? analysisResults[10].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
-                hourlyActivity: analysisResults[11].status === 'fulfilled' ? analysisResults[11].value : '<p><strong>Analysis:</strong> <em>AI analysis failed to generate.</em></p>',
+                summary: getAnalysis(0, 'Executive summary generation failed.'),
+                revenue: getAnalysis(1, 'Revenue analysis failed.'),
+                consumption: getAnalysis(2, 'Consumption analysis failed.'),
+                locationRevenue: getAnalysis(3, 'Location revenue analysis failed.'),
+                paymentMethods: getAnalysis(4, 'Payment method analysis failed.'),
+                userGrowth: getAnalysis(5, 'User growth analysis failed.'),
+                userRoles: getAnalysis(6, 'User role analysis failed.'),
+                ticketTypes: getAnalysis(7, 'Ticket type analysis failed.'),
+                ticketStatus: getAnalysis(8, 'Ticket status analysis failed.'),
+                discountStatus: getAnalysis(9, 'Discount status analysis failed.'),
+                staffReadings: getAnalysis(10, 'Staff reading analysis failed.'),
+                staffPayments: getAnalysis(11, 'Staff payment analysis failed.'),
+                hourlyActivity: getAnalysis(12, 'Hourly activity analysis failed.'),
             };
 
             const printStyles = document.getElementById('stats-print-styles')?.innerHTML || '';
@@ -333,6 +387,10 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     </header>
                     <h1 class="report-title">SYSTEM ANALYTICS REPORT</h1>
                     <p class="report-generated-date">Generated: ${new Date().toLocaleString()}</p>
+                    
+                    <section class="print-section" id="ai-summary">
+                        ${analyses.summary}
+                    </section>
             `;
             printWindow.document.write(headerHtml);
 
@@ -387,10 +445,11 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             printWindow.document.write(`
                     <script>
                         window.onload = function() {
+                            // Give Tailwind and images time to load
                             setTimeout(function() { 
                                 window.print();
                                 window.close();
-                            }, 1000); 
+                            }, 1500); 
                         };
                     </script>
                 </div></body></html>
@@ -442,10 +501,20 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         page-break-inside: avoid !important; 
                         margin-top: 1.5rem; 
                         padding-top: 1.5rem !important;
+                        border-top: 1px solid #d1d5db !important;
                     }
-                    .print-section:first-of-type {
-                        border-top: none !important;
+                    #ai-summary {
+                        background-color: #f3f4f6 !important;
+                        border: 1px solid #e5e7eb !important;
+                        border-radius: 8px;
+                        padding: 1.25rem;
+                        font-size: 10.5pt;
+                        line-height: 1.6;
+                        color: #374151 !important;
                     }
+                    #ai-summary p { margin-bottom: 0.75rem; }
+                    #ai-summary strong { color: #111827 !important; }
+                    #ai-summary ul { margin-left: 1.25rem; list-style-type: disc; }
 
                     h3.print-section-title {
                         font-size: 1.3rem; 
@@ -477,16 +546,9 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         color: #374151 !important;
                         font-family: 'Georgia', serif;
                     }
-                    .analysis-narrative p {
-                        margin-bottom: 0.5rem;
-                    }
-                    .analysis-narrative strong {
-                        color: #111827 !important;
-                        font-weight: 600;
-                    }
-                    .analysis-narrative em {
-                        font-style: italic;
-                    }
+                    .analysis-narrative p { margin-bottom: 0.5rem; }
+                    .analysis-narrative strong { color: #111827 !important; font-weight: 600; }
+                    .analysis-narrative em { font-style: italic; }
 
                     /* Hide all UI elements that are not part of the report content */
                     .shadow-xl, .shadow-md, .shadow-lg, .border { 
