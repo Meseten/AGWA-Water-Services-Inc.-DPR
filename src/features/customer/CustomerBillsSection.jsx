@@ -6,7 +6,7 @@ import CheckoutModal from './CheckoutModal.jsx';
 import InvoiceView from '../../components/ui/InvoiceView.jsx';
 import * as DataService from '../../services/dataService.js';
 import { explainBillWithAI } from '../../services/deepseekService.js';
-import { formatDate, calculateDynamicPenalty } from '../../utils/userUtils.js';
+import { formatDate, calculateDynamicPenalty, calculatePotentialPenalty } from '../../utils/userUtils.js';
 import DOMPurify from 'dompurify';
 import { Timestamp } from 'firebase/firestore';
 import { getStripe } from '../../services/stripeService.js';
@@ -56,21 +56,20 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
                  const billsWithDetails = sortedBills.map(bill => {
                      const calculatedCharges = billingService(bill.consumption ?? 0, currentUserData.serviceType, currentUserData.meterSize, currentSettings);
                      
+                     const baseAmount = (bill.totalCalculatedCharges || 0) + (bill.previousUnpaidAmount || 0) - (bill.seniorCitizenDiscount || 0);
+
+                     const potentialPenalty = calculatePotentialPenalty(bill, currentSettings);
+
                      const dynamicPenalty = calculateDynamicPenalty(bill, currentSettings);
-                     const discount = bill.seniorCitizenDiscount || 0;
-                     const baseAmount = bill.amount || 0;
                      
-                     let finalAmount = baseAmount;
-                     if (bill.status === 'Unpaid' && dynamicPenalty > 0) {
-                        finalAmount = baseAmount + dynamicPenalty - discount;
-                     } else {
-                        finalAmount = baseAmount;
-                     }
+                     const totalAmountDue = baseAmount + dynamicPenalty;
 
                      return { 
                          ...bill, 
                          calculatedCharges: calculatedCharges,
-                         amount: finalAmount,
+                         baseAmount: baseAmount,
+                         potentialPenalty: potentialPenalty,
+                         amount: totalAmountDue,
                          displayPenalty: dynamicPenalty
                      };
                  }).filter(bill => bill.amount !== undefined);
@@ -119,13 +118,23 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
         setExplanation('');
         setIsExplaining(true);
         try {
+            const billForAI = {
+                ...bill,
+                amount: bill.baseAmount
+            }
+            
             const aiExplanation = await explainBillWithAI({
-                billDetails: bill,
+                billDetails: billForAI,
                 charges: bill.calculatedCharges,
                 customerName: userData.displayName || 'Valued Customer',
                 serviceType: userData.serviceType || 'Residential'
             });
-            setExplanation(aiExplanation);
+
+            const penaltyHtml = (bill.potentialPenalty > 0 && bill.status === 'Unpaid')
+                ? `<p><strong>Note on Late Payment:</strong> A penalty of <strong>₱${bill.potentialPenalty.toFixed(2)}</strong> will be applied if not paid by the due date.</p>`
+                : '';
+
+            setExplanation(aiExplanation + penaltyHtml);
         } catch (error) {
             const errorMessage = error?.message || "AI explanation failed.";
             setExplanation("<p>Sorry, an error occurred while generating the explanation. Please view the detailed invoice instead.</p>");
@@ -169,25 +178,36 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
             <div className="space-y-4">
                 {bills.map(bill => {
                     const invoiceNumber = getInvoiceNumber(bill);
+                    const isPaid = bill.status === 'Paid';
+                    const amountAfterDueDate = (bill.baseAmount + bill.potentialPenalty).toFixed(2);
+
                     return (
-                        <div key={bill.id} className={`p-4 rounded-lg shadow-md border-l-4 ${bill.status === 'Paid' ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
+                        <div key={bill.id} className={`p-4 rounded-lg shadow-md border-l-4 ${isPaid ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
                             <div className="flex flex-wrap justify-between items-center gap-2">
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-800">{bill.monthYear || bill.billingPeriod || 'N/A'}</h3>
-                                    <p className="text-sm text-gray-600">Due: {formatDate(bill.dueDate, {month: 'long', day: 'numeric'})}</p>
+                                    <p className={`text-sm font-semibold ${isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                                        Due: {formatDate(bill.dueDate, {month: 'long', day: 'numeric'})}
+                                    </p>
                                     <p className="text-xs text-gray-500 mt-1" title={invoiceNumber}>Invoice No: {invoiceNumber}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-2xl font-bold text-gray-700">₱{bill.amount?.toFixed(2) ?? '0.00'}</p>
-                                    <p className={`text-sm font-semibold ${bill.status === 'Paid' ? 'text-green-600' : 'text-red-600'}`}>
-                                        {bill.status || 'Unknown'}
-                                        {bill.displayPenalty > 0 && bill.status === 'Unpaid' && (
-                                            <span className="text-xs text-red-500 block">(Includes ₱{bill.displayPenalty.toFixed(2)} penalty)</span>
-                                        )}
-                                        {bill.seniorCitizenDiscount > 0 && bill.status === 'Unpaid' && (
-                                            <span className="text-xs text-green-600 block">(Includes ₱{bill.seniorCitizenDiscount.toFixed(2)} discount)</span>
-                                        )}
-                                    </p>
+                                    {isPaid ? (
+                                        <>
+                                            <p className="text-2xl font-bold text-gray-700">₱{bill.amountPaid?.toFixed(2) ?? bill.amount?.toFixed(2)}</p>
+                                            <p className="text-sm font-semibold text-green-600">Paid on {formatDate(bill.paymentDate, {month: 'short', day: 'numeric'})}</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-2xl font-bold text-gray-700">₱{bill.baseAmount?.toFixed(2)}</p>
+                                            <p className="text-sm font-semibold text-red-600">
+                                                (After Due Date: ₱{amountAfterDueDate})
+                                            </p>
+                                            {bill.displayPenalty > 0 && (
+                                                <span className="text-xs text-red-500 font-semibold block">(Currently includes ₱{bill.displayPenalty.toFixed(2)} penalty)</span>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             <div className="mt-3 pt-3 border-t border-gray-200/80 flex flex-wrap gap-2 justify-end">
@@ -195,9 +215,9 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
                                 <button onClick={() => handleExplainBill(bill)} className="text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-md transition flex items-center" disabled={isExplaining && billToExplain?.id === bill.id}>
                                     {isExplaining && billToExplain?.id === bill.id ? <Loader2 size={14} className="animate-spin mr-1"/> : <Sparkles size={14} className="mr-1"/>} Explain Bill (AI)
                                 </button>
-                                {bill.status === 'Unpaid' && isOnlinePaymentsEnabled && (
+                                {!isPaid && isOnlinePaymentsEnabled && (
                                     <button onClick={() => handlePayBillClick(bill)} className="text-xs font-bold bg-green-500 text-white hover:bg-green-600 px-4 py-1.5 rounded-md transition flex items-center">
-                                        <span className="mr-1 font-bold">₱</span> Pay Now
+                                        <span className="mr-1 font-bold">₱</span> Pay Now (₱{bill.amount.toFixed(2)})
                                     </button>
                                 )}
                             </div>

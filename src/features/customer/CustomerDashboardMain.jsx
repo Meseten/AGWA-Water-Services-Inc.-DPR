@@ -123,7 +123,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-lg">
+                <div className="lg:col-span-3 bg-white p-5 rounded-xl shadow-lg">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
                         <FileText size={22} className="mr-2 text-gray-500"/>Recent Bills Summary
                     </h3>
@@ -161,27 +161,27 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                         </div>
                     )}
                 </div>
+            </div>
 
-                <div className="space-y-4 lg:space-y-6">
-                     <button onClick={() => setActiveSection('myBills')} className={`${quickActionCardClass} focus:ring-green-500 border-l-4 border-green-500`}>
-                        <CreditCard size={26} className="mb-2 text-green-500" />
-                        <h4 className="font-semibold text-green-700 text-md">Pay My Bill</h4>
-                        <p className="text-xs text-gray-500 mt-0.5">View outstanding bills and make (simulated) payments.</p>
-                    </button>
-                     <button onClick={() => setActiveSection('reportIssue')} className={`${quickActionCardClass} focus:ring-orange-500 border-l-4 border-orange-500`}>
-                        <AlertTriangle size={26} className="mb-2 text-orange-500" />
-                        <h4 className="font-semibold text-orange-700 text-md">Report an Issue</h4>
-                        <p className="text-xs text-gray-500 mt-0.5">Report leaks, service interruptions, or other concerns.</p>
-                    </button>
-                    <button onClick={handleFetchWaterSavingTips} className={`${quickActionCardClass} focus:ring-teal-500 border-l-4 border-teal-500`} disabled={isLoadingTips}>
-                        <div className="flex items-center justify-between w-full">
-                             <Sparkles size={26} className="mb-2 text-teal-500" />
-                             {isLoadingTips && <Loader2 className="animate-spin text-teal-500" size={20}/>}
-                        </div>
-                        <h4 className="font-semibold text-teal-700 text-md">{isLoadingTips ? 'Getting Tips...' : '✨ Get Water Saving Tips'}</h4>
-                        <p className="text-xs text-gray-500 mt-0.5">Discover ways to conserve water and save money.</p>
-                    </button>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <button onClick={() => setActiveSection('myBills')} className={`${quickActionCardClass} focus:ring-green-500 border-l-4 border-green-500`}>
+                    <CreditCard size={26} className="mb-2 text-green-500" />
+                    <h4 className="font-semibold text-green-700 text-md">Pay My Bill</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">View outstanding bills and make (simulated) payments.</p>
+                </button>
+                <button onClick={() => setActiveSection('reportIssue')} className={`${quickActionCardClass} focus:ring-orange-500 border-l-4 border-orange-500`}>
+                    <AlertTriangle size={26} className="mb-2 text-orange-500" />
+                    <h4 className="font-semibold text-orange-700 text-md">Report an Issue</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">Report leaks, service interruptions, or other concerns.</p>
+                </button>
+                <button onClick={handleFetchWaterSavingTips} className={`${quickActionCardClass} focus:ring-teal-500 border-l-4 border-teal-500`} disabled={isLoadingTips}>
+                    <div className="flex items-center justify-between w-full">
+                            <Sparkles size={26} className="mb-2 text-teal-500" />
+                            {isLoadingTips && <Loader2 className="animate-spin text-teal-500" size={20}/>}
+                    </div>
+                    <h4 className="font-semibold text-teal-700 text-md">{isLoadingTips ? 'Getting Tips...' : '✨ Get Water Saving Tips'}</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">Discover ways to conserve water and save money.</p>
+                </button>
             </div>
 
             <Modal isOpen={isTipsModalOpen} onClose={() => setIsTipsModalOpen(false)} title="✨ Water Saving Tips by Agie" size="lg">
