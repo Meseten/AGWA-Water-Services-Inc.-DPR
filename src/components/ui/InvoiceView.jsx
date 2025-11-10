@@ -29,9 +29,7 @@ const InvoiceView = ({
     const existingPenalty = parseFloat((bill.penaltyAmount || 0).toFixed(2));
     const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
-    const amountDueOnOrBeforeDate = totalCurrentCharges + previousUnpaidAmount + existingPenalty - seniorCitizenDiscount;
-
-    const baseAmount = bill.baseAmount || amountDueOnOrBeforeDate;
+    const baseAmount = bill.baseAmount || (totalCurrentCharges + previousUnpaidAmount + existingPenalty - seniorCitizenDiscount);
     const potentialPenalty = bill.potentialPenalty || 0;
     
     const amountDueAfterDate = baseAmount + potentialPenalty;
@@ -60,6 +58,8 @@ const InvoiceView = ({
         const printWindow = window.open('', '_blank', 'height=800,width=1000,scrollbars=yes');
         printWindow.document.write('<html><head><title>AGWA Invoice ' + invoiceNumber + '</title>');
         
+        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+        
         const styleSheet = printWindow.document.createElement('style');
         styleSheet.innerHTML = printStyles.innerHTML;
         printWindow.document.head.appendChild(styleSheet);
@@ -70,10 +70,11 @@ const InvoiceView = ({
         printWindow.document.write(`
             <script>
                 window.onload = function() {
+                    // Give Tailwind time to load
                     setTimeout(function() {
                         window.print();
                         window.close();
-                    }, 750); 
+                    }, 1000); 
                 };
             </script>
         `);
@@ -89,7 +90,7 @@ const InvoiceView = ({
                 @media print {
                     @page {
                         size: A4 portrait;
-                        margin: 0.5in; /* Reduced page margin */
+                        margin: 0.4in; /* Reduced page margin */
                     }
                     body { 
                         -webkit-print-color-adjust: exact !important; 
@@ -101,13 +102,13 @@ const InvoiceView = ({
                 .invoice-container-print {
                     width: 100%;
                     max-width: 210mm;
-                    min-height: 290mm; /* Slightly less than A4 height */
+                    /* min-height removed to prevent extra page */
                     margin: 0 auto;
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                     position: relative;
                     font-family: 'Times New Roman', Times, serif;
                     color: #000;
-                    padding: 1rem; /* Reduced container padding */
+                    padding: 0.5rem; /* Reduced container padding */
                     display: flex;
                     flex-direction: column;
                 }
@@ -119,8 +120,8 @@ const InvoiceView = ({
                     top: 35%;
                     left: 50%;
                     transform: translate(-50%, -50%) rotate(-25deg);
-                    color: rgba(220, 38, 38, 0.2) !important;
-                    border: 10px double rgba(220, 38, 38, 0.2) !important;
+                    color: rgba(220, 38, 38, 0.15) !important;
+                    border: 8px double rgba(220, 38, 38, 0.15) !important;
                     padding: 0.5rem 1rem;
                     border-radius: 8px;
                     font-family: 'Arial', sans-serif;
@@ -129,7 +130,7 @@ const InvoiceView = ({
                     z-index: 10;
                     pointer-events: none;
                 }
-                .paid-stamp-main-print { font-size: 4rem; font-weight: 700; line-height: 1; }
+                .paid-stamp-main-print { font-size: 3.5rem; font-weight: 700; line-height: 1; }
                 .paid-stamp-date-print { font-size: 1rem; font-weight: 600; margin-top: 4px; display: block; }
                 
                 .invoice-header-print {
@@ -139,83 +140,90 @@ const InvoiceView = ({
                     padding-bottom: 0.5rem; /* Reduced */
                     border-bottom: 3px solid #1e3a8a;
                 }
-                .invoice-header-print .logo-print { font-size: 2.5rem; font-weight: bold; color: #1e3a8a !important; line-height: 1; }
-                .invoice-header-print .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; }
-                .invoice-header-print .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.3; color: #374151; }
+                .invoice-header-print .logo-print { font-size: 2.2rem; font-weight: bold; color: #1e3a8a !important; line-height: 1; }
+                .invoice-header-print .tagline-print { font-size: 0.75rem; color: #1d4ed8 !important; font-style: italic; }
+                .invoice-header-print .company-address-print { text-align: right; font-size: 0.75rem; line-height: 1.3; color: #374151; }
                 
-                .invoice-title-print { text-align: center; margin: 1rem 0; } /* Reduced */
-                .invoice-title-print h1 { font-size: 1.6rem; font-weight: 700; margin: 0; } /* Reduced */
-                .invoice-title-print p { font-size: 0.9rem; margin: 0; }
+                .invoice-title-print { text-align: center; margin: 0.75rem 0; } /* Reduced */
+                .invoice-title-print h1 { font-size: 1.5rem; font-weight: 700; margin: 0; } /* Reduced */
+                .invoice-title-print p { font-size: 0.85rem; margin: 0; }
                 
                 .invoice-details-grid-print {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 1rem; /* Reduced */
+                    gap: 0.75rem; /* Reduced */
                 }
                 .invoice-box-print { border: 1px solid #d1d5db; border-radius: 6px; }
                 .invoice-box-print h2 {
                     background-color: #f3f4f6 !important;
-                    padding: 0.4rem 0.75rem; /* Reduced */
-                    font-size: 0.9rem;
+                    padding: 0.3rem 0.6rem; /* Reduced */
+                    font-size: 0.85rem;
                     font-weight: 700;
                     border-bottom: 1px solid #d1d5db;
                     margin: 0;
                 }
-                .invoice-box-print div { padding: 0.75rem; font-size: 0.9rem; } /* Reduced */
-                .invoice-box-print .detail-row { display: flex; justify-content: space-between; padding: 0.25rem 0; border-bottom: 1px dashed #e5e7eb; } /* Reduced */
-                .invoice-box-print .detail-row span:first-child { color: #4b5563; }
+                .invoice-box-print div { padding: 0.6rem; font-size: 0.85rem; } /* Reduced */
+                .invoice-box-print .detail-row { display: flex; justify-content: space-between; padding: 0.2rem 0; border-bottom: 1px dashed #e5e7eb; } /* Reduced */
+                .invoice-box-print .detail-row span:first-child { color: #4b5563; padding-right: 5px; }
                 .invoice-box-print .detail-row span:last-child { font-weight: 600; text-align: right; }
                 
-                .invoice-table-print { width: 100%; margin: 1.5rem 0; border-collapse: collapse; } /* Reduced */
-                .invoice-table-print th, .invoice-table-print td { border: 1px solid #d1d5db; padding: 0.4rem 0.6rem; font-size: 0.9rem; } /* Reduced */
+                .invoice-table-print { width: 100%; margin: 1rem 0; border-collapse: collapse; } /* Reduced */
+                .invoice-table-print th, .invoice-table-print td { border: 1px solid #d1d5db; padding: 0.3rem 0.5rem; font-size: 0.85rem; } /* Reduced */
                 .invoice-table-print th { background-color: #f3f4f6 !important; text-align: left; }
                 .invoice-table-print td:last-child { text-align: right; }
                 
                 .invoice-totals-print {
-                    width: 55%; /* Slightly wider */
+                    width: 60%; /* Slightly wider */
                     margin-left: auto;
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                 }
                 .invoice-totals-print .detail-row {
                     display: flex;
                     justify-content: space-between;
-                    padding: 0.35rem 0; /* Reduced */
+                    padding: 0.3rem 0; /* Reduced */
                 }
                 .invoice-totals-print .detail-row span:first-child { color: #4b5563; }
                 .invoice-totals-print .detail-row span:last-child { font-weight: 600; text-align: right; }
                 .invoice-totals-print .grand-total-print {
                     display: flex;
                     justify-content: space-between;
-                    padding: 0.6rem 0.8rem; /* Reduced */
-                    margin-top: 0.5rem;
+                    padding: 0.5rem 0.7rem; /* Reduced */
+                    margin-top: 0.3rem;
                     background-color: #f3f4f6 !important;
                     border: 1px solid #d1d5db;
                     border-radius: 4px;
-                    font-size: 1rem;
+                    font-size: 0.9rem;
                 }
                 .invoice-totals-print .grand-total-print-final {
                     display: flex;
                     justify-content: space-between;
-                    padding: 0.6rem 0.8rem; /* Reduced */
+                    padding: 0.5rem 0.7rem; /* Reduced */
                     margin-top: 0.25rem;
                     background-color: #1e3a8a !important;
                     color: white !important;
                     border-radius: 4px;
-                    font-size: 1.1rem;
+                    font-size: 1rem;
+                }
+                .due-date-text-print {
+                    text-align: right;
+                    font-weight: bold;
+                    margin-top: 2px;
+                    color: #dc2626;
+                    font-size: 9pt;
                 }
                 
                 .invoice-footer-print {
-                    padding: 1.5rem 0 0 0; /* Reduced */
+                    padding: 1rem 0 0 0; /* Reduced */
                     margin-top: auto;
                     border-top: 1px solid #e5e7eb;
-                    font-size: 0.75rem; /* Reduced */
+                    font-size: 0.7rem; /* Reduced */
                     color: #4b5563;
                     text-align: center;
                     page-break-before: avoid;
                 }
                 .barcode-container-print {
-                    max-width: 280px;
-                    margin: 0.5rem auto 0 auto; /* Reduced */
+                    max-width: 260px; /* Reduced */
+                    margin: 0.25rem auto 0 auto; /* Reduced */
                 }
             `}} />
             
@@ -276,7 +284,7 @@ const InvoiceView = ({
                                     <div className="detail-row"><span>Contract Acct No.:</span> <span>{userData.accountNumber}</span></div>
                                     <div className="detail-row"><span>Account Name:</span> <span>{userData.displayName || userData.email}</span></div>
                                     <div className="detail-row"><span>Service Address:</span> <span>{formatAddressToString(userData.serviceAddress)}</span></div>
-                                    <div className="detail-row"><span>Meter Serial No.:</span> <span>{userData.meterSerialNumber || 'N/A'}</span></div>
+                                    <div className="detail-row"><span>Meter Serial No.:</span> <span>{userData.meterSerialNumber || ''}</span></div>
                                     <div className="detail-row"><span>Rate Class:</span> <span>{userData.serviceType || "Residential"}</span></div>
                                 </div>
                             </div>
@@ -293,7 +301,7 @@ const InvoiceView = ({
                         </section>
 
                         <section>
-                            <h2 className="section-title-print" style={{margin: '1.5rem 0 0 0', fontSize: '1.1rem', fontWeight: 700}}>CHARGES BREAKDOWN</h2>
+                            <h2 className="section-title-print" style={{margin: '1rem 0 0 0', fontSize: '1.1rem', fontWeight: 700}}>CHARGES BREAKDOWN</h2>
                             <table className="invoice-table-print">
                                 <thead>
                                     <tr>
@@ -304,14 +312,14 @@ const InvoiceView = ({
                                 <tbody>
                                     <tr><td>Basic Charge</td><td>{charges.basicCharge?.toFixed(2)}</td></tr>
                                     <tr><td>Foreign Currency Differential Adj. (FCDA)</td><td>{charges.fcda?.toFixed(2)}</td></tr>
-                                    <tr className="font-semibold"><td>Water Charge (Basic + FCDA)</td><td>{charges.waterCharge?.toFixed(2)}</td></tr>
+                                    <tr className="font-semibold" style={{fontWeight: 600}}><td>Water Charge (Basic + FCDA)</td><td>{charges.waterCharge?.toFixed(2)}</td></tr>
                                     <tr><td>Environmental Charge (EC)</td><td>{charges.environmentalCharge?.toFixed(2)}</td></tr>
                                     <tr><td>Sewerage Charge (SC)</td><td>{charges.sewerageCharge?.toFixed(2)}</td></tr>
                                     <tr><td>Maintenance Service Charge</td><td>{charges.maintenanceServiceCharge?.toFixed(2)}</td></tr>
-                                    <tr className="bg-gray-50 font-semibold" style={{backgroundColor: '#f9fafb !important'}}><td>SUB-TOTAL (Water & Other Charges)</td><td>{charges.subTotalBeforeTaxes?.toFixed(2)}</td></tr>
+                                    <tr className="bg-gray-50 font-semibold" style={{backgroundColor: '#f9fafb !important', fontWeight: 600}}><td>SUB-TOTAL (Water & Other Charges)</td><td>{charges.subTotalBeforeTaxes?.toFixed(2)}</td></tr>
                                     <tr><td>Government Taxes (Local Franchise Tax)</td><td>{charges.governmentTaxes?.toFixed(2)}</td></tr>
                                     <tr><td>Value Added Tax (VAT 12%)</td><td>{charges.vat?.toFixed(2)}</td></tr>
-                                    <tr className="bg-gray-100 font-bold" style={{backgroundColor: '#f3f4f6 !important', fontSize: '10pt'}}><td>Total Current Charges</td><td>{totalCurrentCharges.toFixed(2)}</td></tr>
+                                    <tr className="bg-gray-100 font-bold" style={{backgroundColor: '#f3f4f6 !important', fontSize: '10pt', fontWeight: 700}}><td>Total Current Charges</td><td>{totalCurrentCharges.toFixed(2)}</td></tr>
                                 </tbody>
                             </table>
                         </section>
@@ -353,7 +361,7 @@ const InvoiceView = ({
                                 </>
                             )}
                             
-                            <div className="text-right font-bold mt-1" style={{color: '#dc2626', fontSize: '10pt'}}>
+                            <div className="due-date-text-print">
                                 Due Date: {formatDate(bill.dueDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A'}
                             </div>
                         </section>
