@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { LayoutDashboard, Map, ClipboardEdit, Search, AlertTriangle, CheckCircle, ListFilter, RotateCcw, Loader2, Info } from "lucide-react";
+import { 
+    LayoutDashboard, Map, ClipboardEdit, Search, AlertTriangle, 
+    CheckCircle, ListFilter, RotateCcw, Loader2, Info, MapPin 
+} from "lucide-react";
 import DashboardInfoCard from "../../components/ui/DashboardInfoCard.jsx";
 import LoadingSpinner from "../../components/ui/LoadingSpinner.jsx";
 import * as DataService from "../../services/dataService.js";
@@ -12,6 +15,8 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
         readingsCompletedToday: 0,
         issuesReportedByMe: 0,
     });
+    const [routeHighlights, setRouteHighlights] = useState([]);
+    const [myBarangays, setMyBarangays] = useState(new Set());
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -23,34 +28,58 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
         }
         setIsLoading(true);
         setError('');
+        setRouteHighlights([]);
+        
         try {
+            const [routesResult, issuesReportedResult, interruptionsResult] = await Promise.allSettled([
+                DataService.getRoutesForReader(db, userData.uid),
+                DataService.getTicketsByReporter(db, userData.uid),
+                DataService.getActiveServiceInterruptions(db)
+            ]);
+
             const newStats = {};
             let partialError = '';
+            let barangaySet = new Set();
 
-            const routesResult = await DataService.getRoutesForReader(db, userData.uid);
-            if (routesResult.success && routesResult.data) {
-                newStats.assignedRoutesCount = routesResult.data.length;
-                newStats.totalAccountsInRoutes = routesResult.data.reduce((sum, route) => sum + (route.accountCount || (route.accountNumbers?.length || 0)), 0);
-                newStats.pendingReadingsInRoutes = routesResult.data.reduce((sum, route) => sum + (route.pendingCount || 0), 0);
+            if (routesResult.status === 'fulfilled' && routesResult.value.success) {
+                const augmentedRoutes = routesResult.value.data.map(route => ({
+                    ...route,
+                    accountCount: route.accountCount || (route.accountNumbers?.length || 0),
+                    completedCount: route.completedReadingsToday || 0,
+                    pendingCount: Math.max(0, (route.accountCount || (route.accountNumbers?.length || 0)) - (route.completedReadingsToday || 0))
+                }));
+
+                newStats.assignedRoutesCount = augmentedRoutes.length;
+                newStats.totalAccountsInRoutes = augmentedRoutes.reduce((sum, route) => sum + route.accountCount, 0);
+                newStats.pendingReadingsInRoutes = augmentedRoutes.reduce((sum, route) => sum + route.pendingCount, 0);
+                
+                newStats.readingsCompletedToday = augmentedRoutes.reduce((sum, route) => sum + route.completedCount, 0);
+                
+                barangaySet = new Set(augmentedRoutes.flatMap(route => route.barangays || []));
+                setMyBarangays(barangaySet);
             } else {
                 partialError += "Route data unavailable. ";
             }
 
-            const todayDateString = new Date().toISOString().split('T')[0];
-            const completedTodayResult = await DataService.getReadingsCountByReaderForDate(db, userData.uid, todayDateString);
-            if (completedTodayResult.success) {
-                newStats.readingsCompletedToday = completedTodayResult.data.count;
+            if (interruptionsResult.status === 'fulfilled' && interruptionsResult.value.success) {
+                if (barangaySet.size > 0) {
+                    const highlights = interruptionsResult.value.data.filter(item => 
+                        item.affectedAreas && item.affectedAreas.some(area => barangaySet.has(area))
+                    );
+                    setRouteHighlights(highlights);
+                }
             } else {
-                 partialError += "Today's readings data unavailable. ";
+                partialError += "Interruption data unavailable. ";
             }
 
-            const issuesReportedResult = await DataService.getTicketsByReporter(db, userData.uid);
-            if (issuesReportedResult.success) {
-                newStats.issuesReportedByMe = issuesReportedResult.data.length;
+            if (issuesReportedResult.status === 'fulfilled' && issuesReportedResult.value.success) {
+                newStats.issuesReportedByMe = issuesReportedResult.value.data.length;
+            } else {
+                 partialError += "Reported issues data unavailable. ";
             }
 
             setDashboardStats(prev => ({ ...prev, ...newStats }));
-            if (partialError) {
+            if (partialError.trim()) {
                 setError(partialError.trim());
                 showNotification("Some dashboard statistics could not be loaded.", "warning");
             }
@@ -123,8 +152,22 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
                 <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
                     <AlertTriangle size={20} className="mr-2 text-yellow-500" /> Important Notices / Route Highlights
                 </h3>
-                <p className="text-sm text-gray-500">
-                    No specific system notices for your routes today. Please ensure all readings are accurate and submitted on time. Report any discrepancies or issues immediately. Stay safe and hydrated!
+                {routeHighlights.length > 0 ? (
+                    <div className="space-y-3 mb-4">
+                        {routeHighlights.map(item => (
+                            <div key={item.id} className="p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-r-lg">
+                                <p className="font-semibold text-sm">{item.title}</p>
+                                <p className="text-xs mt-1 flex items-center"><MapPin size={12} className="mr-1.5"/><strong>Affected Areas on your route:</strong> {item.affectedAreas.filter(area => myBarangays.has(area)).join(', ')}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500 mb-4">
+                        No specific system notices for your routes today.
+                    </p>
+                )}
+                <p className="text-sm text-gray-500 border-t border-gray-200 pt-3 mt-3">
+                    Please ensure all readings are accurate and submitted on time. Report any discrepancies or issues immediately. Stay safe and hydrated!
                 </p>
             </div>
         </div>

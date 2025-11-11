@@ -1,21 +1,31 @@
 const admin = require('firebase-admin');
 const Stripe = require('stripe');
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+let db;
+let stripe;
+let servicesInitialized = false;
 
 try {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CONFIG);
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("CRITICAL: STRIPE_SECRET_KEY environment variable is not set.");
+  }
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
   if (admin.apps.length === 0) {
+    if (!process.env.FIREBASE_ADMIN_CONFIG) {
+        throw new Error("CRITICAL: FIREBASE_ADMIN_CONFIG environment variable is not set.");
+    }
+    const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CONFIG);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
   }
+  db = admin.firestore();
+  servicesInitialized = true;
+  console.log("Services initialized successfully.");
 } catch (error) {
-  console.error('Firebase Admin Initialization Error:', error.message);
+  console.error('CRITICAL: Failed to initialize services:', error.message);
 }
-
-const db = admin.firestore();
 
 async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSettings) {
   if (!systemSettings?.isRebateProgramEnabled || !userId) {
@@ -88,7 +98,7 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
 
 export default async function handler(req, res) {
   const allowedOrigins = [
-    'https://agwa-wsinc.vercel.app', 
+    'https://agwa-wsinc.verce.app', 
     'http://localhost:3000',
     'http://localhost:5173'
   ];
@@ -103,6 +113,11 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (!servicesInitialized || !db || !stripe) {
+    console.error("Services not initialized. Check environment variables.");
+    return res.status(500).json({ error: 'Server configuration error. Check logs.' });
   }
 
   if (req.method !== 'POST') {

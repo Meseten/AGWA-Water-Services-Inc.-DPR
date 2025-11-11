@@ -34,27 +34,27 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
     const [settings, setSettings] = useState({
         portalAnnouncement: '',
         isBannerEnabled: false,
-        latePaymentPenaltyPercentage: 2.0,
-        latePaymentPenaltyDelayDays: 15,
-        reconnectionFee: 500.00,
-        fcdaPercentage: 1.29,
-        environmentalChargePercentage: 25.0,
-        sewerageChargePercentageCommercial: 32.85,
-        governmentTaxPercentage: 2.0,
-        vatPercentage: 12.0,
+        latePaymentPenaltyPercentage: '',
+        latePaymentPenaltyDelayDays: '',
+        reconnectionFee: '',
+        fcdaPercentage: '',
+        environmentalChargePercentage: '',
+        sewerageChargePercentageCommercial: '',
+        governmentTaxPercentage: '',
+        vatPercentage: '',
         maintenanceMode: false,
         isSignupEnabled: true,
         isGoogleLoginEnabled: true,
         isPasswordlessLoginEnabled: true,
         isOnlinePaymentsEnabled: true,
         isChatbotEnabled: true,
-        supportHotline: "1627-AGWA",
-        supportEmail: "support@agos-waterservices.com.ph",
-        autoCloseTicketsDays: 14,
+        supportHotline: "",
+        supportEmail: "",
+        autoCloseTicketsDays: '',
         isRebateProgramEnabled: false,
-        pointsPerPeso: 0.01,
-        earlyPaymentBonusPoints: 10,
-        earlyPaymentDaysThreshold: 7,
+        pointsPerPeso: '',
+        earlyPaymentBonusPoints: '',
+        earlyPaymentDaysThreshold: '',
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -94,9 +94,22 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         e.preventDefault();
         setIsSaving(true);
         setError('');
-        const result = await DataService.updateSystemSettings(db, settings);
+        
+        const settingsToSave = { ...settings };
+        for (const key in settingsToSave) {
+            if (typeof settingsToSave[key] === 'string' && !isNaN(parseFloat(settingsToSave[key])) && key !== 'supportHotline' && key !== 'portalAnnouncement' && key !== 'supportEmail') {
+                if(settingsToSave[key] === '') {
+                    settingsToSave[key] = 0;
+                } else {
+                    settingsToSave[key] = parseFloat(settingsToSave[key]);
+                }
+            }
+        }
+
+        const result = await DataService.updateSystemSettings(db, settingsToSave);
         if (result.success) {
             showNotification("System settings updated successfully!", "success");
+            setSettings(settingsToSave);
         } else {
             setError(result.error || "Failed to save system settings.");
             showNotification(result.error || "Failed to save system settings.", "error");
