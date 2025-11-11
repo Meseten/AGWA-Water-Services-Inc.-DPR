@@ -184,26 +184,63 @@ export const draftIssueDescriptionWithAI = async (userInput) => {
     return callDeepseekAPI(messages);
 };
 
+// --- THIS IS THE FIRST UPDATED PROMPT ---
 export const generateChartAnalysis = async (chartTitle, chartData) => {
     const dataString = Array.isArray(chartData) 
         ? JSON.stringify(chartData)
         : JSON.stringify(Object.entries(chartData).map(([key, value]) => ({ [key]: value })));
 
     const prompt = `
-        You are a formal, senior business analyst for AGWA Water Services, writing an internal report.
-        The currency for all financial data is **Philippine Pesos (PHP)**, not dollars ($).
+        You are a formal, senior business analyst for AGWA Water Services, writing an internal technical report.
+        The currency for all financial data is Philippine Pesos (PHP).
         
-        Analyze the following dataset for a specific chart and provide a concise, data-driven analysis (2-3 sentences).
-        
-        - Do NOT use markdown headers (like ##) or titles. The response must be a single block of HTML.
-        - The response MUST start with "<p><strong>Analysis:</strong>".
-        - Use a professional, corporate, and technical tone.
-        - Explain what the data *implies* for business operations, revenue, or user behavior.
-        - Use simple HTML (<p>, <strong>, <em>) for formatting.
+        Analyze the following dataset for a specific chart. Provide a concise, data-driven analysis (2-3 sentences).
+
+        **CRITICAL FORMATTING RULES:**
+        1.  Your ENTIRE response MUST be a single HTML block.
+        2.  The response MUST start with \`<p><strong>Analysis:</strong>\`.
+        3.  You MUST NOT use any markdown (e.g., \`**\` or \`##\`). All emphasis MUST use \`<strong>\` or \`<em>\` tags.
+
+        **TONE & CONTENT INSTRUCTIONS:**
+        -   Use a professional, corporate, and technical tone.
+        -   Do not simply state what the chart shows (e.g., "Cash is 60%").
+        -   Explain what the data *implies* for business operations, revenue impact, or operational efficiency. Provide inferences.
 
         Chart Title: "${chartTitle}"
         Data: ${dataString}
+        
+        Output ONLY the HTML, starting with <p>.
     `;
     const messages = [{ role: "user", content: prompt }];
     return callDeepseekAPI(messages, 'llama-3.1-8b-instant');
+};
+
+// --- THIS IS THE SECOND UPDATED PROMPT ---
+export const generateExecutiveSummary = async (statsSummary) => {
+    const prompt = `
+        You are a senior data analyst for AGWA Water Services. The currency is Philippine Pesos (PHP).
+        Your audience is the executive board. Generate a formal, technical, and high-level executive summary based on the following JSON data.
+        
+        **CRITICAL FORMATTING RULES:**
+        1.  Your ENTIRE response MUST be valid, simple HTML. Start with "<h3 class='print-section-title'>Executive Summary</h3>" and wrap all subsequent text in <p>, <strong>, <em>, <ul>, or <li> tags.
+        2.  You MUST NOT use any markdown (e.g., \`**\` or \`#\`). All emphasis MUST use \`<strong>\` or \`<em>\` tags.
+        
+        **CONTENT INSTRUCTIONS:**
+        -   Write 2-3 concise paragraphs.
+        -   Paragraph 1: Focus on Business Analytics (Revenue, Outstanding Balance in PHP).
+        -   Paragraph 2: Focus on User & Support Analytics (User totals, ticket status).
+        -   Paragraph 3: Focus on Technical & Staff Operations (Routes, Interruptions, Staff Activity).
+        -   Highlight the most operationally significant numbers.
+
+        Data: ${JSON.stringify(statsSummary)}
+        
+        Output ONLY the HTML, starting with Fh3>.
+    `;
+    try {
+        const messages = [{ role: 'user', content: prompt }];
+        return await callDeepseekAPI(messages, 'llama-3.1-8b-instant');
+    } catch (error) {
+        console.error("AI Executive Summary Generation Failed:", error);
+        return "<h3 class='print-section-title'>Executive Summary</h3><p><strong>Analysis:</strong> <em>AI narrative generation failed. Please check the API connection or key.</em></p>";
+    }
 };
