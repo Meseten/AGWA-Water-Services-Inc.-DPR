@@ -11,7 +11,7 @@ import DOMPurify from 'dompurify';
 import { Timestamp } from 'firebase/firestore';
 import { getStripe, verifyCheckoutSession } from '../../services/stripeService.js';
 
-const CustomerBillsSection = ({ user, userData, db, showNotification, billingService, systemSettings = {} }) => {
+const CustomerBillsSection = ({ user, userData, setUserData, db, showNotification, billingService, systemSettings = {} }) => {
     const [bills, setBills] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -97,6 +97,15 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
         
         const newUrl = window.location.pathname;
         
+        const refreshUserProfile = async () => {
+            if (user?.uid && setUserData) {
+                const profileResult = await DataService.getUserProfile(db, user.uid);
+                if (profileResult.success) {
+                    setUserData(profileResult.data);
+                }
+            }
+        };
+
         if (paymentStatus === 'success' && sessionId) {
             setIsVerifyingPayment(true);
             showNotification('Payment successful, verifying transaction...', 'info');
@@ -104,7 +113,7 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
             verifyCheckoutSession(sessionId, db)
                 .then(result => {
                     if (result.success) {
-                        showNotification('Payment verified! Your bill is updated.', 'success');
+                        showNotification('Payment verified! Your bill and points are updated.', 'success');
                     } else {
                         showNotification(`Payment verification failed: ${result.error}`, 'error');
                     }
@@ -115,6 +124,7 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
                 .finally(() => {
                     setIsVerifyingPayment(false);
                     fetchBills();
+                    refreshUserProfile(); 
                     window.history.replaceState({}, document.title, newUrl);
                 });
 
@@ -122,7 +132,7 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
             showNotification('Payment was cancelled. Your bill remains unpaid.', 'warning');
             window.history.replaceState({}, document.title, newUrl);
         }
-    }, [fetchBills, showNotification, db]);
+    }, [fetchBills, showNotification, db, user, setUserData]);
 
     const handlePayBillClick = (bill) => {
         setBillToPay(bill);
