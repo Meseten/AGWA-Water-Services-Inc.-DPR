@@ -4,13 +4,13 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from '../../services/dataService.js';
-import { formatDate } from '../../utils/userUtils.js';
+import { formatDate, calculateDynamicPenalty } from '../../utils/userUtils.js';
 import Barcode from '../../components/ui/Barcode.jsx';
 import { serverTimestamp } from 'firebase/firestore';
 
 const commonInputClass = "w-full px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 focus:outline-none transition duration-150 text-sm placeholder-gray-400";
 
-const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billingService: calculateBillDetails }) => {
+const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billingService }) => {
     const [accountNumberSearch, setAccountNumberSearch] = useState('');
     const [searchedCustomer, setSearchedCustomer] = useState(null);
     const [customerBills, setCustomerBills] = useState([]);
@@ -18,11 +18,19 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('Cash');
     const [referenceNumber, setReferenceNumber] = useState('');
+    const [systemSettings, setSystemSettings] = useState({});
+    
     const [isLoadingCustomer, setIsLoadingCustomer] = useState(false);
     const [isLoadingBills, setIsLoadingBills] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [paymentSuccessData, setPaymentSuccessData] = useState(null);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        DataService.getSystemSettings(db).then(result => {
+            if (result.success) setSystemSettings(result.data || {});
+        });
+    }, [db]);
 
     const handleSearchCustomer = async (e) => {
         if (e) e.preventDefault();
@@ -43,7 +51,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
                 const foundUser = usersResult.data.find(u => u.accountNumber.toLowerCase() === accountNumberSearch.trim().toLowerCase());
                 if (foundUser) {
                     setSearchedCustomer(foundUser);
-                    fetchCustomerBills(foundUser.id, foundUser.accountNumber);
+                    fetchCustomerBills(foundUser);
                 } else {
                      setError(`No customer found with Account Number: "${accountNumberSearch}".`);
                 }
@@ -56,16 +64,24 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
         setIsLoadingCustomer(false);
     };
 
-    const fetchCustomerBills = async (userId, accNum) => {
+    const fetchCustomerBills = async (customer) => {
         setIsLoadingBills(true);
-        const billsResult = await DataService.getBillsForUser(db, userId);
+        const billsResult = await DataService.getBillsForUser(db, customer.id);
         if (billsResult.success) {
             const unpaidBills = billsResult.data
                 .filter(bill => bill.status === 'Unpaid')
+                .map(bill => {
+                    const charges = bill.calculatedCharges || billingService(bill.consumption, customer.serviceType, customer.meterSize, systemSettings);
+                    const baseAmount = (charges.totalCalculatedCharges || 0) + (bill.previousUnpaidAmount || 0) - (bill.seniorCitizenDiscount || 0);
+                    const dynamicPenalty = calculateDynamicPenalty(bill, systemSettings);
+                    const totalAmountDue = baseAmount + dynamicPenalty;
+                    return { ...bill, amount: totalAmountDue, displayPenalty: dynamicPenalty };
+                })
                 .sort((a, b) => new Date(a.dueDate?.toDate() || 0) - new Date(b.dueDate?.toDate() || 0));
+            
             setCustomerBills(unpaidBills);
             if (unpaidBills.length === 0) {
-                showNotification(`No unpaid bills found for Account #${accNum}.`, "info");
+                showNotification(`No unpaid bills found for Account #${customer.accountNumber}.`, "info");
             }
         } else {
             showNotification(billsResult.error || "Failed to fetch customer bills.", "error");
@@ -103,12 +119,20 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
         }
         setIsProcessingPayment(true);
         setPaymentSuccessData(null);
+        
         const billToPay = selectedBill || customerBills.find(b => b.status === 'Unpaid');
         if (!billToPay) {
              showNotification("Cannot determine which bill to pay. Please select a bill.", "warning");
              setIsProcessingPayment(false);
              return;
         }
+
+        if (amountToPay < billToPay.amount) {
+            showNotification(`Partial payments are not supported. Amount must be ₱${billToPay.amount.toFixed(2)}.`, "warning");
+            setIsProcessingPayment(false);
+            return;
+        }
+
         try {
             const paymentTimestamp = serverTimestamp();
             const paymentDate = new Date();
@@ -143,7 +167,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
             setPaymentAmount('');
             setReferenceNumber('');
             setSelectedBill(null);
-            fetchCustomerBills(searchedCustomer.id, searchedCustomer.accountNumber);
+            fetchCustomerBills(searchedCustomer);
         } catch (err) {
             showNotification(err.message || "An error occurred while processing the payment.", "error");
         }
@@ -235,13 +259,14 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
                                     {customerBills.map(bill => (
                                         <option key={bill.id} value={bill.id}>
                                             {bill.monthYear || bill.billingPeriod} - ₱{bill.amount?.toFixed(2)} (Due: {formatDate(bill.dueDate?.toDate(), {month: 'short', day: 'numeric'})})
+                                            {bill.displayPenalty > 0 && ` (Penalty: ₱${bill.displayPenalty.toFixed(2)})`}
                                         </option>
                                     ))}
                                 </select>
                             </div>
                         )}
                     </div>
-                    {(customerBills.length > 0 || selectedBill) && (
+                    {(customerBills.length > 0) && (
                         <form onSubmit={handleProcessPayment} className="space-y-5 p-4 border border-gray-200 rounded-lg">
                             <h3 className="text-lg font-semibold text-gray-700 mb-1">Payment Details</h3>
                             <div>

@@ -56,6 +56,7 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         earlyPaymentBonusPoints: '',
         earlyPaymentDaysThreshold: '',
     });
+
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
