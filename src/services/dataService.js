@@ -829,7 +829,10 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
         let pointsToAward = (amountPaid * pointsPerPeso);
 
         const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : (bill.dueDate?.seconds ? new Date(bill.dueDate.seconds * 1000) : null);
-        const paymentDate = bill.paymentDate?.toDate ? bill.paymentDate.toDate() : new Date(); 
+        
+        const paymentDate = bill.paymentDate?.toDate 
+            ? bill.paymentDate.toDate() 
+            : (bill.paymentDate instanceof Date ? bill.paymentDate : (bill.paymentDate?.seconds ? bill.paymentDate.toDate() : new Date()));
         
         if(dueDate) {
             const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);

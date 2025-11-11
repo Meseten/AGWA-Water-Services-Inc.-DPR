@@ -1,5 +1,6 @@
 import { loadStripe } from '@stripe/stripe-js';
 import { getAuth } from 'firebase/auth';
+import * as DataService from './dataService.js';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -63,5 +64,56 @@ export const createCheckoutSession = async (
   } catch (error) {
     console.error('Error creating checkout session:', error);
     throw new Error(error.message || 'Could not connect to payment service.');
+  }
+};
+
+export const verifyCheckoutSession = async (sessionId, dbInstance) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User not authenticated.');
+    }
+    const token = await user.getIdToken();
+
+    const response = await fetch('/api/verifyStripePayment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ sessionId }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(errorBody.error || 'Payment verification failed.');
+    }
+
+    const data = await response.json();
+
+    if (data.success && data.paymentDetails) {
+      const { billId, amountPaid, paymentMethod, paymentReference } = data.paymentDetails;
+      
+      const updates = {
+        status: 'Paid',
+        paymentDate: new Date(),
+        paymentTimestamp: new Date(),
+        amountPaid: parseFloat(amountPaid),
+        paymentMethod: paymentMethod || 'Stripe',
+        paymentReference: paymentReference,
+      };
+
+      const updateResult = await DataService.updateBill(dbInstance, billId, updates);
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || 'Failed to update bill after payment verification.');
+      }
+      return { success: true };
+    } else {
+      throw new Error(data.error || 'Invalid verification response from server.');
+    }
+  } catch (error) {
+    console.error('Error verifying checkout session:', error);
+    return { success: false, error: 'An error occurred while verifying your payment. Please try again.' };
   }
 };

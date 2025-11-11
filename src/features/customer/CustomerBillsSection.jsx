@@ -9,7 +9,7 @@ import { explainBillWithAI } from '../../services/deepseekService.js';
 import { formatDate, calculateDynamicPenalty, calculatePotentialPenalty } from '../../utils/userUtils.js';
 import DOMPurify from 'dompurify';
 import { Timestamp } from 'firebase/firestore';
-import { getStripe } from '../../services/stripeService.js';
+import { getStripe, verifyCheckoutSession } from '../../services/stripeService.js';
 
 const CustomerBillsSection = ({ user, userData, db, showNotification, billingService, systemSettings = {} }) => {
     const [bills, setBills] = useState([]);
@@ -18,6 +18,8 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
 
     const [billToPay, setBillToPay] = useState(null);
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+    
+    const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
     const [billToExplain, setBillToExplain] = useState(null);
     const [explanation, setExplanation] = useState('');
@@ -90,19 +92,37 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
     
     useEffect(() => {
         const query = new URLSearchParams(window.location.search);
+        const paymentStatus = query.get('payment');
+        const sessionId = query.get('session_id');
         
-        if (query.get('payment') === 'success') {
-            showNotification('Payment successful! Your bill is being updated.', 'success');
-            fetchBills();
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, newUrl);
-        }
-        if (query.get('payment') === 'cancel') {
+        const newUrl = window.location.pathname;
+        
+        if (paymentStatus === 'success' && sessionId) {
+            setIsVerifyingPayment(true);
+            showNotification('Payment successful, verifying transaction...', 'info');
+            
+            verifyCheckoutSession(sessionId, db)
+                .then(result => {
+                    if (result.success) {
+                        showNotification('Payment verified! Your bill is updated.', 'success');
+                    } else {
+                        showNotification(`Payment verification failed: ${result.error}`, 'error');
+                    }
+                })
+                .catch(err => {
+                    showNotification(`An error occurred during verification: ${err.message}`, 'error');
+                })
+                .finally(() => {
+                    setIsVerifyingPayment(false);
+                    fetchBills();
+                    window.history.replaceState({}, document.title, newUrl);
+                });
+
+        } else if (paymentStatus === 'cancel') {
             showNotification('Payment was cancelled. Your bill remains unpaid.', 'warning');
-            const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
         }
-    }, [fetchBills, showNotification]);
+    }, [fetchBills, showNotification, db]);
 
     const handlePayBillClick = (bill) => {
         setBillToPay(bill);
@@ -157,8 +177,9 @@ const CustomerBillsSection = ({ user, userData, db, showNotification, billingSer
         return `AGWA-${bill.id?.slice(0,4).toUpperCase()}-${formattedDateForInvoiceNum}`;
     };
 
-    if (isLoading) {
-        return <LoadingSpinner message="Loading your bills..." />;
+    if (isLoading || isVerifyingPayment) {
+        const message = isVerifyingPayment ? "Verifying your payment..." : "Loading your bills...";
+        return <LoadingSpinner message={message} />;
     }
 
     return (
