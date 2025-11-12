@@ -861,7 +861,8 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
 
         const updates = {
             rebatePoints: newTotalPoints,
-            rebateTier: newTier
+            rebateTier: newTier,
+            updatedAt: serverTimestamp()
         };
 
         await updateDoc(publicProfileRef, updates);
