@@ -809,7 +809,6 @@ export async function getBillsForUser(dbInstance, userId) {
     }
 };
 
-
 async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSettings) {
     if (!systemSettings?.isRebateProgramEnabled || !userId) {
         console.log(`dataService: Rebate program disabled or no user ID. Skipping points.`);
@@ -848,14 +847,29 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
             return;
         }
 
-        const userProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
-        const userProfileSnap = await getDoc(userProfileRef);
-        if (!userProfileSnap.exists()) {
-            console.error(`dataService: User profile ${userId} not found. Cannot award points.`);
+        const publicProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
+        const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userId));
+
+        let currentPoints = 0;
+        let profileExists = false;
+
+        const publicSnap = await getDoc(publicProfileRef);
+        if (publicSnap.exists()) {
+            currentPoints = publicSnap.data().rebatePoints || 0;
+            profileExists = true;
+        } else {
+            const nestedSnap = await getDoc(nestedProfileRef);
+            if (nestedSnap.exists()) {
+                currentPoints = nestedSnap.data().rebatePoints || 0;
+                profileExists = true;
+            }
+        }
+
+        if (!profileExists) {
+            console.error(`dataService: User profile ${userId} not found in either location. Cannot award points.`);
             return;
         }
 
-        const currentPoints = userProfileSnap.data().rebatePoints || 0;
         const newTotalPoints = currentPoints + roundedPointsToAward;
 
         let newTier = 'Bronze';
@@ -869,10 +883,12 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
         };
 
         const batch = writeBatch(dbInstance);
-        batch.update(userProfileRef, updates);
-        batch.update(doc(dbInstance, userProfileDocumentPath(userId)), updates);
+        
+        batch.set(publicProfileRef, updates, { merge: true });
+        batch.set(nestedProfileRef, updates, { merge: true });
+        
         await batch.commit();
-        console.log(`dataService: Awarded ${roundedPointsToAward} points to ${userId}. New total: ${newTotalPoints}`);
+        console.log(`dataService: Awarded ${roundedPointsToAward} points to ${userId}. New total: ${newTotalPoints}. Synced both profile documents.`);
 
     } catch (error) {
         console.error("dataService: Failed to award rebate points:", error);
