@@ -24,7 +24,7 @@ const SettingRow = ({ field, settings, handleChange }) => {
                     <span className="text-sm text-gray-600 select-none">{field.description || "Enable/Disable"}</span>
                 </label>
             ) : (
-                <input type={field.type} name={field.name} value={settings[field.name] ?? ''} onChange={handleChange} className={commonInputClass} step={field.type === 'number' ? "0.01" : undefined} placeholder={field.placeholder}/>
+                <input type={field.type} name={field.name} value={settings[field.name] ?? ''} onChange={handleChange} className={commonInputClass} step={field.step || "0.01"} placeholder={field.placeholder}/>
             )}
         </div>
     );
@@ -37,7 +37,6 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         isBannerEnabled: false,
         maintenanceMode: false,
         sessionTimeoutMinutes: '',
-        maxUploadSizeMB: '',
         
         isSignupEnabled: true,
         isGoogleLoginEnabled: true,
@@ -51,6 +50,7 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         minimumChargeResLowIncome: '', 
         minimumChargeSemiBusiness: '', 
         minimumChargeIndustrial: '',   
+        sewerageChargeResidential: '',
         
         billingCycleDay: '',
         latePaymentPenaltyPercentage: '',
@@ -69,6 +69,7 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         
         supportHotline: "",
         supportEmail: "",
+        adminEmailForNotifications: "",
         autoCloseTicketsDays: '',
         defaultInterruptionMsg: '',
         readingReminderDaysBefore: '',
@@ -115,7 +116,10 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         
         const settingsToSave = { ...settings };
         for (const key in settingsToSave) {
-            if (typeof settingsToSave[key] === 'string' && !isNaN(parseFloat(settingsToSave[key])) && key !== 'supportHotline' && key !== 'portalAnnouncement' && key !== 'supportEmail' && key !== 'defaultInterruptionMsg' && key !== 'portalName') {
+            if (typeof settingsToSave[key] === 'string' && !isNaN(parseFloat(settingsToSave[key])) && 
+                key !== 'supportHotline' && key !== 'portalAnnouncement' && key !== 'supportEmail' && 
+                key !== 'defaultInterruptionMsg' && key !== 'portalName' && key !== 'adminEmailForNotifications'
+            ) {
                 if(settingsToSave[key] === '') {
                     settingsToSave[key] = 0;
                 } else {
@@ -183,12 +187,11 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
     };
 
     const generalSettings = [
-        { name: 'portalName', label: 'Portal Name', type: 'text', icon: Briefcase },
+        { name: 'portalName', label: 'Portal Name', type: 'text', icon: Briefcase, placeholder: 'AGWA Water Services, Inc.' },
+        { name: 'sessionTimeoutMinutes', label: 'Session Timeout (Minutes)', type: 'number', icon: Clock, step: "1" },
+        { name: 'maintenanceMode', label: 'Enable Portal Maintenance Mode', type: 'checkbox', icon: AlertTriangle, description: "If enabled, only Admins can log in." },
         { name: 'portalAnnouncement', label: 'Portal-Wide Announcement Banner Text', type: 'textarea', icon: Megaphone, rows: 2 },
         { name: 'isBannerEnabled', label: 'Enable Announcement Banner', type: 'checkbox', icon: Megaphone },
-        { name: 'maintenanceMode', label: 'Enable Portal Maintenance Mode', type: 'checkbox', icon: AlertTriangle, description: "If enabled, only Admins can log in." },
-        { name: 'sessionTimeoutMinutes', label: 'Session Timeout (Minutes)', type: 'number', icon: Clock },
-        { name: 'maxUploadSizeMB', label: 'Max Upload Size (MB)', type: 'number', icon: Settings },
     ];
     
     const featureSettings = [
@@ -205,31 +208,36 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         { name: 'minimumChargeResLowIncome', label: 'Min. Charge Res. Low-Income (PHP)', type: 'number', icon: DollarSign },
         { name: 'minimumChargeSemiBusiness', label: 'Min. Charge Semi-Business (PHP)', type: 'number', icon: DollarSign },
         { name: 'minimumChargeCommercial', label: 'Min. Charge Commercial (PHP)', type: 'number', icon: DollarSign },
-        { name: 'minimumChargeIndustrial', label: 'Min. Charge Industrial (PHP)', type: 'number', icon: DollarSign },
-        { name: 'billingCycleDay', label: 'Billing Cycle Day (e.g., 1)', type: 'number', icon: Calendar },
+        { name: 'minimumChargeIndustrial', label: 'Min. Charge Industrial (PHP)', type: 'number', icon: DollarSign, placeholder: '0 (Volumetric only)' },
+        
+        { name: 'billingCycleDay', label: 'Billing Cycle Day (e.g., 1)', type: 'number', icon: Calendar, step: "1" },
+        { name: 'latePaymentPenaltyDelayDays', label: 'Late Payment Grace Period (Days)', type: 'number', icon: Clock, step: "1" },
         { name: 'latePaymentPenaltyPercentage', label: 'Late Payment Penalty (%)', type: 'number', icon: Percent },
-        { name: 'latePaymentPenaltyDelayDays', label: 'Late Payment Grace Period (Days)', type: 'number', icon: Clock },
         { name: 'reconnectionFee', label: 'Reconnection Fee (PHP)', type: 'number', icon: KeyRound },
+        
         { name: 'fcdaPercentage', label: 'FCDA (%)', type: 'number', icon: Percent },
         { name: 'environmentalChargePercentage', label: 'Environmental Charge (%)', type: 'number', icon: Wind },
+        { name: 'sewerageChargeResidential', label: 'Sewerage Charge (Res. %)', type: 'number', icon: Percent, placeholder: '0' },
         { name: 'sewerageChargePercentageCommercial', label: 'Sewerage Charge (Comm. %)', type: 'number', icon: Percent },
+        
         { name: 'governmentTaxPercentage', label: 'Government Taxes (%)', type: 'number', icon: Percent },
         { name: 'vatPercentage', label: 'VAT (%)', type: 'number', icon: Percent },
         { name: 'seniorCitizenDiscountPercentage', label: 'Senior/PWD Discount (%)', type: 'number', icon: Percent },
     ];
 
     const rebateSettings = [
-        { name: 'pointsPerPeso', label: 'Points Awarded per ₱1.00 Paid', type: 'number', icon: Star, placeholder: 'e.g., 0.01 for 1pt per ₱100' },
-        { name: 'earlyPaymentBonusPoints', label: 'Early Payment Bonus (Points)', type: 'number', icon: Star, placeholder: 'e.g., 10' },
-        { name: 'earlyPaymentDaysThreshold', label: 'Early Payment Threshold (Days)', type: 'number', icon: Calendar, placeholder: 'e.g., 7 days before due date' },
+        { name: 'pointsPerPeso', label: 'Points Awarded per ₱1.00 Paid', type: 'number', icon: Star, placeholder: 'e.g., 0.01', step: "0.001" },
+        { name: 'earlyPaymentBonusPoints', label: 'Early Payment Bonus (Points)', type: 'number', icon: Star, placeholder: 'e.g., 10', step: "1" },
+        { name: 'earlyPaymentDaysThreshold', label: 'Early Payment Threshold (Days)', type: 'number', icon: Calendar, placeholder: 'e.g., 7', step: "1" },
     ];
 
     const communicationSettings = [
         { name: 'supportHotline', label: 'Support Hotline Number', type: 'text', icon: Phone, placeholder: 'e.g., 1627-AGOS' },
         { name: 'supportEmail', label: 'Support Email Address', type: 'email', icon: AtSign, placeholder: 'e.g., support@agos.com' },
-        { name: 'autoCloseTicketsDays', label: 'Auto-close Resolved Tickets After (Days)', type: 'number', icon: Clock },
-        { name: 'readingReminderDaysBefore', label: 'Reading Reminder (Days Before)', type: 'number', icon: Clock },
-        { name: 'defaultInterruptionMsg', label: 'Default Interruption Message', type: 'textarea', icon: AlertTriangle, rows: 2 },
+        { name: 'adminEmailForNotifications', label: 'Admin Email (for system alerts)', type: 'email', icon: AtSign, placeholder: 'e.g., admin@agos.com' },
+        { name: 'autoCloseTicketsDays', label: 'Auto-close Resolved Tickets After (Days)', type: 'number', icon: Clock, step: "1" },
+        { name: 'readingReminderDaysBefore', label: 'Reading Reminder (Days Before)', type: 'number', icon: Clock, step: "1" },
+        { name: 'defaultInterruptionMsg', label: 'Default Interruption Message', type: 'textarea', icon: AlertTriangle, rows: 2, placeholder: 'Service interruption ongoing...' },
     ];
 
     const transactionalDangerActions = [
