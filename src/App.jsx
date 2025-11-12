@@ -78,68 +78,83 @@ const App = () => {
             setSystemSettings({ maintenanceMode: false });
         });
 
+        let unsubscribeProfile = () => {};
+
         const unsubscribeAuth = onAuthStateChanged(fbAuth, async (user) => {
+            unsubscribeProfile();
             setAppError(null);
             setUserProfile(null);
             setAuthUser(user);
 
             if (user) {
                 setAppState('loading_profile');
-                try {
-                    const profileResult = await getUserProfile(fbDb, user.uid);
-                    
-                    if (profileResult.success && profileResult.data) {
-                        setUserProfile(profileResult.data);
+                
+                const profileRef = doc(fbDb, profilesCollectionPath(), user.uid);
+
+                unsubscribeProfile = onSnapshot(profileRef, async (docSnap) => {
+                    if (docSnap.exists()) {
+                        setUserProfile({ id: docSnap.id, ...docSnap.data() });
                         setAppState('app_ready');
-                    } else if (profileResult.error && profileResult.error.includes("not found")) {
-                        const isEmailPasswordSignup = user.providerData.some(p => p.providerId === 'password');
-                        let profileData;
-
-                        if (isEmailPasswordSignup) {
-                            const displayName = localStorage.getItem('signupDisplayName') || user.email || 'New User';
-                            const accountNumber = localStorage.getItem('signupAccountNumber') || '';
-                            localStorage.removeItem('signupDisplayName');
-                            localStorage.removeItem('signupAccountNumber');
-                            
-                            const { role, serviceType } = determineServiceTypeAndRole(accountNumber);
-                            profileData = { 
-                                email: user.email || '', 
-                                phoneNumber: user.phoneNumber || '', 
-                                displayName, 
-                                accountNumber, 
-                                role, 
-                                serviceType, 
-                                accountStatus: 'Active', 
-                                photoURL: user.photoURL || '' 
-                            };
-                        } else {
-                            profileData = {
-                                email: user.email || '',
-                                phoneNumber: user.phoneNumber || '',
-                                displayName: user.displayName || user.email || 'New User',
-                                accountNumber: '',
-                                role: 'customer',
-                                serviceType: 'Residential',
-                                accountStatus: 'Active',
-                                photoURL: user.photoURL || ''
-                            };
-                        }
-
-                        const creationResult = await createUserProfile(fbDb, user.uid, profileData);
-                        if (creationResult.success) {
-                             const newProfileResult = await getUserProfile(fbDb, user.uid);
-                             if (newProfileResult.success && newProfileResult.data) {
-                                setUserProfile(newProfileResult.data);
+                    } else {
+                        try {
+                            const nestedProfileResult = await getDoc(doc(fbDb, userProfileDocumentPath(user.uid)));
+                            if (nestedProfileResult.exists()) {
+                                setUserProfile({ id: nestedProfileResult.id, ...nestedProfileResult.data() });
                                 setAppState('app_ready');
-                             } else { throw new Error(newProfileResult.error || "Failed to fetch newly created profile."); }
-                        } else { throw new Error(creationResult.error || "Failed to auto-create user profile."); }
-                    } else { throw new Error(profileResult.error || "Failed to get user profile data."); }
-                } catch (error) {
-                    console.error("Profile handling error:", error);
-                    setAppError(`Profile Error: ${error.message}`);
+                                return;
+                            }
+
+                            const isEmailPasswordSignup = user.providerData.some(p => p.providerId === 'password');
+                            let profileData;
+
+                            if (isEmailPasswordSignup) {
+                                const displayName = localStorage.getItem('signupDisplayName') || user.email || 'New User';
+                                const accountNumber = localStorage.getItem('signupAccountNumber') || '';
+                                localStorage.removeItem('signupDisplayName');
+                                localStorage.removeItem('signupAccountNumber');
+                                
+                                const { role, serviceType } = determineServiceTypeAndRole(accountNumber);
+                                profileData = { 
+                                    email: user.email || '', 
+                                    phoneNumber: user.phoneNumber || '', 
+                                    displayName, 
+                                    accountNumber, 
+                                    role, 
+                                    serviceType, 
+                                    accountStatus: 'Active', 
+                                    photoURL: user.photoURL || '' 
+                                };
+                            } else {
+                                profileData = {
+                                    email: user.email || '',
+                                    phoneNumber: user.phoneNumber || '',
+                                    displayName: user.displayName || user.email || 'New User',
+                                    accountNumber: '',
+                                    role: 'customer',
+                                    serviceType: 'Residential',
+                                    accountStatus: 'Active',
+                                    photoURL: user.photoURL || ''
+                                };
+                            }
+
+                            const creationResult = await createUserProfile(fbDb, user.uid, profileData);
+                            if (!creationResult.success) {
+                                throw new Error(creationResult.error || "Failed to auto-create user profile.");
+                            }
+                        } catch (error) {
+                            console.error("Profile creation/snapshot error:", error);
+                            setAppError(`Profile Error: ${error.message}`);
+                            setAppState('error');
+                            setUserProfile(null);
+                        }
+                    }
+                }, (error) => {
+                    console.error("Profile listener error:", error);
+                    setAppError(`Profile Listener Error: ${error.message}`);
                     setAppState('error');
                     setUserProfile(null);
-                }
+                });
+
             } else {
                  setAppState('auth_required');
                  setCurrentPage('login');
@@ -149,6 +164,7 @@ const App = () => {
         return () => {
             unsubscribeAuth();
             unsubscribeSettings();
+            unsubscribeProfile();
         };
     }, []);
 
