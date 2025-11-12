@@ -24,7 +24,7 @@ const SettingRow = ({ field, settings, handleChange }) => {
                     <span className="text-sm text-gray-600 select-none">{field.description || "Enable/Disable"}</span>
                 </label>
             ) : (
-                <input type={field.type} name={field.name} value={settings[field.name] ?? ''} onChange={handleChange} className={commonInputClass} step="0.01" placeholder={field.placeholder}/>
+                <input type={field.type} name={field.name} value={settings[field.name] ?? ''} onChange={handleChange} className={commonInputClass} step={field.type === 'number' ? "0.01" : undefined} placeholder={field.placeholder}/>
             )}
         </div>
     );
@@ -32,8 +32,27 @@ const SettingRow = ({ field, settings, handleChange }) => {
 
 const SystemSettingsSection = ({ showNotification = console.log }) => {
     const [settings, setSettings] = useState({
+        portalName: '',
         portalAnnouncement: '',
         isBannerEnabled: false,
+        maintenanceMode: false,
+        sessionTimeoutMinutes: '',
+        maxUploadSizeMB: '',
+        
+        isSignupEnabled: true,
+        isGoogleLoginEnabled: true,
+        isPasswordlessLoginEnabled: true,
+        isOnlinePaymentsEnabled: true,
+        isChatbotEnabled: true,
+        isRebateProgramEnabled: false,
+        
+        minimumChargeResidential: '',
+        minimumChargeCommercial: '',
+        minimumChargeResLowIncome: '', 
+        minimumChargeSemiBusiness: '', 
+        minimumChargeIndustrial: '',   
+        
+        billingCycleDay: '',
         latePaymentPenaltyPercentage: '',
         latePaymentPenaltyDelayDays: '',
         reconnectionFee: '',
@@ -42,21 +61,17 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         sewerageChargePercentageCommercial: '',
         governmentTaxPercentage: '',
         vatPercentage: '',
-        maintenanceMode: false,
-        isSignupEnabled: true,
-        isGoogleLoginEnabled: true,
-        isPasswordlessLoginEnabled: true,
-        isOnlinePaymentsEnabled: true,
-        isChatbotEnabled: true,
-        supportHotline: "",
-        supportEmail: "",
-        autoCloseTicketsDays: '',
-        isRebateProgramEnabled: false,
+        seniorCitizenDiscountPercentage: '',
+
         pointsPerPeso: '',
         earlyPaymentBonusPoints: '',
         earlyPaymentDaysThreshold: '',
-        minimumChargeCommercial: '',
-        minimumChargeResidential: '',
+        
+        supportHotline: "",
+        supportEmail: "",
+        autoCloseTicketsDays: '',
+        defaultInterruptionMsg: '',
+        readingReminderDaysBefore: '',
     });
 
     const [isLoading, setIsLoading] = useState(true);
@@ -100,7 +115,7 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         
         const settingsToSave = { ...settings };
         for (const key in settingsToSave) {
-            if (typeof settingsToSave[key] === 'string' && !isNaN(parseFloat(settingsToSave[key])) && key !== 'supportHotline' && key !== 'portalAnnouncement' && key !== 'supportEmail') {
+            if (typeof settingsToSave[key] === 'string' && !isNaN(parseFloat(settingsToSave[key])) && key !== 'supportHotline' && key !== 'portalAnnouncement' && key !== 'supportEmail' && key !== 'defaultInterruptionMsg' && key !== 'portalName') {
                 if(settingsToSave[key] === '') {
                     settingsToSave[key] = 0;
                 } else {
@@ -168,14 +183,30 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
     };
 
     const generalSettings = [
-        { name: 'portalAnnouncement', label: 'Portal-Wide Announcement Banner Text', type: 'textarea', icon: Megaphone, rows: 3 },
+        { name: 'portalName', label: 'Portal Name', type: 'text', icon: Briefcase },
+        { name: 'portalAnnouncement', label: 'Portal-Wide Announcement Banner Text', type: 'textarea', icon: Megaphone, rows: 2 },
         { name: 'isBannerEnabled', label: 'Enable Announcement Banner', type: 'checkbox', icon: Megaphone },
         { name: 'maintenanceMode', label: 'Enable Portal Maintenance Mode', type: 'checkbox', icon: AlertTriangle, description: "If enabled, only Admins can log in." },
+        { name: 'sessionTimeoutMinutes', label: 'Session Timeout (Minutes)', type: 'number', icon: Clock },
+        { name: 'maxUploadSizeMB', label: 'Max Upload Size (MB)', type: 'number', icon: Settings },
+    ];
+    
+    const featureSettings = [
+        { name: 'isSignupEnabled', label: 'Enable New User Sign-ups', type: 'checkbox', icon: UserPlus },
+        { name: 'isGoogleLoginEnabled', label: 'Enable Sign-in with Google', type: 'checkbox', icon: UserPlus },
+        { name: 'isPasswordlessLoginEnabled', label: 'Enable Passwordless (Email Link) Sign-in', type: 'checkbox', icon: UserPlus },
+        { name: 'isOnlinePaymentsEnabled', label: 'Enable Online Payments', type: 'checkbox', icon: CreditCard },
+        { name: 'isChatbotEnabled', label: 'Enable Chatbot', type: 'checkbox', icon: MessageSquare },
+        { name: 'isRebateProgramEnabled', label: 'Enable Rebate Program', type: 'checkbox', icon: Gift, description: "Enable customer rewards." },
     ];
     
     const billingSettings = [
-        { name: 'minimumChargeResidential', label: 'Minimum Charge Residential (PHP)', type: 'number', icon: DollarSign },
-        { name: 'minimumChargeCommercial', label: 'Minimum Charge Commercial (PHP)', type: 'number', icon: DollarSign },
+        { name: 'minimumChargeResidential', label: 'Min. Charge Residential (PHP)', type: 'number', icon: DollarSign },
+        { name: 'minimumChargeResLowIncome', label: 'Min. Charge Res. Low-Income (PHP)', type: 'number', icon: DollarSign },
+        { name: 'minimumChargeSemiBusiness', label: 'Min. Charge Semi-Business (PHP)', type: 'number', icon: DollarSign },
+        { name: 'minimumChargeCommercial', label: 'Min. Charge Commercial (PHP)', type: 'number', icon: DollarSign },
+        { name: 'minimumChargeIndustrial', label: 'Min. Charge Industrial (PHP)', type: 'number', icon: DollarSign },
+        { name: 'billingCycleDay', label: 'Billing Cycle Day (e.g., 1)', type: 'number', icon: Calendar },
         { name: 'latePaymentPenaltyPercentage', label: 'Late Payment Penalty (%)', type: 'number', icon: Percent },
         { name: 'latePaymentPenaltyDelayDays', label: 'Late Payment Grace Period (Days)', type: 'number', icon: Clock },
         { name: 'reconnectionFee', label: 'Reconnection Fee (PHP)', type: 'number', icon: KeyRound },
@@ -184,18 +215,10 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         { name: 'sewerageChargePercentageCommercial', label: 'Sewerage Charge (Comm. %)', type: 'number', icon: Percent },
         { name: 'governmentTaxPercentage', label: 'Government Taxes (%)', type: 'number', icon: Percent },
         { name: 'vatPercentage', label: 'VAT (%)', type: 'number', icon: Percent },
-    ];
-    
-    const featureSettings = [
-        { name: 'isOnlinePaymentsEnabled', label: 'Enable Online Payments', type: 'checkbox', icon: Briefcase },
-        { name: 'isSignupEnabled', label: 'Enable New User Sign-ups', type: 'checkbox', icon: UserPlus },
-        { name: 'isGoogleLoginEnabled', label: 'Enable Sign-in with Google', type: 'checkbox', icon: UserPlus },
-        { name: 'isPasswordlessLoginEnabled', label: 'Enable Passwordless (Email Link) Sign-in', type: 'checkbox', icon: UserPlus },
-        { name: 'isChatbotEnabled', label: 'Enable Chatbot', type: 'checkbox', icon: MessageSquare },
+        { name: 'seniorCitizenDiscountPercentage', label: 'Senior/PWD Discount (%)', type: 'number', icon: Percent },
     ];
 
     const rebateSettings = [
-        { name: 'isRebateProgramEnabled', label: 'Enable Rebate Program', type: 'checkbox', icon: Gift, description: "Enable the customer rewards program." },
         { name: 'pointsPerPeso', label: 'Points Awarded per ₱1.00 Paid', type: 'number', icon: Star, placeholder: 'e.g., 0.01 for 1pt per ₱100' },
         { name: 'earlyPaymentBonusPoints', label: 'Early Payment Bonus (Points)', type: 'number', icon: Star, placeholder: 'e.g., 10' },
         { name: 'earlyPaymentDaysThreshold', label: 'Early Payment Threshold (Days)', type: 'number', icon: Calendar, placeholder: 'e.g., 7 days before due date' },
@@ -205,6 +228,8 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         { name: 'supportHotline', label: 'Support Hotline Number', type: 'text', icon: Phone, placeholder: 'e.g., 1627-AGOS' },
         { name: 'supportEmail', label: 'Support Email Address', type: 'email', icon: AtSign, placeholder: 'e.g., support@agos.com' },
         { name: 'autoCloseTicketsDays', label: 'Auto-close Resolved Tickets After (Days)', type: 'number', icon: Clock },
+        { name: 'readingReminderDaysBefore', label: 'Reading Reminder (Days Before)', type: 'number', icon: Clock },
+        { name: 'defaultInterruptionMsg', label: 'Default Interruption Message', type: 'textarea', icon: AlertTriangle, rows: 2 },
     ];
 
     const transactionalDangerActions = [
@@ -248,13 +273,6 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
                     </div>
                 </section>
 
-                <section>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Billing & Financial</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {billingSettings.map(field => <SettingRow key={field.name} field={field} settings={settings} handleChange={handleChange} />)}
-                    </div>
-                </section>
-
                  <section>
                     <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Portal Features & Authentication</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -263,8 +281,15 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
                 </section>
                 
                 <section>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Rewards Program</h3>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Billing & Financial</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {billingSettings.map(field => <SettingRow key={field.name} field={field} settings={settings} handleChange={handleChange} />)}
+                    </div>
+                </section>
+                
+                <section>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Rewards Program</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {rebateSettings.map(field => <SettingRow key={field.name} field={field} settings={settings} handleChange={handleChange} />)}
                     </div>
                 </section>
