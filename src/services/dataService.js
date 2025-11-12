@@ -811,14 +811,12 @@ export async function getBillsForUser(dbInstance, userId) {
 
 async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSettings) {
     if (!systemSettings?.isRebateProgramEnabled || !userId) {
-        console.log(`dataService: Rebate program disabled or no user ID. Skipping points.`);
         return;
     }
 
     try {
-        const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso) || 0;
-        if (pointsPerPeso === 0) {
-            console.log(`dataService: pointsPerPeso is 0 or invalid. Skipping point award.`);
+        const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso);
+        if (isNaN(pointsPerPeso) || pointsPerPeso <= 0) {
             return;
         }
 
@@ -837,39 +835,23 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
             const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
             if (daysEarly >= earlyPaymentDays) {
                 pointsToAward += earlyPaymentBonus;
-                console.log(`dataService: Awarding ${earlyPaymentBonus} early payment bonus.`);
             }
         }
 
         const roundedPointsToAward = Math.round(pointsToAward);
         if (roundedPointsToAward <= 0) {
-            console.log(`dataService: No points to award (rounded to ${roundedPointsToAward}).`);
             return;
         }
 
         const publicProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
-        const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userId));
-
-        let currentPoints = 0;
-        let profileExists = false;
-
         const publicSnap = await getDoc(publicProfileRef);
-        if (publicSnap.exists()) {
-            currentPoints = publicSnap.data().rebatePoints || 0;
-            profileExists = true;
-        } else {
-            const nestedSnap = await getDoc(nestedProfileRef);
-            if (nestedSnap.exists()) {
-                currentPoints = nestedSnap.data().rebatePoints || 0;
-                profileExists = true;
-            }
-        }
 
-        if (!profileExists) {
-            console.error(`dataService: User profile ${userId} not found in either location. Cannot award points.`);
+        if (!publicSnap.exists()) {
+            console.error(`dataService: CRITICAL! Public profile ${userId} not found. Cannot award points.`);
             return;
         }
 
+        const currentPoints = publicSnap.data().rebatePoints || 0;
         const newTotalPoints = currentPoints + roundedPointsToAward;
 
         let newTier = 'Bronze';
@@ -882,13 +864,7 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
             rebateTier: newTier
         };
 
-        const batch = writeBatch(dbInstance);
-        
-        batch.set(publicProfileRef, updates, { merge: true });
-        batch.set(nestedProfileRef, updates, { merge: true });
-        
-        await batch.commit();
-        console.log(`dataService: Awarded ${roundedPointsToAward} points to ${userId}. New total: ${newTotalPoints}. Synced both profile documents.`);
+        await updateDoc(publicProfileRef, updates);
 
     } catch (error) {
         console.error("dataService: Failed to award rebate points:", error);
