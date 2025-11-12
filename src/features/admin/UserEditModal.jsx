@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../components/ui/Modal.jsx';
-import { User, Mail, Hash, Shield, Briefcase, Save, Loader2, MapPin, Gauge, CheckSquare, Info, Percent } from 'lucide-react';
+import { User, Mail, Hash, Shield, Briefcase, Save, Loader2, MapPin, Gauge, CheckSquare, Info, Percent, Camera } from 'lucide-react';
 import * as geoService from '../../services/geoService';
 
 const commonInputClass = "w-full px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 focus:outline-none transition duration-150 text-sm placeholder-gray-400";
@@ -17,6 +17,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
         meterSerialNumber: '',
         meterSize: '1/2"',
         discountStatus: 'none',
+        photoURL: '',
     });
     const [addressForm, setAddressForm] = useState({ district: '', barangay: '', street: '', landmark: '' });
     const [districts, setDistricts] = useState([]);
@@ -40,6 +41,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
                 meterSerialNumber: user.meterSerialNumber || '',
                 meterSize: user.meterSize || '1/2"',
                 discountStatus: user.discountStatus || 'none',
+                photoURL: user.photoURL || '',
             });
              if (isUserCustomer && user.serviceAddress && typeof user.serviceAddress === 'object') {
                 const currentDistrict = user.serviceAddress.district || '';
@@ -138,6 +140,11 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, isSaving, determineServi
                             <input type="text" name="meterSize" value={formData.meterSize} onChange={handleChange} className={commonInputClass} placeholder="Meter Size" />
                         </>
                     )}
+                </div>
+
+                <div>
+                    <label htmlFor="photoURL" className="block text-sm font-medium text-gray-700 mb-1"><Camera size={14} className="inline mr-1.5"/>Photo URL</label>
+                    <input type="url" name="photoURL" value={formData.photoURL} onChange={handleChange} className={commonInputClass} placeholder="https://example.com/image.png" />
                 </div>
                 
                  {isCustomer && (

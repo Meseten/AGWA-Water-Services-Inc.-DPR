@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings, Save, Loader2, AlertTriangle, Percent, Megaphone, Clock, Trash2, KeyRound, Wind, UserPlus, Phone, AtSign, Briefcase, MessageSquare, Users, Map, Gift, Star, Calendar, CreditCard } from 'lucide-react';
+import { Settings, Save, Loader2, AlertTriangle, Percent, Megaphone, Clock, Trash2, KeyRound, Wind, UserPlus, Phone, AtSign, Briefcase, MessageSquare, Users, Map, Gift, Star, Calendar, CreditCard, DollarSign } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import ConfirmationModal from '../../components/ui/ConfirmationModal.jsx';
 import * as DataService from '../../services/dataService.js';
@@ -55,6 +55,8 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         pointsPerPeso: '',
         earlyPaymentBonusPoints: '',
         earlyPaymentDaysThreshold: '',
+        minimumChargeCommercial: '',
+        minimumChargeResidential: '',
     });
 
     const [isLoading, setIsLoading] = useState(true);
@@ -172,6 +174,8 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
     ];
     
     const billingSettings = [
+        { name: 'minimumChargeResidential', label: 'Minimum Charge Residential (PHP)', type: 'number', icon: DollarSign },
+        { name: 'minimumChargeCommercial', label: 'Minimum Charge Commercial (PHP)', type: 'number', icon: DollarSign },
         { name: 'latePaymentPenaltyPercentage', label: 'Late Payment Penalty (%)', type: 'number', icon: Percent },
         { name: 'latePaymentPenaltyDelayDays', label: 'Late Payment Grace Period (Days)', type: 'number', icon: Clock },
         { name: 'reconnectionFee', label: 'Reconnection Fee (PHP)', type: 'number', icon: KeyRound },
