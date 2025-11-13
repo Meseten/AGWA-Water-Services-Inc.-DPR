@@ -9,21 +9,23 @@ const systemSettingsDocumentPath = () => `public/data/system_config/settings`;
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-const serviceAccount = {
-  type: "service_account",
-  project_id: process.env.FIREBASE_ADMIN_PROJECT_ID,
-  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-  private_key: process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  client_email: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-  client_id: process.env.FIREBASE_ADMIN_CLIENT_ID,
-  auth_uri: "https://accounts.google.com/o/oauth2/auth",
-  token_uri: "https://oauth2.googleapis.com/token",
-  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-  client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_ADMIN_CLIENT_EMAIL.replace('@', '%40')}`
-};
-
 if (!admin.apps.length) {
   try {
+    const serviceAccount = {
+      type: "service_account",
+      project_id: process.env.FIREBASE_ADMIN_PROJECT_ID,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_ADMIN_PRIVATE_KEY 
+        ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n') 
+        : undefined,
+      client_email: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_ADMIN_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.replace('@', '%40')}`
+    };
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
@@ -50,22 +52,29 @@ async function getRawBody(req) {
 }
 
 const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
-  if (!systemSettings?.isRebateProgramEnabled || !userId) {
-    console.log(`Webhook: Rebate program disabled or no user ID. Skipping points.`);
+  if (systemSettings?.isRebateProgramEnabled === false) {
+    console.log(`Webhook: Rebate program is disabled in settings.`);
     return;
+  }
+  if (!userId) {
+     console.log(`Webhook: No user ID provided.`);
+     return;
   }
 
   try {
     const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso) || 0;
     const earlyPaymentDays = parseInt(systemSettings.earlyPaymentDaysThreshold, 10) || 7;
     const earlyPaymentBonus = parseInt(systemSettings.earlyPaymentBonusPoints, 10) || 10;
+    
     let pointsToAward = (amountPaid * pointsPerPeso);
 
     const dueDate = bill.dueDate?.seconds ? new Date(bill.dueDate.seconds * 1000) : null;
     const paymentDate = new Date();
 
     if (dueDate) {
-      const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
+      const diffTime = dueDate.getTime() - paymentDate.getTime();
+      const daysEarly = diffTime / (1000 * 60 * 60 * 24);
+      
       if (daysEarly >= earlyPaymentDays) {
         pointsToAward += earlyPaymentBonus;
         console.log("Webhook: Awarding early payment bonus:", earlyPaymentBonus);
@@ -80,6 +89,7 @@ const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
 
     const userProfileRef = db.doc(profilesCollectionPath() + `/${userId}`);
     const userProfileSnap = await userProfileRef.get();
+    
     if (!userProfileSnap.exists) {
         console.error("Webhook: User profile not found. Cannot award points:", userId);
         return;
@@ -93,10 +103,16 @@ const awardRebatePoints = async (userId, bill, amountPaid, systemSettings) => {
     else if (newTotalPoints >= 1500) newTier = 'Gold';
     else if (newTotalPoints >= 500) newTier = 'Silver';
 
-    const updates = { rebatePoints: newTotalPoints, rebateTier: newTier };
+    const updates = { 
+      rebatePoints: newTotalPoints, 
+      rebateTier: newTier,
+      updatedAt: admin.firestore.Timestamp.now()
+    };
+
     const batch = db.batch();
     batch.update(userProfileRef, updates);
     batch.update(db.doc(userProfileDocumentPath(userId)), updates);
+    
     await batch.commit();
     console.log("Webhook: Awarded points. New total:", roundedPointsToAward, userId, newTotalPoints);
   } catch (error) {
@@ -138,6 +154,7 @@ export default async function handler(req, res) {
 
       const billRef = db.doc(allBillDocumentPath(billId));
       const billSnap = await billRef.get();
+      
       if (!billSnap.exists) {
         console.error("Webhook: Bill document not found:", billId);
         throw new Error(`Bill document not found`);
@@ -157,13 +174,13 @@ export default async function handler(req, res) {
       console.log("Webhook: Successfully updated bill to Paid:", billId);
 
       const settingsSnap = await db.doc(systemSettingsDocumentPath()).get();
-      const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+      const settings = settingsSnap.exists ? settingsSnap.data() : {}; 
       
       await awardRebatePoints(userId, billData, amountPaid, settings);
 
     } catch (dbError) {
       console.error("Webhook: Firestore update error:", dbError);
-      return res.status(500).send({ error: `Internal Server Error` });
+      return res.status(200).json({ error: `Internal Logic Error: ${dbError.message}` });
     }
   }
 
