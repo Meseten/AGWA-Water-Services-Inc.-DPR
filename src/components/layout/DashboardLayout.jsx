@@ -246,7 +246,7 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
                     <button onClick={() => setIsSidebarOpenMobile(true)} className="text-gray-600 hover:text-gray-900 p-1">
                         <Menu size={28} />
                     </button>
-                    <h1 className="text-lg font-semibold text-blue-700">AGWA Portal</h1>
+                    <h1 className="text-lg font-semibold text-blue-700">AGWA Water Services, Inc.</h1>
                      <div className="w-8"></div>
                 </header>
 
