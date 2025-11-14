@@ -93,13 +93,16 @@ export const verifyCheckoutSession = async (sessionId, dbInstance) => {
     const data = await response.json();
 
     if (data.success && data.paymentDetails) {
-      const { billId, amountPaid, paymentMethod, paymentReference } = data.paymentDetails;
+      const { billId, amount, amountPaid, paymentMethod, paymentReference } = data.paymentDetails;
       
+      const amountInCents = amount || amountPaid; 
+      const amountInPesos = parseFloat(amountInCents) / 100.0;
+
       const updates = {
         status: 'Paid',
         paymentDate: new Date(),
         paymentTimestamp: new Date(),
-        amountPaid: parseFloat(amountPaid),
+        amountPaid: amountInPesos,
         paymentMethod: paymentMethod || 'Stripe',
         paymentReference: paymentReference,
       };
