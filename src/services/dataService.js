@@ -98,6 +98,39 @@ export function deleteAllReadings(dbInstance) { return deleteAllFromCollection(d
 export function deleteAllAnnouncements(dbInstance) { return deleteAllFromCollection(dbInstance, announcementsCollectionPath()); };
 export function deleteAllInterruptions(dbInstance) { return deleteAllFromCollection(dbInstance, serviceInterruptionsCollectionPath()); };
 export function deleteAllRoutes(dbInstance) { return deleteAllFromCollection(dbInstance, meterRoutesCollectionPath()); };
+
+export async function deleteAllRebatePoints(dbInstance) {
+    try {
+        const profilesRef = collection(dbInstance, profilesCollectionPath());
+        const snapshot = await getDocs(query(profilesRef, limit(500)));
+        if (snapshot.empty) return { success: true, count: 0 };
+
+        let count = 0;
+        let lastSnapshot = snapshot;
+        const updates = { rebatePoints: 0, rebateTier: 'Bronze' };
+
+        while (!lastSnapshot.empty) {
+            const batch = writeBatch(dbInstance);
+            lastSnapshot.docs.forEach((userDoc) => {
+                batch.update(userDoc.ref, updates);
+                const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userDoc.id));
+                batch.update(nestedProfileRef, updates);
+            });
+            await batch.commit();
+            count += lastSnapshot.size;
+
+            if (lastSnapshot.size < 500) break;
+
+            const lastVisible = lastSnapshot.docs[lastSnapshot.docs.length - 1];
+            lastSnapshot = await getDocs(query(profilesRef, orderBy(documentId()), startAfter(lastVisible), limit(500)));
+        }
+        
+        return { success: true, count };
+    } catch (error) {
+        return handleFirestoreError('clearing all rebate points', error);
+    }
+};
+
 export async function deleteAllUsers(dbInstance) {
     try {
         const usersSnapshot = await getDocs(query(collection(dbInstance, profilesCollectionPath())));
@@ -464,8 +497,8 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
         const charges = billingService.calculateBillDetails(consumption, userProfile.serviceType, userProfile.meterSize, systemSettings);
         const currentCharges = charges.totalCalculatedCharges || 0;
         
-        const seniorCitizenDiscount = (userProfile.discountStatus === 'verified') 
-            ? parseFloat((currentCharges * 0.05).toFixed(2)) 
+        const seniorCitizenDiscount = (userProfile.discountStatus === 'verified' && (systemSettings.seniorCitizenDiscountPercentage || 0) > 0)
+            ? parseFloat((currentCharges * (systemSettings.seniorCitizenDiscountPercentage / 100)).toFixed(2)) 
             : 0;
 
         let previousUnpaidAmount = 0;
@@ -541,7 +574,7 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
             return { success: true, data: [] };
         }
     
-        const accountsInLocQuery = query(collection(dbInstance, profilesCollectionPath()), where("serviceAddress.barangay", "==", location), orderBy("name", "asc"));
+        const accountsInLocQuery = query(collection(dbInstance, profilesCollectionPath()), where("serviceAddress.barangay", "==", location), orderBy("displayName", "asc"));
         const usersSnapshot = await getDocs(accountsInLocQuery);
         if (usersSnapshot.empty) return { success: true, data: [] };
 
@@ -850,6 +883,8 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
             console.error(`dataService: CRITICAL! Public profile ${userId} not found. Cannot award points.`);
             return;
         }
+        
+        const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userId));
 
         const currentPoints = publicSnap.data().rebatePoints || 0;
         const newTotalPoints = currentPoints + roundedPointsToAward;
@@ -864,8 +899,11 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
             rebateTier: newTier,
             updatedAt: serverTimestamp()
         };
-
-        await updateDoc(publicProfileRef, updates);
+        
+        const batch = writeBatch(dbInstance);
+        batch.update(publicProfileRef, updates);
+        batch.update(nestedProfileRef, updates);
+        await batch.commit();
 
     } catch (error) {
         console.error("dataService: Failed to award rebate points:", error);

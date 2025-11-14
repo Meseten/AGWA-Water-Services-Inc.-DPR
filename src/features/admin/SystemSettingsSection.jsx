@@ -32,47 +32,47 @@ const SettingRow = ({ field, settings, handleChange }) => {
 
 const SystemSettingsSection = ({ showNotification = console.log }) => {
     const [settings, setSettings] = useState({
-        portalName: '',
+        portalName: 'AGWA Water Services, Inc.',
         portalAnnouncement: '',
         isBannerEnabled: false,
         maintenanceMode: false,
-        sessionTimeoutMinutes: '',
+        sessionTimeoutMinutes: 60,
         
         isSignupEnabled: true,
         isGoogleLoginEnabled: true,
         isPasswordlessLoginEnabled: true,
         isOnlinePaymentsEnabled: true,
         isChatbotEnabled: true,
-        isRebateProgramEnabled: false,
+        isRebateProgramEnabled: true,
         
-        minimumChargeResidential: '',
-        minimumChargeCommercial: '',
-        minimumChargeResLowIncome: '', 
-        minimumChargeSemiBusiness: '', 
-        minimumChargeIndustrial: '',   
-        sewerageChargeResidential: '',
+        minimumChargeResidential: 195.49,
+        minimumChargeCommercial: 888.40,
+        minimumChargeResLowIncome: 70.07, 
+        minimumChargeSemiBusiness: 195.49, 
+        minimumChargeIndustrial: 961.26,   
+        sewerageChargeResidential: 0,
         
-        billingCycleDay: '',
-        latePaymentPenaltyPercentage: '',
-        latePaymentPenaltyDelayDays: '',
-        reconnectionFee: '',
-        fcdaPercentage: '',
-        environmentalChargePercentage: '',
-        sewerageChargePercentageCommercial: '',
-        governmentTaxPercentage: '',
-        vatPercentage: '',
-        seniorCitizenDiscountPercentage: '',
+        billingCycleDay: 1,
+        latePaymentPenaltyPercentage: 2.0,
+        latePaymentPenaltyDelayDays: 15,
+        reconnectionFee: 290.00,
+        fcdaPercentage: 1.29,
+        environmentalChargePercentage: 25.0,
+        sewerageChargePercentageCommercial: 32.85,
+        governmentTaxPercentage: 2.0,
+        vatPercentage: 12.0,
+        seniorCitizenDiscountPercentage: 5.0,
 
-        pointsPerPeso: '',
-        earlyPaymentBonusPoints: '',
-        earlyPaymentDaysThreshold: '',
+        pointsPerPeso: 0.01,
+        earlyPaymentBonusPoints: 10,
+        earlyPaymentDaysThreshold: 7,
         
-        supportHotline: "",
-        supportEmail: "",
-        adminEmailForNotifications: "",
-        autoCloseTicketsDays: '',
-        defaultInterruptionMsg: '',
-        readingReminderDaysBefore: '',
+        supportHotline: "1627-AGWA (24/7)",
+        supportEmail: "support@agwa-waterservices.com.ph",
+        adminEmailForNotifications: "admin@agwa.ph",
+        autoCloseTicketsDays: 14,
+        defaultInterruptionMsg: 'AGWA is conducting emergency maintenance. Water service may be temporarily unavailable in your area.',
+        readingReminderDaysBefore: 3,
     });
 
     const [isLoading, setIsLoading] = useState(true);
@@ -166,6 +166,9 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
                 case 'routes':
                     result = await DataService.deleteAllRoutes(db);
                     break;
+                case 'rebatePoints':
+                    result = await DataService.deleteAllRebatePoints(db);
+                    break;
                 case 'users':
                     result = await DataService.deleteAllUsers(db);
                     break;
@@ -188,7 +191,7 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
 
     const generalSettings = [
         { name: 'portalName', label: 'Portal Name', type: 'text', icon: Briefcase, placeholder: 'AGWA Water Services, Inc.' },
-        { name: 'sessionTimeoutMinutes', label: 'Session Timeout (Minutes)', type: 'number', icon: Clock, step: "1" },
+        { name: 'sessionTimeoutMinutes', label: 'Session Timeout (Minutes)', type: 'number', icon: Clock, step: "1", placeholder: "60" },
         { name: 'maintenanceMode', label: 'Enable Portal Maintenance Mode', type: 'checkbox', icon: AlertTriangle, description: "If enabled, only Admins can log in." },
         { name: 'portalAnnouncement', label: 'Portal-Wide Announcement Banner Text', type: 'textarea', icon: Megaphone, rows: 2 },
         { name: 'isBannerEnabled', label: 'Enable Announcement Banner', type: 'checkbox', icon: Megaphone },
@@ -204,25 +207,25 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
     ];
     
     const billingSettings = [
-        { name: 'minimumChargeResidential', label: 'Min. Charge Residential (PHP)', type: 'number', icon: DollarSign },
-        { name: 'minimumChargeResLowIncome', label: 'Min. Charge Res. Low-Income (PHP)', type: 'number', icon: DollarSign },
-        { name: 'minimumChargeSemiBusiness', label: 'Min. Charge Semi-Business (PHP)', type: 'number', icon: DollarSign },
-        { name: 'minimumChargeCommercial', label: 'Min. Charge Commercial (PHP)', type: 'number', icon: DollarSign },
-        { name: 'minimumChargeIndustrial', label: 'Min. Charge Industrial (PHP)', type: 'number', icon: DollarSign, placeholder: '0 (Volumetric only)' },
+        { name: 'minimumChargeResidential', label: 'Min. Charge Residential (PHP)', type: 'number', icon: DollarSign, placeholder: '195.49' },
+        { name: 'minimumChargeResLowIncome', label: 'Min. Charge Res. Low-Income (PHP)', type: 'number', icon: DollarSign, placeholder: '70.07' },
+        { name: 'minimumChargeSemiBusiness', label: 'Min. Charge Semi-Business (PHP)', type: 'number', icon: DollarSign, placeholder: '195.49' },
+        { name: 'minimumChargeCommercial', label: 'Min. Charge Commercial (PHP)', type: 'number', icon: DollarSign, placeholder: '888.40' },
+        { name: 'minimumChargeIndustrial', label: 'Min. Charge Industrial (PHP)', type: 'number', icon: DollarSign, placeholder: '961.26' },
         
-        { name: 'billingCycleDay', label: 'Billing Cycle Day (e.g., 1)', type: 'number', icon: Calendar, step: "1" },
-        { name: 'latePaymentPenaltyDelayDays', label: 'Late Payment Grace Period (Days)', type: 'number', icon: Clock, step: "1" },
-        { name: 'latePaymentPenaltyPercentage', label: 'Late Payment Penalty (%)', type: 'number', icon: Percent },
-        { name: 'reconnectionFee', label: 'Reconnection Fee (PHP)', type: 'number', icon: KeyRound },
+        { name: 'billingCycleDay', label: 'Billing Cycle Day (e.g., 1)', type: 'number', icon: Calendar, step: "1", placeholder: '1' },
+        { name: 'latePaymentPenaltyDelayDays', label: 'Late Payment Grace Period (Days)', type: 'number', icon: Clock, step: "1", placeholder: '15' },
+        { name: 'latePaymentPenaltyPercentage', label: 'Late Payment Penalty (%)', type: 'number', icon: Percent, placeholder: '2.0' },
+        { name: 'reconnectionFee', label: 'Reconnection Fee (PHP)', type: 'number', icon: KeyRound, placeholder: '290.00' },
         
-        { name: 'fcdaPercentage', label: 'FCDA (%)', type: 'number', icon: Percent },
-        { name: 'environmentalChargePercentage', label: 'Environmental Charge (%)', type: 'number', icon: Wind },
+        { name: 'fcdaPercentage', label: 'FCDA (%)', type: 'number', icon: Percent, placeholder: '1.29' },
+        { name: 'environmentalChargePercentage', label: 'Environmental Charge (%)', type: 'number', icon: Wind, placeholder: '25.0' },
         { name: 'sewerageChargeResidential', label: 'Sewerage Charge (Res. %)', type: 'number', icon: Percent, placeholder: '0' },
-        { name: 'sewerageChargePercentageCommercial', label: 'Sewerage Charge (Comm. %)', type: 'number', icon: Percent },
+        { name: 'sewerageChargePercentageCommercial', label: 'Sewerage Charge (Comm. %)', type: 'number', icon: Percent, placeholder: '32.85' },
         
-        { name: 'governmentTaxPercentage', label: 'Government Taxes (%)', type: 'number', icon: Percent },
-        { name: 'vatPercentage', label: 'VAT (%)', type: 'number', icon: Percent },
-        { name: 'seniorCitizenDiscountPercentage', label: 'Senior/PWD Discount (%)', type: 'number', icon: Percent },
+        { name: 'governmentTaxPercentage', label: 'Government Taxes (%)', type: 'number', icon: Percent, placeholder: '2.0' },
+        { name: 'vatPercentage', label: 'VAT (%)', type: 'number', icon: Percent, placeholder: '12.0' },
+        { name: 'seniorCitizenDiscountPercentage', label: 'Senior/PWD Discount (%)', type: 'number', icon: Percent, placeholder: '5.0' },
     ];
 
     const rebateSettings = [
@@ -232,11 +235,11 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
     ];
 
     const communicationSettings = [
-        { name: 'supportHotline', label: 'Support Hotline Number', type: 'text', icon: Phone, placeholder: 'e.g., 1627-AGOS' },
+        { name: 'supportHotline', label: 'Support Hotline Number', type: 'text', icon: Phone, placeholder: 'e.g., 1627-AGWA' },
         { name: 'supportEmail', label: 'Support Email Address', type: 'email', icon: AtSign, placeholder: 'e.g., support@agos.com' },
         { name: 'adminEmailForNotifications', label: 'Admin Email (for system alerts)', type: 'email', icon: AtSign, placeholder: 'e.g., admin@agos.com' },
-        { name: 'autoCloseTicketsDays', label: 'Auto-close Resolved Tickets After (Days)', type: 'number', icon: Clock, step: "1" },
-        { name: 'readingReminderDaysBefore', label: 'Reading Reminder (Days Before)', type: 'number', icon: Clock, step: "1" },
+        { name: 'autoCloseTicketsDays', label: 'Auto-close Resolved Tickets After (Days)', type: 'number', icon: Clock, step: "1", placeholder: "14" },
+        { name: 'readingReminderDaysBefore', label: 'Reading Reminder (Days Before)', type: 'number', icon: Clock, step: "1", placeholder: "3" },
         { name: 'defaultInterruptionMsg', label: 'Default Interruption Message', type: 'textarea', icon: AlertTriangle, rows: 2, placeholder: 'Service interruption ongoing...' },
     ];
 
@@ -247,6 +250,7 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         { label: 'Clear All Announcements', action: 'announcements', icon: Megaphone },
         { label: 'Clear All Interruptions', action: 'interruptions', icon: AlertTriangle },
         { label: 'Clear All Meter Routes', action: 'routes', icon: Map },
+        { label: 'Clear All Rebate Points', action: 'rebatePoints', icon: Gift },
     ];
 
     const userDangerAction = { label: 'Clear All User Profiles', action: 'users', icon: Users };
