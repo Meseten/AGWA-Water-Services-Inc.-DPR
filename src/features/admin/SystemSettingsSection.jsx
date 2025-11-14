@@ -331,7 +331,7 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
                                 onClick={() => setConfirmAction(action.action)} 
                                 className={`p-4 border rounded-lg transition-colors text-left ${
                                     action.isUser 
-                                    ? 'sm:col-span-2 lg:col-span-4 border-red-300 bg-red-100 hover:bg-red-200 hover:border-red-500' 
+                                    ? 'border-red-300 bg-red-100 hover:bg-red-200 hover:border-red-500' 
                                     : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-400'
                                 }`}
                             >
