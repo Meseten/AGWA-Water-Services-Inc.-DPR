@@ -2,6 +2,8 @@ import React from 'react';
 import Modal from './Modal';
 import { Printer, X, Download, FileText } from 'lucide-react';
 import { formatDate } from '../../utils/userUtils';
+import Barcode from './Barcode.jsx';
+import DOMPurify from 'dompurify';
 
 const InvoiceView = ({
     isOpen,
@@ -21,8 +23,6 @@ const InvoiceView = ({
     );
     
     const totalCurrentCharges = parseFloat(bill.totalCalculatedCharges?.toFixed(2) || 0);
-    const previousUnpaidAmount = parseFloat((bill.previousUnpaidAmount || 0).toFixed(2));
-    const existingPenalty = parseFloat((bill.penaltyAmount || 0).toFixed(2));
     const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
     const baseAmount = bill.baseAmount;
@@ -110,6 +110,11 @@ const InvoiceView = ({
                     <p>Bill Date: <span className="font-semibold">{formatDate(bill.billDate, { month: 'short', day: 'numeric', year: 'numeric' })}</span></p>
                  </div>
             </div>
+            {bill.status === 'Unpaid' && (
+                <div className="max-w-xs mx-auto mt-2 barcode-container-print">
+                    <Barcode value={invoiceNumber} />
+                </div>
+            )}
         </div>
     );
 
@@ -133,7 +138,7 @@ const InvoiceView = ({
                 }
                 .paid-stamp-modal {
                     color: rgba(220, 38, 38, 0.4);
-                    border: 5px solid rgba(220, 38, 38, 0.4);
+                    border: 5px double rgba(220, 38, 38, 0.4);
                 }
                 .paid-stamp-main { font-size: 2.5rem; font-weight: 900; line-height: 1; }
                 .paid-stamp-date { font-size: 0.8rem; font-weight: 700; display: block; }
@@ -182,6 +187,7 @@ const InvoiceView = ({
                     .charges-table-print td { padding: 0.15rem 0.25rem; }
                     .charges-table-print td:last-child { text-align: right; }
                     .charges-table-print tr.border-t td { border-top: 1px solid #999 !important; padding-top: 0.25rem; }
+                    .charges-table-print tr.total-due-row td { border-top: 2px solid #000 !important; font-size: 1.1em; font-weight: 700; padding-top: 0.25rem; }
 
                     .history-table-print { width: 100%; }
                     .history-table-print th { text-align: left; font-size: 0.7rem; color: #374151 !important; border-bottom: 1px solid #999; padding-bottom: 2px; }
@@ -193,7 +199,7 @@ const InvoiceView = ({
                     .tear-off-slip-print { border-top: 2px dashed #000; margin-top: 1rem; padding-top: 0.5rem; font-size: 0.8rem; }
                     .tear-off-slip-print .text-sm { font-size: 0.9rem; }
                     .tear-off-slip-print .text-2xl { font-size: 1.3rem; }
-                    .barcode-container-print { display: none; }
+                    .barcode-container-print { max-width: 240px; margin: 0.25rem auto 0 auto; }
                     
                     .paid-stamp-print {
                         position: absolute;
@@ -201,7 +207,7 @@ const InvoiceView = ({
                         left: 50%;
                         transform: translate(-50%, -50%) rotate(-30deg);
                         color: rgba(220, 38, 38, 0.4) !important;
-                        border: 5px solid rgba(220, 38, 38, 0.4) !important;
+                        border: 5px double rgba(220, 38, 38, 0.4) !important;
                         font-family: 'Arial Black', 'Impact', sans-serif;
                         letter-spacing: 0.05em;
                         text-transform: uppercase;
@@ -216,7 +222,7 @@ const InvoiceView = ({
                         padding: 0.4rem;
                         border: 1px solid #F3D0D0 !important;
                         margin-top: 0.5rem;
-                        text-align: center;
+                        text-align: left;
                     }
                     .penalty-notice-print strong { color: #A94442 !important; }
                 }
@@ -309,7 +315,19 @@ const InvoiceView = ({
                                     <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Credit and Debit Memo</h2>
                                     <table className="w-full history-table-print">
                                         <thead><tr><th>Posting Date</th><th>Reference Number</th><th className="text-right">Amount</th></tr></thead>
-                                        <tbody><tr><td colSpan="3" className="text-center py-1 text-gray-500">No adjustments.</td></tr></tbody>
+                                        <tbody>
+                                            {bill.adjustments && bill.adjustments.length > 0 ? (
+                                                bill.adjustments.map((adj, index) => (
+                                                    <tr key={index}>
+                                                        <td>{formatDate(adj.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                                        <td>{adj.reference}</td>
+                                                        <td className="text-right">{adj.amount.toFixed(2)}</td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No adjustments.</td></tr>
+                                            )}
+                                        </tbody>
                                     </table>
                                 </div>
                                 
@@ -317,7 +335,19 @@ const InvoiceView = ({
                                     <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Total Adjustments</h2>
                                     <table className="w-full history-table-print">
                                         <thead><tr><th>Posting Date</th><th>Reference Number</th><th className="text-right">Amount</th></tr></thead>
-                                        <tbody><tr><td colSpan="3" className="text-center py-1 text-gray-500">No recent payments.</td></tr></tbody>
+                                        <tbody>
+                                             {bill.paymentHistory && bill.paymentHistory.length > 0 ? (
+                                                bill.paymentHistory.map((payment, index) => (
+                                                    <tr key={index}>
+                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                                        <td>{payment.reference}</td>
+                                                        <td className="text-right">{payment.amount.toFixed(2)}</td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No recent payments.</td></tr>
+                                            )}
+                                        </tbody>
                                     </table>
                                 </div>
 
@@ -349,14 +379,14 @@ const InvoiceView = ({
                                 </div>
                                 
                                 {bill.status === 'Unpaid' && potentialPenalty > 0 && finalTotalAmount === baseAmount && (
-                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-center penalty-notice-print">
+                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
                                         Pay after {formatDate(bill.dueDate, { month: 'short', day: 'numeric' })} to include a 
-                                        <strong> ₱{potentialPenalty.toFixed(2)} penalty</strong>, for a total of 
-                                        <strong> ₱{amountDueAfterDate.toFixed(2)}</strong>.
+                                        <strong> ₱{potentialPenalty.toFixed(2)} penalty</strong>.
+                                        <br/>Total amount after due date will be <strong> ₱{amountDueAfterDate.toFixed(2)}</strong>.
                                     </div>
                                 )}
                                  {bill.status === 'Unpaid' && finalTotalAmount > baseAmount && (
-                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-center penalty-notice-print">
+                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
                                         This amount includes a <strong>₱{(finalTotalAmount - baseAmount).toFixed(2)} penalty</strong> for late payment.
                                     </div>
                                 )}
@@ -382,19 +412,31 @@ const InvoiceView = ({
                                             
                                             <tr className="h-2"><td colSpan="2"></td></tr>
                                             <DetailRow label="Other Charges" value={null} isBold={true} />
+                                            <DetailRow label="Water Connection Fee" value="0.00" />
+                                            <DetailRow label="Government Taxes" value="0.00" />
+                                            <DetailRow label="Sewer Connection Fee" value="0.00" />
+                                            <DetailRow label="Government Taxes" value="0.00" />
+                                            <DetailRow label="Desludging Fee" value="0.00" />
+                                            <DetailRow label="Government Taxes" value="0.00" />
+                                            <DetailRow label="Reconnection Fee" value="0.00" />
+                                            <DetailRow label="Government Taxes" value="0.00" />
+                                            <DetailRow label="Others (VAT Exempt)" value="0.00" />
+                                            <DetailRow label="Government Taxes" value="0.00" />
+                                            <DetailRow label="Others (VATable)" value="0.00" />
+                                            <DetailRow label="VAT" value="0.00" />
                                             <DetailRow label="SUBTOTAL" value="0.00" isBold={true} isSubtotal={true} />
                                             
                                             <tr className="h-2"><td colSpan="2"></td></tr>
                                             <DetailRow label="TOTAL CURRENT CHARGES" value={totalCurrentCharges.toFixed(2)} isBold={true} isSubtotal={true} />
                                             <DetailRow label="VATable Sales" value={charges.vatableSales?.toFixed(2)} />
                                             <DetailRow label="VAT Zero-rated" value="0.00" />
-                                            <DetailRow label="VAT Exempt" value="0.00" />
+                                            <DetailRow label="VAT Exempt" value={charges.subTotalBeforeTaxes?.toFixed(2)} />
                                             <DetailRow label="VAT" value={charges.vat?.toFixed(2)} />
                                             <DetailRow label="Government Taxes" value={charges.governmentTaxes?.toFixed(2)} />
                                         </tbody>
                                     </table>
                                     
-                                    <div className="grid grid-cols-2 mt-4 pt-2 border-t border-black">
+                                    <div className="grid grid-cols-2 mt-4 pt-2 border-t-2 border-black total-due-row">
                                         <p className="font-semibold">TOTAL AMOUNT DUE</p>
                                         <p className="font-semibold text-right">₱{finalTotalAmount.toFixed(2)}</p>
                                         <p className="font-semibold">DUE DATE</p>
