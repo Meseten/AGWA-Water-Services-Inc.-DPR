@@ -23,9 +23,10 @@ const InvoiceView = ({
     );
     
     const totalCurrentCharges = parseFloat(bill.totalCalculatedCharges?.toFixed(2) || 0);
+    const previousUnpaidAmount = parseFloat((bill.previousUnpaidAmount || 0).toFixed(2));
     const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
-    const baseAmount = bill.baseAmount;
+    const baseAmount = bill.baseAmount || 0;
     const potentialPenalty = bill.potentialPenalty || 0;
     
     const amountDueAfterDate = baseAmount + potentialPenalty;
@@ -79,12 +80,12 @@ const InvoiceView = ({
         printWindow.document.close();
     };
 
-    const DetailRow = ({ label, value, isBold = false, isSubtotal = false }) => (
+    const DetailRow = ({ label, value, isBold = false, isSubtotal = false, isTotal = false }) => (
         <tr className={isSubtotal ? 'border-t border-gray-300' : ''}>
-            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} ${isBold ? 'font-semibold' : ''}`}>
+            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} ${isBold ? 'font-semibold' : ''} ${isTotal ? 'font-bold text-base' : ''}`}>
                 {label}
             </td>
-            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} text-right ${isBold ? 'font-semibold' : ''}`}>
+            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} text-right ${isBold ? 'font-semibold' : ''} ${isTotal ? 'font-bold text-base' : ''}`}>
                 {value}
             </td>
         </tr>
@@ -92,8 +93,8 @@ const InvoiceView = ({
 
     const TearOffSlip = () => (
         <div className="w-full border-t-2 border-dashed border-gray-400 mt-4 pt-3 text-xs tear-off-slip-print">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="pr-2">
+            <div className="flex justify-between items-start">
+                <div className="pr-2 max-w-[50%]">
                     <p>Contract Account Number:</p>
                     <p className="text-sm font-mono font-bold tracking-wider mb-1">{userData.accountNumber}</p>
                     <p className="font-semibold">{userData.displayName}</p>
@@ -101,7 +102,7 @@ const InvoiceView = ({
                     <p className="mt-2 font-semibold">Total Amount Due: ₱{finalTotalAmount.toFixed(2)}</p>
                     <p className="font-semibold">Due Date: {formatDate(bill.dueDate, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                 </div>
-                 <div className="text-right">
+                 <div className="text-right flex-shrink-0">
                     <div className="flex justify-end mb-2">
                          <div className="text-2xl font-bold text-blue-700 logo-print">AGWA</div>
                     </div>
@@ -110,11 +111,9 @@ const InvoiceView = ({
                     <p>Bill Date: <span className="font-semibold">{formatDate(bill.billDate, { month: 'short', day: 'numeric', year: 'numeric' })}</span></p>
                  </div>
             </div>
-            {bill.status === 'Unpaid' && (
-                <div className="max-w-xs mx-auto mt-2 barcode-container-print">
-                    <Barcode value={invoiceNumber} />
-                </div>
-            )}
+            <div className="max-w-[240px] mx-auto mt-2 barcode-container-print">
+                <Barcode value={invoiceNumber} />
+            </div>
         </div>
     );
 
@@ -123,25 +122,25 @@ const InvoiceView = ({
             <style id="invoice-print-styles" dangerouslySetInnerHTML={{ __html: `
                 .paid-stamp-base {
                     position: absolute;
-                    top: 40%;
+                    top: 45%;
                     left: 50%;
-                    transform: translate(-50%, -50%) rotate(-30deg);
-                    padding: 0.25rem 1rem;
-                    border-radius: 4px;
+                    transform: translate(-50%, -50%) rotate(-20deg);
+                    padding: 0.5rem 1.5rem;
+                    border-radius: 8px;
                     text-align: center;
                     opacity: 1;
                     z-index: 10;
                     pointer-events: none;
                     font-family: 'Arial Black', 'Impact', sans-serif;
-                    letter-spacing: 0.05em;
+                    letter-spacing: 0.1em;
                     text-transform: uppercase;
                 }
                 .paid-stamp-modal {
-                    color: rgba(220, 38, 38, 0.4);
-                    border: 5px double rgba(220, 38, 38, 0.4);
+                    color: rgba(220, 38, 38, 0.25);
+                    border: 7px double rgba(220, 38, 38, 0.25);
                 }
-                .paid-stamp-main { font-size: 2.5rem; font-weight: 900; line-height: 1; }
-                .paid-stamp-date { font-size: 0.8rem; font-weight: 700; display: block; }
+                .paid-stamp-main { font-size: 4rem; font-weight: 900; line-height: 1; }
+                .paid-stamp-date { font-size: 1rem; font-weight: 700; display: block; border-top: 2px solid rgba(220, 38, 38, 0.25); padding-top: 4px; margin-top: 4px; }
             
                 @media print {
                     @page {
@@ -176,7 +175,7 @@ const InvoiceView = ({
                     .invoice-section-print h2 { font-weight: 700; font-size: 0.75rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem; margin-bottom: 0.25rem; text-transform: uppercase; }
                     .invoice-section-print p { margin: 0.15rem 0; line-height: 1.3; }
                     .invoice-section-print p span { font-weight: 600; }
-                    .invoice-section-print .h-line { border-top: 1px solid #000; margin-top: 0.25rem; padding-top: 0.25rem; }
+                    .invoice-section-print .h-line { border-top: 1px solid #000; margin-top: 0.5rem; padding-top: 0.5rem; }
                     
                     .blue-box-print { background-color: #DBEAFE !important; border: 1px solid #BFDBFE !important; padding: 0.5rem 0.75rem; text-align: left; margin-top: 0.5rem; }
                     .blue-box-print p { margin: 0; font-size: 0.8rem; font-weight: 700; color: #1E40AF !important; }
@@ -196,24 +195,24 @@ const InvoiceView = ({
                     
                     .bir-permit-print { text-align: center; font-size: 0.6rem; color: #4B5563 !important; margin-top: 1rem; padding-top: 0.5rem; border-top: 1px solid #999; }
                     
-                    .tear-off-slip-print { border-top: 2px dashed #000; margin-top: 1rem; padding-top: 0.5rem; font-size: 0.8rem; }
+                    .tear-off-slip-print { border-top: 2px dashed #000; margin-top: 1rem; padding-top: 0.5rem; font-size: 0.8rem; page-break-before: auto; }
                     .tear-off-slip-print .text-sm { font-size: 0.9rem; }
                     .tear-off-slip-print .text-2xl { font-size: 1.3rem; }
                     .barcode-container-print { max-width: 240px; margin: 0.25rem auto 0 auto; }
                     
                     .paid-stamp-print {
                         position: absolute;
-                        top: 40%;
+                        top: 45%;
                         left: 50%;
-                        transform: translate(-50%, -50%) rotate(-30deg);
-                        color: rgba(220, 38, 38, 0.4) !important;
-                        border: 5px double rgba(220, 38, 38, 0.4) !important;
+                        transform: translate(-50%, -50%) rotate(-20deg);
+                        color: rgba(220, 38, 38, 0.25) !important;
+                        border: 7px double rgba(220, 38, 38, 0.25) !important;
                         font-family: 'Arial Black', 'Impact', sans-serif;
-                        letter-spacing: 0.05em;
+                        letter-spacing: 0.1em;
                         text-transform: uppercase;
                     }
-                    .paid-stamp-main-print { font-size: 2.5rem; font-weight: 900; line-height: 1; }
-                    .paid-stamp-date-print { font-size: 0.8rem; font-weight: 700; display: block; }
+                    .paid-stamp-main-print { font-size: 4rem; font-weight: 900; line-height: 1; }
+                    .paid-stamp-date-print { font-size: 1rem; font-weight: 700; display: block; border-top: 2px solid rgba(220, 38, 38, 0.25); padding-top: 4px; margin-top: 4px; }
                     
                     .penalty-notice-print {
                         font-size: 0.75rem;
@@ -359,6 +358,7 @@ const InvoiceView = ({
 
                             </div>
                             
+                            {/* --- RIGHT COLUMN --- */}
                             <div className="invoice-grid-print-right">
                                 <div className="invoice-section-print">
                                     <p>Invoice No.: <span className="font-semibold">{invoiceNumber}</span></p>
@@ -408,7 +408,7 @@ const InvoiceView = ({
                                             <DetailRow label="Maintenance Service Charge" value={charges.maintenanceServiceCharge?.toFixed(2)} />
                                             <DetailRow label="Senior Citizen Discount" value={seniorCitizenDiscount > 0 ? `(${seniorCitizenDiscount.toFixed(2)})` : '0.00'} />
                                             <DetailRow label="Government Taxes" value={charges.governmentTaxes?.toFixed(2)} />
-                                            <DetailRow label="SUBTOTAL" value={charges.subTotalBeforeTaxes?.toFixed(2)} isBold={true} isSubtotal={true} />
+                                            <DetailRow label="SUBTOTAL" value={(charges.subTotalBeforeTaxes + charges.governmentTaxes).toFixed(2)} isBold={true} isSubtotal={true} />
                                             
                                             <tr className="h-2"><td colSpan="2"></td></tr>
                                             <DetailRow label="Other Charges" value={null} isBold={true} />
@@ -428,7 +428,7 @@ const InvoiceView = ({
                                             
                                             <tr className="h-2"><td colSpan="2"></td></tr>
                                             <DetailRow label="TOTAL CURRENT CHARGES" value={totalCurrentCharges.toFixed(2)} isBold={true} isSubtotal={true} />
-                                            <DetailRow label="VATable Sales" value={charges.vatableSales?.toFixed(2)} />
+                                            <DetailRow label="VATable Sales" value="0.00" />
                                             <DetailRow label="VAT Zero-rated" value="0.00" />
                                             <DetailRow label="VAT Exempt" value={charges.subTotalBeforeTaxes?.toFixed(2)} />
                                             <DetailRow label="VAT" value={charges.vat?.toFixed(2)} />
@@ -436,12 +436,18 @@ const InvoiceView = ({
                                         </tbody>
                                     </table>
                                     
-                                    <div className="grid grid-cols-2 mt-4 pt-2 border-t-2 border-black total-due-row">
-                                        <p className="font-semibold">TOTAL AMOUNT DUE</p>
-                                        <p className="font-semibold text-right">₱{finalTotalAmount.toFixed(2)}</p>
-                                        <p className="font-semibold">DUE DATE</p>
-                                        <p className="font-semibold text-right">{formatDate(bill.dueDate, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                                    </div>
+                                    <table className="charges-table-print w-full mt-4 total-due-row">
+                                        <tbody>
+                                            <tr>
+                                                <td className="py-1 font-semibold">TOTAL AMOUNT DUE</td>
+                                                <td className="py-1 text-right font-semibold">₱{finalTotalAmount.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="py-1 font-semibold">DUE DATE</td>
+                                                <td className="py-1 text-right font-semibold">{formatDate(bill.dueDate, { month: 'long', day: 'numeric', year: 'numeric' })}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
