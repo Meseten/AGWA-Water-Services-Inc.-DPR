@@ -243,17 +243,16 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
         { name: 'defaultInterruptionMsg', label: 'Default Interruption Message', type: 'textarea', icon: AlertTriangle, rows: 2, placeholder: 'Service interruption ongoing...' },
     ];
 
-    const transactionalDangerActions = [
-        { label: 'Clear All Support Tickets', action: 'tickets', icon: MessageSquare },
-        { label: 'Clear All Bills', action: 'bills', icon: Briefcase },
-        { label: 'Clear All Meter Readings', action: 'readings', icon: Wind },
-        { label: 'Clear All Announcements', action: 'announcements', icon: Megaphone },
-        { label: 'Clear All Interruptions', action: 'interruptions', icon: AlertTriangle },
-        { label: 'Clear All Meter Routes', action: 'routes', icon: Map },
-        { label: 'Clear All Rebate Points', action: 'rebatePoints', icon: Gift },
+    const allDangerActions = [
+        { label: 'Clear All Support Tickets', action: 'tickets', icon: MessageSquare, isUser: false },
+        { label: 'Clear All Bills', action: 'bills', icon: Briefcase, isUser: false },
+        { label: 'Clear All Meter Readings', action: 'readings', icon: Wind, isUser: false },
+        { label: 'Clear All Announcements', action: 'announcements', icon: Megaphone, isUser: false },
+        { label: 'Clear All Interruptions', action: 'interruptions', icon: AlertTriangle, isUser: false },
+        { label: 'Clear All Meter Routes', action: 'routes', icon: Map, isUser: false },
+        { label: 'Clear All Rebate Points', action: 'rebatePoints', icon: Gift, isUser: false },
+        { label: 'Clear All User Profiles', action: 'users', icon: Users, isUser: true },
     ];
-
-    const userDangerAction = { label: 'Clear All User Profiles', action: 'users', icon: Users };
 
     if (isLoading) {
         return <LoadingSpinner message="Loading system settings..." className="mt-10 h-64" />;
@@ -318,23 +317,31 @@ const SystemSettingsSection = ({ showNotification = console.log }) => {
                 <h3 className="text-xl font-bold text-red-700 flex items-center">
                     <AlertTriangle size={24} className="mr-2"/> Danger Zone
                 </h3>
-                <p className="text-sm text-gray-600 mt-1 mb-4">These actions are destructive and cannot be undone. This will permanently delete transactional data from the database, effectively resetting parts of your system.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {transactionalDangerActions.map(action => {
+                <p className="text-sm text-gray-600 mt-1 mb-4">These actions are destructive and cannot be undone. This will permanently delete data from the database, effectively resetting parts of your system.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {allDangerActions.map(action => {
                         const Icon = action.icon;
+                        const description = action.isUser
+                            ? "This is the most destructive action and will force all users to sign up again."
+                            : `Permanently delete all ${action.action} from the database.`;
                         return (
-                            <button type="button" key={action.action} onClick={() => setConfirmAction(action.action)} className="p-4 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 hover:border-red-400 transition-colors text-left">
-                                <p className="font-semibold text-red-800 flex items-center"><Icon size={16} className="mr-2"/>{action.label}</p>
-                                <p className="text-xs text-red-600 mt-1">Permanently delete all {action.action} from the database.</p>
+                            <button 
+                                type="button" 
+                                key={action.action} 
+                                onClick={() => setConfirmAction(action.action)} 
+                                className={`p-4 border rounded-lg transition-colors text-left ${
+                                    action.isUser 
+                                    ? 'sm:col-span-2 lg:col-span-4 border-red-300 bg-red-100 hover:bg-red-200 hover:border-red-500' 
+                                    : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-400'
+                                }`}
+                            >
+                                <p className={`font-semibold flex items-center ${action.isUser ? 'text-red-900' : 'text-red-800'}`}>
+                                    <Icon size={16} className="mr-2"/>{action.label}
+                                </p>
+                                <p className={`text-xs mt-1 ${action.isUser ? 'text-red-700' : 'text-red-600'}`}>{description}</p>
                             </button>
                         )
                     })}
-                </div>
-                <div className="mt-4">
-                    <button type="button" key={userDangerAction.action} onClick={() => setConfirmAction(userDangerAction.action)} className="p-4 border border-red-300 w-full rounded-lg bg-red-100 hover:bg-red-200 hover:border-red-500 transition-colors text-left">
-                        <p className="font-semibold text-red-900 flex items-center"><userDangerAction.icon size={16} className="mr-2"/>{userDangerAction.label}</p>
-                        <p className="text-xs text-red-700 mt-1">Permanently delete all user profiles. This is the most destructive action and will force all users to sign up again.</p>
-                    </button>
                 </div>
             </div>
 
