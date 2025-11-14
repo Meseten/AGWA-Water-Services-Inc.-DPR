@@ -12,19 +12,29 @@ try {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
   if (admin.apps.length === 0) {
-    if (!process.env.FIREBASE_ADMIN_CONFIG) {
-        throw new Error("CRITICAL: FIREBASE_ADMIN_CONFIG environment variable is not set.");
-    }
-    const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CONFIG);
+    const serviceAccount = {
+      type: "service_account",
+      project_id: process.env.FIREBASE_ADMIN_PROJECT_ID,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_ADMIN_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_ADMIN_CLIENT_EMAIL.replace('@', '%40')}`
+    };
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
   }
+
   db = admin.firestore();
   servicesInitialized = true;
   console.log("Services initialized successfully.");
 } catch (error) {
-  console.error('CRITICAL: Failed to initialize services:', error.message);
+  console.error('CRITICAL: Failed to initialize services:', error.message, error.stack);
 }
 
 async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSettings) {
@@ -135,8 +145,9 @@ export default async function handler(req, res) {
     if (session.payment_status !== 'paid') {
       return res.status(400).json({ error: 'Payment not successful.' });
     }
-
-    const { billId, userId, amount } = session.metadata;
+    
+    const { billId, userId } = session.metadata;
+    
     const amountPaid = parseFloat(session.amount_total / 100);
 
     if (!billId || !userId) {
