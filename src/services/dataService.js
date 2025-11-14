@@ -2,7 +2,7 @@ import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath, documentId
+    FieldPath, documentId, startAfter
 } from '../firebase/firebaseConfig.js';
 import {
     userProfileDocumentPath,
@@ -460,7 +460,7 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
     try {
         const settingsResult = await getSystemSettings(dbInstance);
         const systemSettings = settingsResult.success ? settingsResult.data : {};
-        const gracePeriod = systemSettings.latePaymentPenaltyDelayDays || 15;
+        const gracePeriod = systemSettings.latePaymentPenaltyDelayDays || 10;
 
         const readingsQuery = query(
             collection(dbInstance, allMeterReadingsCollectionPath()),
@@ -483,7 +483,9 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
         }
 
         const billDate = latestReading.readingDate.toDate();
-        const billMonthYear = billDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        const periodStartDate = previousReading.readingDate.toDate();
+        const billMonthYear = periodStartDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
         const existingBillQuery = query(
             collection(dbInstance, allBillsCollectionPath()),
             where("userId", "==", userId),
@@ -546,6 +548,8 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
             createdAt: serverTimestamp(),
             previousReadingId: previousReadingDoc.id,
             currentReadingId: latestReadingDoc.id,
+            paymentHistory: [],
+            adjustments: [],
         };
         
         const docRef = await addDoc(collection(dbInstance, allBillsCollectionPath()), newBill);
@@ -592,7 +596,8 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
             if (readingsSnapshot.docs.length < 2) continue;
 
             const latestReadingDate = readingsSnapshot.docs[0].data().readingDate.toDate();
-            const billMonthYear = latestReadingDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+            const periodStartDate = readingsSnapshot.docs[1].data().readingDate.toDate();
+            const billMonthYear = periodStartDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
             const existingBillQuery = query(
                 collection(dbInstance, allBillsCollectionPath()),
@@ -943,6 +948,17 @@ export async function updateBill(dbInstance, billId, updates) {
                             finalUpdates.amountPaid = finalUpdates.amount;
                         }
                     }
+                }
+
+                if (finalUpdates.amountPaid > 0) {
+                    const paymentDetails = {
+                        date: finalUpdates.paymentDate || today,
+                        timestamp: finalUpdates.paymentTimestamp || serverTimestamp(),
+                        reference: finalUpdates.paymentReference || `PAY-${Date.now().toString().slice(-6)}`,
+                        amount: finalUpdates.amountPaid,
+                        method: finalUpdates.paymentMethod || 'Unknown'
+                    };
+                    finalUpdates.paymentHistory = arrayUnion(paymentDetails);
                 }
                 
                 finalBillData = { ...bill, ...finalUpdates };

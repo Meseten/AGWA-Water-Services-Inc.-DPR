@@ -23,7 +23,6 @@ const InvoiceView = ({
     );
     
     const totalCurrentCharges = parseFloat(bill.totalCalculatedCharges?.toFixed(2) || 0);
-    const previousUnpaidAmount = parseFloat((bill.previousUnpaidAmount || 0).toFixed(2));
     const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
     const baseAmount = bill.baseAmount || 0;
@@ -82,10 +81,10 @@ const InvoiceView = ({
 
     const DetailRow = ({ label, value, isBold = false, isSubtotal = false, isTotal = false }) => (
         <tr className={isSubtotal ? 'border-t border-gray-300' : ''}>
-            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} ${isBold ? 'font-semibold' : ''} ${isTotal ? 'font-bold text-base' : ''}`}>
+            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} ${isBold ? 'font-semibold' : ''} ${isTotal ? 'font-bold' : ''}`}>
                 {label}
             </td>
-            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} text-right ${isBold ? 'font-semibold' : ''} ${isTotal ? 'font-bold text-base' : ''}`}>
+            <td className={`py-0.5 ${isSubtotal ? 'pt-1' : ''} text-right ${isBold ? 'font-semibold' : ''} ${isTotal ? 'font-bold' : ''}`}>
                 {value}
             </td>
         </tr>
@@ -283,7 +282,7 @@ const InvoiceView = ({
                                     <p>Rate Class: <span className="font-semibold">{userData.serviceType}</span></p>
                                     <p>Meter Number: <span className="font-semibold">{userData.meterSerialNumber}</span></p>
                                     <p>Service Area: <span className="font-semibold">{userData.serviceAddress?.barangay || 'N/A'}</span></p>
-                                    <p>MRU/SEQ No.: <span className="font-semibold">{userData.mruSeq || '000001 / 9999'}</span></p>
+                                    <p>MRU/SEQ No.: <span className="font-semibold">{userData.mruSeq || 'N/A'}</span></p>
                                     <p className="mt-2">SC, PWD/Gov't ID No./Signature:</p>
                                     <div className="h-6 border-b border-gray-400"></div>
                                 </div>
@@ -305,7 +304,7 @@ const InvoiceView = ({
                                             <p>{bill.currentReading} m³</p>
                                             <p>{bill.previousReading} m³</p>
                                             <p>{bill.consumption} m³</p>
-                                            <p>N/A m³</p>
+                                            <p>{bill.prev3MonthsConsumption || 'N/A'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -408,7 +407,7 @@ const InvoiceView = ({
                                             <DetailRow label="Maintenance Service Charge" value={charges.maintenanceServiceCharge?.toFixed(2)} />
                                             <DetailRow label="Senior Citizen Discount" value={seniorCitizenDiscount > 0 ? `(${seniorCitizenDiscount.toFixed(2)})` : '0.00'} />
                                             <DetailRow label="Government Taxes" value={charges.governmentTaxes?.toFixed(2)} />
-                                            <DetailRow label="SUBTOTAL" value={(charges.subTotalBeforeTaxes + charges.governmentTaxes).toFixed(2)} isBold={true} isSubtotal={true} />
+                                            <DetailRow label="SUBTOTAL" value={(charges.subTotalBeforeTaxes + charges.governmentTaxes - seniorCitizenDiscount).toFixed(2)} isBold={true} isSubtotal={true} />
                                             
                                             <tr className="h-2"><td colSpan="2"></td></tr>
                                             <DetailRow label="Other Charges" value={null} isBold={true} />
