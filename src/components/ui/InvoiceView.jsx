@@ -304,7 +304,7 @@ const InvoiceView = ({
                                             <p>{bill.currentReading} m³</p>
                                             <p>{bill.previousReading} m³</p>
                                             <p>{bill.consumption} m³</p>
-                                            <p>{bill.prev3MonthsConsumption || 'N/A'}</p>
+                                            <p>{bill.prev3MonthsConsumption ? `${bill.prev3MonthsConsumption} m³` : 'N/A'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -352,6 +352,7 @@ const InvoiceView = ({
                                 <div className="invoice-section-print h-line">
                                     <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Total Bill Payments</h2>
                                     <p className="text-xs">CUSTOMER SERVICE HOTLINE: 1627-AGWA</p>
+                                    <hr className="border-t border-gray-400 my-1" />
                                     <p className="text-xs">PLEASE PAY VIA GCASH OR THROUGH OTHER ACCREDITED PAYMENT CENTERS. METER READERS AND CONTRACTORS ARE NOT ALLOWED TO ACCEPT PAYMENTS.</p>
                                 </div>
 
@@ -437,7 +438,7 @@ const InvoiceView = ({
                                     
                                     <table className="charges-table-print w-full mt-4 total-due-row">
                                         <tbody>
-                                            <tr>
+                                            <tr className="border-t-2 border-black">
                                                 <td className="py-1 font-semibold">TOTAL AMOUNT DUE</td>
                                                 <td className="py-1 text-right font-semibold">₱{finalTotalAmount.toFixed(2)}</td>
                                             </tr>

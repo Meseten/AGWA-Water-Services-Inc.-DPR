@@ -460,20 +460,25 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
     try {
         const settingsResult = await getSystemSettings(dbInstance);
         const systemSettings = settingsResult.success ? settingsResult.data : {};
+        
         const gracePeriod = systemSettings.latePaymentPenaltyDelayDays || 10;
+        const postDelayDays = 3;
 
         const readingsQuery = query(
             collection(dbInstance, allMeterReadingsCollectionPath()),
             where("userId", "==", userId),
             orderBy("readingDate", "desc"),
-            limit(2)
+            limit(3)
         );
         const readingsSnapshot = await getDocs(readingsQuery);
         if (readingsSnapshot.docs.length < 2) {
             return { success: false, error: "At least two readings needed." };
         }
+        
         const latestReadingDoc = readingsSnapshot.docs[0];
         const previousReadingDoc = readingsSnapshot.docs[1];
+        const secondPreviousReadingDoc = readingsSnapshot.docs[2] || null;
+
         const latestReading = latestReadingDoc.data();
         const previousReading = previousReadingDoc.data();
 
@@ -482,8 +487,8 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
             return { success: false, error: "Latest reading is lower than previous." };
         }
 
-        const billDate = latestReading.readingDate.toDate();
-        const periodStartDate = previousReading.readingDate.toDate();
+        const readingDate = latestReading.readingDate.toDate(); 
+        const periodStartDate = previousReading.readingDate.toDate(); 
         const billMonthYear = periodStartDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
         const existingBillQuery = query(
@@ -495,6 +500,18 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
         if (!existingBillSnapshot.empty) {
             return { success: false, error: `Bill for ${billMonthYear} already exists.` };
         }
+        
+        const postDate = new Date(readingDate);
+        postDate.setDate(postDate.getDate() + postDelayDays);
+        
+        const dueDate = new Date(postDate);
+        dueDate.setDate(dueDate.getDate() + gracePeriod);
+
+        let prev3MonthsConsumption = null;
+        if (secondPreviousReadingDoc) {
+            const secondPreviousReading = secondPreviousReadingDoc.data();
+            prev3MonthsConsumption = previousReading.readingValue - secondPreviousReading.readingValue;
+        }
 
         const charges = billingService.calculateBillDetails(consumption, userProfile.serviceType, userProfile.meterSize, systemSettings);
         const currentCharges = charges.totalCalculatedCharges || 0;
@@ -504,7 +521,6 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
             : 0;
 
         let previousUnpaidAmount = 0;
-        let penaltyAmount = 0;
         
         const prevBillQuery = query(
             collection(dbInstance, allBillsCollectionPath()),
@@ -522,20 +538,19 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
         }
         
         const totalAmountDue = currentCharges + previousUnpaidAmount - seniorCitizenDiscount;
-        const dueDate = new Date(billDate);
-        dueDate.setDate(dueDate.getDate() + gracePeriod);
 
         const newBill = {
             userId: userId,
             accountNumber: userProfile.accountNumber,
             userName: userProfile.displayName,
-            billingPeriod: `${formatDateSimple(previousReading.readingDate.toDate())} - ${formatDateSimple(latestReading.readingDate.toDate())}`,
+            billingPeriod: `${formatDateSimple(periodStartDate)} - ${formatDateSimple(readingDate)}`,
             monthYear: billMonthYear,
-            billDate: Timestamp.fromDate(billDate),
+            billDate: Timestamp.fromDate(postDate),
             dueDate: Timestamp.fromDate(dueDate),
             previousReading: previousReading.readingValue,
             currentReading: latestReading.readingValue,
             consumption: consumption,
+            prev3MonthsConsumption: prev3MonthsConsumption || null,
             ...charges,
             
             penaltyAmount: 0,
@@ -553,7 +568,7 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
         };
         
         const docRef = await addDoc(collection(dbInstance, allBillsCollectionPath()), newBill);
-        const newInvoiceNumber = `AGWA-${docRef.id.slice(0,4).toUpperCase()}-${billDate.getFullYear()}${String(billDate.getMonth() + 1).padStart(2, '0')}${String(billDate.getDate()).padStart(2, '0')}`;
+        const newInvoiceNumber = `AGWA-${docRef.id.slice(0,4).toUpperCase()}-${postDate.getFullYear()}${String(postDate.getMonth() + 1).padStart(2, '0')}${String(postDate.getDate()).padStart(2, '0')}`;
         await updateDoc(docRef, { billId: docRef.id, invoiceNumber: newInvoiceNumber });
 
         return { success: true, message: `Bill for ${billMonthYear} generated.`, billId: docRef.id };
@@ -583,8 +598,6 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
         if (usersSnapshot.empty) return { success: true, data: [] };
 
         const billableAccounts = [];
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         for (const userDoc of usersSnapshot.docs) {
             const userProfile = { id: userDoc.id, ...userDoc.data() };
@@ -595,7 +608,6 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
 
             if (readingsSnapshot.docs.length < 2) continue;
 
-            const latestReadingDate = readingsSnapshot.docs[0].data().readingDate.toDate();
             const periodStartDate = readingsSnapshot.docs[1].data().readingDate.toDate();
             const billMonthYear = periodStartDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
@@ -993,6 +1005,9 @@ export async function addMeterReading(dbInstance, readingData) {
     try {
         const readingDateObj = new Date(readingData.readingDate);
         if (isNaN(readingDateObj)) throw new Error("Invalid reading date format.");
+        
+        readingDateObj.setHours(0, 0, 0, 0);
+
         const dataToSave = {
              ...readingData,
              readingValue: parseFloat(readingData.readingValue) || 0,
@@ -1014,6 +1029,7 @@ export async function updateMeterReading(dbInstance, readingId, updates) {
         const dataToUpdate = { ...updates, lastUpdatedAt: serverTimestamp() };
         if (dataToUpdate.readingDate && typeof dataToUpdate.readingDate === 'string') {
             const dateObj = new Date(dataToUpdate.readingDate);
+            dateObj.setHours(0,0,0,0);
             if (!isNaN(dateObj)) {
                 dataToUpdate.readingDate = Timestamp.fromDate(dateObj);
                 dataToUpdate.readingDateString = dataToUpdate.readingDate;
