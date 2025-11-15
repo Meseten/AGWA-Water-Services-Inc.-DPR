@@ -336,14 +336,14 @@ const InvoiceView = ({
                                 <div className="invoice-section-print h-line">
                                     <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Payment History</h2>
                                     <table className="w-full history-table-print">
-                                        <thead><tr><th>Date Paid</th><th>Reference / Method</th><th className="text-right">Amount</th></tr></thead>
+                                        <thead><tr><th>Billing Period/Month</th><th>Date Paid</th><th className="text-right">Amount Paid</th></tr></thead>
                                         <tbody>
                                              {bill.paymentHistory && bill.paymentHistory.length > 0 ? (
                                                 bill.paymentHistory.map((payment, index) => (
                                                     <tr key={index}>
-                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric' })}</td>
-                                                        <td>{payment.method} - {payment.reference}</td>
-                                                        <td className="text-right">{payment.amount.toFixed(2)}</td>
+                                                        <td>{bill.monthYear || bill.billingPeriod}</td>
+                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                                        <td className="text-right">₱{payment.amount.toFixed(2)}</td>
                                                     </tr>
                                                 ))
                                             ) : (
@@ -355,9 +355,9 @@ const InvoiceView = ({
 
                                 <div className="invoice-section-print h-line">
                                     <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Important Reminders</h2>
-                                    <p className="text-xs">CUSTOMER SERVICE HOTLINE: 1627-AGWA</p>
+                                    <p className="text-xs text-center">CUSTOMER SERVICE HOTLINE: 1627-AGWA</p>
                                     <hr className="border-t border-gray-400 my-1" />
-                                    <p className="text-xs">PLEASE PAY VIA GCASH OR THROUGH OTHER ACCREDITED PAYMENT CENTERS. METER READERS AND CONTRACTORS ARE NOT ALLOWED TO ACCEPT PAYMENTS.</p>
+                                    <p className="text-xs text-center">PLEASE PAY VIA GCASH OR THROUGH OTHER ACCREDITED PAYMENT CENTERS. METER READERS AND CONTRACTORS ARE NOT ALLOWED TO ACCEPT PAYMENTS.</p>
                                 </div>
 
                             </div>
@@ -385,7 +385,7 @@ const InvoiceView = ({
                                     <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
                                         Pay after {formatDate(bill.dueDate, { month: 'short', day: 'numeric' })} to include a 
                                         <strong> ₱{potentialPenalty.toFixed(2)} penalty</strong>.
-                                        <br/>Total amount after due date will be <strong> ₱{amountDueAfterDate.toFixed(2)}</strong>.
+                                        <br/>Total amount after due date will be <strong> ₱{amountDueAfterDate}</strong>.
                                     </div>
                                 )}
                                  {bill.status === 'Unpaid' && finalTotalAmount > baseAmount && (
@@ -443,21 +443,27 @@ const InvoiceView = ({
                                                     </tr>
                                                     <tr>
                                                         <td className="py-1 font-semibold">Date Paid</td>
-                                                        <td className="py-1 text-right font-semibold">{formatDate(bill.paymentDate, { month: 'long', day: 'numeric' })}</td>
+                                                        <td className="py-1 text-right font-semibold">{formatDate(bill.paymentDate, { month: 'long', day: 'numeric', year: 'numeric' })}</td>
                                                     </tr>
                                                 </>
                                             )}
                                             {bill.status === 'Unpaid' && (
                                                 <>
                                                     <tr className="border-t-2 border-black">
-                                                        <td className="py-1 font-semibold">Amount Due (on/before Due Date)</td>
+                                                        <td className="py-1 font-semibold">Amount Due (Before Due Date)</td>
                                                         <td className="py-1 text-right font-semibold">₱{baseAmount.toFixed(2)}</td>
                                                     </tr>
                                                     {potentialPenalty > 0 && (
+                                                        <>
                                                         <tr>
-                                                            <td className="py-1 font-semibold text-red-600">Penalty (Applied after Due Date)</td>
+                                                            <td className="py-1 font-semibold text-red-600">Penalty (After Due Date)</td>
                                                             <td className="py-1 text-right font-semibold text-red-600">₱{potentialPenalty.toFixed(2)}</td>
                                                         </tr>
+                                                        <tr>
+                                                            <td className="py-1 font-semibold">Amount Due (After Due Date)</td>
+                                                            <td className="py-1 text-right font-semibold">₱{amountDueAfterDate}</td>
+                                                        </tr>
+                                                        </>
                                                     )}
                                                     {finalTotalAmount > baseAmount && (
                                                         <tr className="border-t border-gray-400">
@@ -473,7 +479,7 @@ const InvoiceView = ({
                                                     )}
                                                 </>
                                             )}
-                                            <tr className={bill.status === 'Unpaid' ? '' : 'border-t border-gray-400'}>
+                                            <tr className="border-t border-gray-400">
                                                 <td className="py-1 font-semibold">DUE DATE</td>
                                                 <td className="py-1 text-right font-semibold">{formatDate(bill.dueDate, { month: 'long', day: 'numeric', year: 'numeric' })}</td>
                                             </tr>

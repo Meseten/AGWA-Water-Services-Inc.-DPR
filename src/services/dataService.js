@@ -2,7 +2,7 @@ import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath, documentId, startAfter
+    FieldPath, documentId, startAfter, runTransaction, FieldValue
 } from '../firebase/firebaseConfig.js';
 import {
     userProfileDocumentPath,
@@ -33,6 +33,69 @@ function handleFirestoreError(functionName, error) {
     }
     return { success: false, error: userFriendlyMessage };
 };
+
+export async function payBillWithPoints(dbInstance, userId, billId, pointsToUse, billAmount) {
+    try {
+        await runTransaction(dbInstance, async (transaction) => {
+            const publicProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
+            const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userId));
+            const billRef = doc(dbInstance, allBillDocumentPath(billId));
+
+            const [publicProfileSnap, billSnap] = await Promise.all([
+                transaction.get(publicProfileRef),
+                transaction.get(billRef)
+            ]);
+
+            if (!publicProfileSnap.exists()) {
+                throw new Error("User profile not found.");
+            }
+            if (!billSnap.exists()) {
+                throw new Error("Bill document not found.");
+            }
+
+            const currentPoints = publicProfileSnap.data().rebatePoints || 0;
+            if (currentPoints < pointsToUse) {
+                throw new Error("Insufficient rebate points.");
+            }
+
+            const paymentDate = new Date();
+            const paymentTimestamp = Timestamp.fromDate(paymentDate);
+            
+            const paymentDetails = {
+                date: paymentDate,
+                timestamp: paymentTimestamp,
+                reference: `POINTS-PAY-${paymentDate.getTime().toString().slice(-6)}`,
+                amount: billAmount,
+                method: 'Rebate Points'
+            };
+
+            const billUpdates = {
+                status: 'Paid',
+                paymentDate: paymentDate,
+                paymentTimestamp: paymentTimestamp,
+                amountPaid: billAmount,
+                paymentMethod: 'Rebate Points',
+                paymentReference: paymentDetails.reference,
+                lastUpdatedAt: serverTimestamp(),
+                paymentHistory: arrayUnion(paymentDetails)
+            };
+            
+            const profileUpdates = {
+                rebatePoints: FieldValue.increment(-pointsToUse),
+                updatedAt: serverTimestamp()
+            };
+
+            transaction.update(billRef, billUpdates);
+            transaction.update(publicProfileRef, profileUpdates);
+            transaction.update(nestedProfileRef, profileUpdates);
+        });
+
+        return { success: true };
+    } catch (error) {
+        return handleFirestoreError('paying bill with points', error);
+    }
+}
+
 
 export async function batchUpdateTicketStatus(dbInstance, ticketIds, newStatus) {
     if (!ticketIds || ticketIds.length === 0) return { success: true };
@@ -977,7 +1040,7 @@ export async function updateBill(dbInstance, billId, updates) {
 
                 await updateDoc(billRef, finalUpdates);
 
-                if (bill.userId && actualAmountPaid > 0) {
+                if (bill.userId && actualAmountPaid > 0 && finalUpdates.paymentMethod !== 'Rebate Points') {
                     const settingsSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
                     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
                     

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { FileText, Sparkles, Loader2, Info, Eye } from 'lucide-react';
+import { FileText, Sparkles, Loader2, Info, Eye, Gift } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import Modal from '../../components/ui/Modal.jsx';
+import ConfirmationModal from '../../components/ui/ConfirmationModal.jsx';
 import CheckoutModal from './CheckoutModal.jsx';
 import InvoiceView from '../../components/ui/InvoiceView.jsx';
 import * as DataService from '../../services/dataService.js';
@@ -27,6 +28,10 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
 
     const [billToView, setBillToView] = useState(null);
     const [isInvoiceViewOpen, setIsInvoiceViewOpen] = useState(false);
+    
+    const [billToPayWithPoints, setBillToPayWithPoints] = useState(null);
+    const [isPointsConfirmOpen, setIsPointsConfirmOpen] = useState(false);
+    const [isProcessingPoints, setIsProcessingPoints] = useState(false);
 
     const { isOnlinePaymentsEnabled = true } = systemSettings;
     const stripePromise = getStripe();
@@ -86,6 +91,15 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
         }, [db, user?.uid, showNotification, billingService, userDataJson, settingsJson]);
 
 
+    const refreshUserProfile = useCallback(async () => {
+        if (user?.uid && setUserData) {
+            const profileResult = await DataService.getUserProfile(db, user.uid);
+            if (profileResult.success) {
+                setUserData(profileResult.data);
+            }
+        }
+    }, [db, user?.uid, setUserData]);
+
     useEffect(() => {
         fetchBills();
     }, [fetchBills]);
@@ -97,15 +111,6 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
         
         const newUrl = window.location.pathname;
         
-        const refreshUserProfile = async () => {
-            if (user?.uid && setUserData) {
-                const profileResult = await DataService.getUserProfile(db, user.uid);
-                if (profileResult.success) {
-                    setUserData(profileResult.data);
-                }
-            }
-        };
-
         if (paymentStatus === 'success' && sessionId) {
             setIsVerifyingPayment(true);
             showNotification('Payment successful, verifying transaction...', 'info');
@@ -132,7 +137,7 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
             showNotification('Payment was cancelled. Your bill remains unpaid.', 'warning');
             window.history.replaceState({}, document.title, newUrl);
         }
-    }, [fetchBills, showNotification, db, user, setUserData]);
+    }, [fetchBills, showNotification, db, refreshUserProfile]);
 
     const handlePayBillClick = (bill) => {
         setBillToPay(bill);
@@ -180,6 +185,37 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
         setIsInvoiceViewOpen(true);
     };
     
+    const handlePayWithPointsClick = (bill) => {
+        setBillToPayWithPoints(bill);
+        setIsPointsConfirmOpen(true);
+    };
+    
+    const handleConfirmPayWithPoints = async () => {
+        if (!billToPayWithPoints) return;
+        
+        const pointsToUse = Math.round(billToPayWithPoints.amount);
+        if (userData.rebatePoints < pointsToUse) {
+            showNotification("You do not have enough points to pay this bill.", "error");
+            setIsPointsConfirmOpen(false);
+            return;
+        }
+        
+        setIsProcessingPoints(true);
+        const result = await DataService.payBillWithPoints(db, user.uid, billToPayWithPoints.id, pointsToUse, billToPayWithPoints.amount);
+        
+        if (result.success) {
+            showNotification("Bill paid successfully using rebate points!", "success");
+            await fetchBills();
+            await refreshUserProfile();
+        } else {
+            showNotification(result.error || "Failed to process payment with points.", "error");
+        }
+        
+        setIsProcessingPoints(false);
+        setIsPointsConfirmOpen(false);
+        setBillToPayWithPoints(null);
+    };
+    
     const getInvoiceNumber = (bill) => {
         if (bill.invoiceNumber) return bill.invoiceNumber;
         const billDateObj = bill.billDate?.toDate ? bill.billDate.toDate() : null;
@@ -191,6 +227,8 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
         const message = isVerifyingPayment ? "Verifying your payment..." : "Loading your bills...";
         return <LoadingSpinner message={message} />;
     }
+
+    const userRebatePoints = userData?.rebatePoints || 0;
 
     return (
         <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn">
@@ -211,6 +249,7 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
                     const invoiceNumber = getInvoiceNumber(bill);
                     const isPaid = bill.status === 'Paid';
                     const amountAfterDueDate = (bill.baseAmount + bill.potentialPenalty).toFixed(2);
+                    const canPayWithPoints = !isPaid && userRebatePoints >= Math.round(bill.amount);
 
                     return (
                         <div key={bill.id} className={`p-4 rounded-lg shadow-md border-l-4 ${isPaid ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
@@ -246,9 +285,14 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
                                 <button onClick={() => handleExplainBill(bill)} className="text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-md transition flex items-center" disabled={isExplaining && billToExplain?.id === bill.id}>
                                     {isExplaining && billToExplain?.id === bill.id ? <Loader2 size={14} className="animate-spin mr-1"/> : <Sparkles size={14} className="mr-1"/>} Explain Bill (AI)
                                 </button>
+                                {canPayWithPoints && systemSettings.isRebateProgramEnabled && (
+                                    <button onClick={() => handlePayWithPointsClick(bill)} className="text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 px-4 py-1.5 rounded-md transition flex items-center">
+                                        <Gift size={14} className="mr-1.5"/> Pay with {Math.round(bill.amount)} Points
+                                    </button>
+                                )}
                                 {!isPaid && isOnlinePaymentsEnabled && (
                                     <button onClick={() => handlePayBillClick(bill)} className="text-xs font-bold bg-green-500 text-white hover:bg-green-600 px-4 py-1.5 rounded-md transition flex items-center">
-                                        <span className="mr-1 font-bold">₱</span> Pay Now (₱{bill.amount.toFixed(2)})
+                                        <span className="mr-1 font-bold">₱</span> Pay with Card (₱{bill.amount.toFixed(2)})
                                     </button>
                                 )}
                             </div>
@@ -285,6 +329,21 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
                     showNotification={showNotification}
                     systemSettings={systemSettings}
                 />
+            )}
+            
+            {isPointsConfirmOpen && billToPayWithPoints && (
+                <ConfirmationModal
+                    isOpen={isPointsConfirmOpen}
+                    onClose={() => setIsPointsConfirmOpen(false)}
+                    onConfirm={handleConfirmPayWithPoints}
+                    title="Confirm Payment with Points"
+                    confirmText={`Yes, Pay ₱${billToPayWithPoints.amount.toFixed(2)}`}
+                    isConfirming={isProcessingPoints}
+                    iconType="success"
+                >
+                    <p>Are you sure you want to use <strong className="text-amber-600">{Math.round(billToPayWithPoints.amount).toLocaleString()} points</strong> to pay for your bill of <strong>₱{billToPayWithPoints.amount.toFixed(2)}</strong>?</p>
+                    <p className="text-xs text-gray-500 mt-2">This action is irreversible. {Math.round(billToPayWithPoints.amount).toLocaleString()} points will be deducted from your account.</p>
+                </ConfirmationModal>
             )}
         </div>
     );

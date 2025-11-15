@@ -6,13 +6,17 @@ const PrivacyModal = ({ isOpen, onClose }) => {
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Data Privacy Notice" size="3xl">
             <div className="prose prose-sm max-w-none max-h-[70vh] overflow-y-auto pr-2">
-                <p><strong>Last Updated: October 31, 2025</strong></p>
+                <p><strong>Last Updated: November 15, 2025</strong></p>
                 
                 <h4>Our Commitment to Privacy</h4>
                 <p>
-                    AGWA Water Services, Inc. ("AGWA") is committed to protecting your privacy in accordance with
-                    Republic Act No. 10173, also known as the Data Privacy Act of 2012 (DPA), its Implementing Rules
-                    and Regulations (IRR), and other relevant data privacy laws.
+                    AGWA Water Services, Inc. ("AGWA", "we", "us", "our") is committed to protecting your privacy in compliance with
+                    Republic Act No. 10173, the Data Privacy Act of 2012 (DPA), its Implementing Rules
+                    and Regulations (IRR), and other relevant data privacy and protection laws.
+                </p>
+                <p>
+                    This notice explains how we collect, use, disclose, process, store, and protect your personal data when you
+                    use our Customer Portal ("Portal") and our services.
                 </p>
 
                 <h4>1. What Personal Information We Collect</h4>
@@ -29,13 +33,17 @@ const PrivacyModal = ({ isOpen, onClose }) => {
                         account status, and account creation date.
                     </li>
                     <li>
-                        <strong>Financial and Transaction Data:</strong> Billing history, payment history, consumption data,
-                        payment method details (which are securely processed by our third-party payment partners),
+                        <strong>Financial and Transaction Data:</strong> Billing history, payment history, consumption data (meter readings),
+                        payment method details (which are securely tokenized and processed by our third-party payment partners),
                         and rebate point information.
                     </li>
                     <li>
                         <strong>Communication Data:</strong> Records of your correspondence with us, such as support tickets,
                         chat logs, and issue reports.
+                    </li>
+                    <li>
+                        <strong>Technical Data:</strong> IP address, device type, browser information, and portal usage data, collected
+                        automatically when you interact with the Portal for security and analytics purposes.
                     </li>
                 </ul>
 
@@ -44,11 +52,12 @@ const PrivacyModal = ({ isOpen, onClose }) => {
                 <ul>
                     <li>To create, maintain, and secure your AGWA Portal account.</li>
                     <li>To provide and manage your water services, including meter reading, billing, and maintenance.</li>
-                    <li>To process your bill payments and manage your account transactions.</li>
+                    <li>To process your bill payments (including card, e-wallet, and rebate point transactions) and manage your account.</li>
                     <li>To respond to your inquiries, concerns, and support tickets, and to provide customer support.</li>
                     <li>To send you essential service advisories, billing reminders, and other system notifications.</li>
                     <li>To manage your participation in programs such as the AGWA Rewards Program.</li>
                     <li>To analyze portal and service usage to improve our operations, services, and user experience.</li>
+                    <li>To investigate and prevent fraud, security incidents, or other illegal activities.</li>
                     <li>To comply with our legal and regulatory obligations as a public utility.</li>
                 </ul>
 
@@ -60,12 +69,12 @@ const PrivacyModal = ({ isOpen, onClose }) => {
                 <ul>
                     <li>
                         <strong>Third-Party Service Providers:</strong> With trusted partners who perform services on our behalf,
-                        such as payment gateways (e.g., Stripe) and data hosting (e.g., Firebase). These partners
+                        such as payment gateways (e.g., Stripe) and cloud data hosting (e.g., Google Cloud/Firebase). These partners
                         are contractually bound to protect your data and use it only for the purposes we specify.
                     </li>
                     <li>
                         <strong>Legal and Regulatory Requirements:</strong> When required by law, such as in response to a
-                        subpoena, court order, or formal request from government authorities.
+                        subpoena, court order, or formal request from government authorities (e.g., the National Privacy Commission).
                     </li>
                     <li>
                         <strong>Emergency:</strong> To protect the vital interests of any individual, such as during
@@ -77,12 +86,12 @@ const PrivacyModal = ({ isOpen, onClose }) => {
                 <p>
                     We implement robust technical, physical, and organizational security measures to protect your
                     personal information from unauthorized access, use, alteration, or disclosure. This includes
-                    data encryption, access controls, and secure server environments.
+                    data encryption in transit and at rest, access controls, and secure server environments.
                 </p>
                 <p>
                     We retain your personal data only for as long as your account is active or as necessary to
                     fulfill the purposes outlined in this notice, and as required by law for auditing and
-                    regulatory record-keeping.
+                    regulatory record-keeping, after which it will be securely disposed of.
                 </p>
 
                 <h4>5. Your Rights as a Data Subject</h4>
@@ -106,7 +115,7 @@ const PrivacyModal = ({ isOpen, onClose }) => {
                 </p>
                 <p>
                     <strong>Email:</strong> <a href="mailto:dpo@agwa-waterservices.com.ph">dpo@agwa-waterservices.com.ph</a><br/>
-                    <strong>Hotline:</strong> 1627-AGWA (Attn: Data Privacy Officer)
+                    <strong>Address:</strong> Attn: Data Privacy Officer, AGWA Water Services Bldg., Governor's Drive, Brgy. Ibayo Silangan, Naic, Cavite 4110
                 </p>
 
                 <h4>7. Changes to This Notice</h4>

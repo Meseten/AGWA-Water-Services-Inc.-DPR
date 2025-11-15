@@ -90,25 +90,25 @@ const RebateProgramSection = ({ userData, systemSettings = {} }) => {
 
             <section className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
                 <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
-                    <HelpCircle size={20} className="mr-2"/> How to Earn Points (Mechanics)
+                    <HelpCircle size={20} className="mr-2"/> How to Earn & Use Points (Mechanics)
                 </h3>
                 {!isRebateProgramEnabled ? (
                     <p className="text-sm text-gray-700">The AGWA Rewards Program is not currently active.</p>
                 ) : (
                     <div className="space-y-3 text-sm text-gray-700">
-                        <p>Earning points is simple! Points are awarded automatically for diligent payments:</p>
+                        <p>Earning and using points is simple:</p>
                         <ul className="list-none space-y-2 pl-2">
                             <li className="flex items-start">
                                 <Star size={16} className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0"/>
-                                <div><strong>Pay Your Bill:</strong> Earn <strong>{pointsPer100Peso.toLocaleString()} point{pointsPer100Peso !== 1 ? 's' : ''}</strong> for every <strong>₱100.00</strong> paid on your water bill.</div>
+                                <div><strong>EARN by Paying Your Bill:</strong> Earn <strong>{pointsPer100Peso.toLocaleString()} point{pointsPer100Peso !== 1 ? 's' : ''}</strong> for every <strong>₱100.00</strong> paid on your water bill.</div>
                             </li>
                             <li className="flex items-start">
                                 <Star size={16} className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0"/>
-                                <div><strong>Pay Early:</strong> Earn a <strong>{earlyPaymentBonusPoints} point bonus</strong> when you pay your bill in full at least <strong>{earlyPaymentDaysThreshold} day{earlyPaymentDaysThreshold !== 1 ? 's' : ''}</strong> before your due date.</div>
+                                <div><strong>EARN by Paying Early:</strong> Earn a <strong>{earlyPaymentBonusPoints} point bonus</strong> when you pay your bill in full at least <strong>{earlyPaymentDaysThreshold} day{earlyPaymentDaysThreshold !== 1 ? 's' : ''}</strong> before your due date.</div>
                             </li>
-                            <li className="flex items-start">
-                                <Star size={16} className="text-gray-400 mr-2 mt-0.5 flex-shrink-0"/>
-                                <div><strong>Stay Tuned:</strong> Look out for special promotions and events to earn even more bonus points!</div>
+                             <li className="flex items-start">
+                                <Gift size={16} className="text-green-600 mr-2 mt-0.5 flex-shrink-0"/>
+                                <div><strong>USE to Pay Your Bill:</strong> Use your points to pay your bill directly! <strong>1 Point = ₱1.00</strong>. If you have enough points to cover your entire bill, a "Pay with Points" button will automatically appear in the 'My Bills' section.</div>
                             </li>
                         </ul>
                         <p className="text-xs text-gray-500">Points are automatically credited to your account after your payment is successfully posted (usually within 24-48 hours).</p>
@@ -128,15 +128,21 @@ const RebateProgramSection = ({ userData, systemSettings = {} }) => {
                     <div className="mt-2 space-y-1.5 max-h-0 overflow-hidden group-open:max-h-[500px] transition-all duration-500 ease-in-out pt-2 border-t">
                         <p><strong>1. Eligibility:</strong> All AGWA Water Services, Inc. customers with an active residential or commercial account in good standing are eligible to participate in the AGWA Rewards Program ("Program").</p>
                         <p><strong>2. Earning Points:</strong> Points are earned based on (a) the total amount paid for water bills and (b) bonuses for early payments, as specified in the "How to Earn Points" section. Earning rates are determined by AGWA and may be subject to change based on system settings.</p>
-                        <p><strong>3. Point Crediting:</strong> Points will be credited to the customer's account after a payment is successfully processed and posted. This may take up to 48 hours.</p>
-                        <p><strong>4. Tiers and Benefits:</strong> Tier status (Bronze, Silver, Gold, Platinum) is determined by the total accumulated points. Benefits are associated with each tier and are non-transferable. AGWA reserves the right to modify, add, or remove benefits at any time.</p>
-                        <p><strong>5. Annual Bill Rebate:</strong> Rebates mentioned in tier benefits (e.g., "Eligibility for 1% Annual Bill Rebate") are not automatic. To qualify, a customer must maintain their tier status (Silver or higher) and remain in good standing (no service disconnections due to non-payment) for 12 consecutive months. The rebate is calculated on the total basic charges paid within that 12-month period and will be applied as a credit to a future bill, not as a cash payout.</p>
-                        <p><strong>6. Point Expiration:</strong> Points do not expire as long as the customer's account remains active. If an account is closed or becomes inactive for a period of 24 consecutive months, all accumulated points may be forfeited.</p>
-                        <p><strong>7. No Cash Value:</strong> Points have no cash value, are non-transferable, and cannot be sold, bartered, or redeemed for cash.</p>
-                        <p><strong>8. Program Modification/Termination:</strong> AGWA Water Services, Inc. reserves the right to modify, suspend, or terminate the AGWA Rewards Program, its rules, tiers, benefits, or earning mechanics at any time, with or without prior notice.</p>
-                        <p><strong>9. Account Status:</strong> Customers must be in good standing to enjoy tier benefits. Accounts that are suspended or disconnected may have their benefits temporarily revoked.</p>
-                        <p><strong>10. Disputes:</strong> Any discrepancies in point calculation must be reported to AGWA customer service within 60 days of the payment date. AGWA's decision on point disputes is final.</p>
-                        <p><strong>11. Acceptance of Terms:</strong> Continued participation in the Program, including earning and redeeming benefits, constitutes acceptance of these Terms & Conditions.</p>
+                        <p><strong>3. Point Crediting:</strong> Points will be credited to the customer's account after a payment is successfully processed and posted. This may take up to 48 hours. Points are not earned on payments made using Rebate Points.</p>
+                        <p><strong>4. Redeeming Points:</strong> Points may be redeemed as full payment for an outstanding water bill ("Bill"), subject to the following conditions:
+                            (a) The customer must have sufficient points to cover the *entire* amount of the Bill. (Redemption Rate: 1 Point = 1 Philippine Peso).
+                            (b) Partial payments using points are not supported.
+                            (c) If sufficient points are available, a "Pay with Points" option will be automatically presented in the Portal.
+                            (d) Point redemption is final and irreversible.
+                        </p>
+                        <p><strong>5. Tiers and Benefits:</strong> Tier status (Bronze, Silver, Gold, Platinum) is determined by the total accumulated points. Benefits are associated with each tier and are non-transferable. AGWA reserves the right to modify, add, or remove benefits at any time.</p>
+                        <p><strong>6. Annual Bill Rebate:</strong> Rebates mentioned in tier benefits (e.g., "Eligibility for 1% Annual Bill Rebate") are not automatic. To qualify, a customer must maintain their tier status (Silver or higher) and remain in good standing (no service disconnections due to non-payment) for 12 consecutive months. The rebate is calculated on the total basic charges paid within that 12-month period and will be applied as a credit to a future bill, not as a cash payout.</p>
+                        <p><strong>7. Point Expiration:</strong> Points do not expire as long as the customer's account remains active. If an account is closed or becomes inactive (no payment activity) for a period of 24 consecutive months, all accumulated points may be forfeited.</p>
+                        <p><strong>8. No Cash Value:</strong> Points have no cash value, are non-transferable, and cannot be sold, bartered, or redeemed for cash.</p>
+                        <p><strong>9. Program Modification/Termination:</strong> AGWA Water Services, Inc. reserves the right to modify, suspend, or terminate the AGWA Rewards Program, its rules, tiers, benefits, or earning/redemption mechanics at any time, with or without prior notice.</p>
+                        <p><strong>10. Account Status:</strong> Customers must be in good standing to enjoy tier benefits. Accounts that are suspended or disconnected may have their benefits temporarily revoked.</p>
+                        <p><strong>11. Disputes:</strong> Any discrepancies in point calculation must be reported to AGWA customer service within 60 days of the payment date. AGWA's decision on point disputes is final.</p>
+                        <p><strong>12. Acceptance of Terms:</strong> Continued participation in the Program, including earning and redeeming benefits, constitutes acceptance of these Terms & Conditions.</p>
                     </div>
                  </details>
             </section>
