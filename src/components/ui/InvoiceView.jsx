@@ -28,7 +28,7 @@ const InvoiceView = ({
     const baseAmount = bill.baseAmount || 0;
     const potentialPenalty = bill.potentialPenalty || 0;
     
-    const amountDueAfterDate = baseAmount + potentialPenalty;
+    const amountDueAfterDate = (baseAmount + potentialPenalty).toFixed(2);
     const finalTotalAmount = (bill.amount || 0);
 
     const billDateObj = bill.billDate?.toDate ? bill.billDate.toDate() : null;
@@ -176,6 +176,7 @@ const InvoiceView = ({
                     .invoice-section-print p span { font-weight: 600; }
                     .invoice-section-print .h-line { border-top: 1px solid #000; margin-top: 0.5rem; padding-top: 0.5rem; }
                     .invoice-section-print .text-center { text-align: center; }
+                    .invoice-section-print .history-note { font-size: 0.7rem; font-style: italic; color: #555 !important; }
                     
                     .blue-box-print { background-color: #DBEAFE !important; border: 1px solid #BFDBFE !important; padding: 0.5rem 0.75rem; text-align: left; margin-top: 0.5rem; }
                     .blue-box-print p { margin: 0; font-size: 0.8rem; font-weight: 700; color: #1E40AF !important; }
@@ -314,15 +315,15 @@ const InvoiceView = ({
                                 </div>
                                 
                                 <div className="invoice-section-print h-line">
-                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Rebate History</h2>
+                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Adjustments (This Period)</h2>
                                     <table className="w-full history-table-print">
-                                        <thead><tr><th>Posting Date</th><th>Reference Number</th><th className="text-right">Amount</th></tr></thead>
+                                        <thead><tr><th>Posting Date</th><th>Description</th><th className="text-right">Amount</th></tr></thead>
                                         <tbody>
                                             {bill.adjustments && bill.adjustments.length > 0 ? (
                                                 bill.adjustments.map((adj, index) => (
                                                     <tr key={index}>
                                                         <td>{formatDate(adj.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                                                        <td>{adj.reference}</td>
+                                                        <td>{adj.reference || 'Adjustment'}</td>
                                                         <td className="text-right">{adj.amount.toFixed(2)}</td>
                                                     </tr>
                                                 ))
@@ -334,7 +335,7 @@ const InvoiceView = ({
                                 </div>
                                 
                                 <div className="invoice-section-print h-line">
-                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Payment History</h2>
+                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Payments (This Period)</h2>
                                     <table className="w-full history-table-print">
                                         <thead><tr><th>Billing Period/Month</th><th>Date Paid</th><th className="text-right">Amount Paid</th></tr></thead>
                                         <tbody>
@@ -351,6 +352,10 @@ const InvoiceView = ({
                                             )}
                                         </tbody>
                                     </table>
+                                </div>
+                                
+                                <div className="invoice-section-print h-line text-xs italic text-gray-600 history-note">
+                                    <p>Note: An invoice is a snapshot for its single billing period. A complete history of all account payments and adjustments is available on your 'Payment Analytics' or 'Rebate Program' dashboard sections.</p>
                                 </div>
 
                                 <div className="invoice-section-print h-line text-center">
@@ -370,29 +375,39 @@ const InvoiceView = ({
                                     <p>Payer TIN: <span className="font-semibold">{userData.tin || ''}</span></p>
                                 </div>
                                 
-                                <div className="blue-box-print p-3 bg-blue-50 border border-blue-200 my-2">
-                                    <p className="text-xs font-semibold text-blue-700">Contract Account Number</p>
-                                    <p className="text-xl font-bold text-blue-800 font-mono mb-1">{userData.accountNumber}</p>
-                                    <p className="text-xs font-semibold text-blue-700">TOTAL AMOUNT DUE</p>
-                                    <p className="text-2xl font-bold text-blue-800 due-amount">₱{finalTotalAmount.toFixed(2)}</p>
-                                    <p className="text-xs font-semibold text-blue-700 mt-1">DUE DATE</p>
-                                    <p className="text-xl font-bold text-blue-800 due-date">
-                                        {formatDate(bill.dueDate, { month: 'long', day: 'numeric', year: 'numeric' })}
-                                    </p>
-                                </div>
+                                {bill.status === 'Paid' ? (
+                                    <div className="text-center p-3 bg-green-100 border border-green-300 rounded-lg my-2">
+                                        <p className="font-bold text-green-700">AMOUNT PAID: ₱{(bill.amountPaid || bill.amount).toFixed(2)}</p>
+                                        <p className="text-xs text-gray-700">Paid on: {formatDate(bill.paymentDate, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="blue-box-print p-3 bg-blue-50 border border-blue-200 my-2">
+                                            <p className="text-xs font-semibold text-blue-700">Contract Account Number</p>
+                                            <p className="text-xl font-bold text-blue-800 font-mono mb-1">{userData.accountNumber}</p>
+                                            <p className="text-xs font-semibold text-blue-700">TOTAL AMOUNT DUE</p>
+                                            <p className="text-2xl font-bold text-blue-800 due-amount">₱{finalTotalAmount.toFixed(2)}</p>
+                                            <p className="text-xs font-semibold text-blue-700 mt-1">DUE DATE</p>
+                                            <p className="text-xl font-bold text-blue-800 due-date">
+                                                {formatDate(bill.dueDate, { month: 'long', day: 'numeric', year: 'numeric' })}
+                                            </p>
+                                        </div>
                                 
-                                {bill.status === 'Unpaid' && potentialPenalty > 0 && finalTotalAmount === baseAmount && (
-                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
-                                        Pay after {formatDate(bill.dueDate, { month: 'short', day: 'numeric' })} to include a 
-                                        <strong> ₱{potentialPenalty.toFixed(2)} penalty</strong>.
-                                        <br/>Total amount after due date will be <strong> ₱{amountDueAfterDate}</strong>.
-                                    </div>
+                                        {bill.status === 'Unpaid' && potentialPenalty > 0 && finalTotalAmount === baseAmount && (
+                                            <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
+                                                Pay after {formatDate(bill.dueDate, { month: 'short', day: 'numeric' })} to include a 
+                                                <strong> ₱{potentialPenalty.toFixed(2)} penalty</strong>.
+                                                <br/>Total amount after due date will be <strong> ₱{amountDueAfterDate}</strong>.
+                                            </div>
+                                        )}
+                                        {bill.status === 'Unpaid' && finalTotalAmount > baseAmount && (
+                                            <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
+                                                This amount includes a <strong>₱{(finalTotalAmount - baseAmount).toFixed(2)} penalty</strong> for late payment.
+                                            </div>
+                                        )}
+                                    </>
                                 )}
-                                 {bill.status === 'Unpaid' && finalTotalAmount > baseAmount && (
-                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
-                                        This amount includes a <strong>₱{(finalTotalAmount - baseAmount).toFixed(2)} penalty</strong> for late payment.
-                                    </div>
-                                )}
+
 
                                 <div className="invoice-section-print mt-2">
                                     <table className="charges-table-print w-full">
@@ -435,7 +450,7 @@ const InvoiceView = ({
                                     
                                     <table className="charges-table-print w-full mt-4">
                                         <tbody className="total-due-row">
-                                            {bill.status === 'Paid' && (
+                                            {bill.status === 'Paid' ? (
                                                 <>
                                                     <tr className="border-t-2 border-black">
                                                         <td className="py-1 font-bold text-lg text-green-600">AMOUNT PAID</td>
@@ -446,8 +461,7 @@ const InvoiceView = ({
                                                         <td className="py-1 text-right font-semibold">{formatDate(bill.paymentDate, { month: 'long', day: 'numeric', year: 'numeric' })}</td>
                                                     </tr>
                                                 </>
-                                            )}
-                                            {bill.status === 'Unpaid' && (
+                                            ) : (
                                                 <>
                                                     <tr className="border-t-2 border-black">
                                                         <td className="py-1 font-semibold">Amount Due (Before Due Date)</td>

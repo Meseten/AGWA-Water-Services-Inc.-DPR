@@ -5,6 +5,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import ConfirmationModal from '../../components/ui/ConfirmationModal.jsx';
 import CheckoutModal from './CheckoutModal.jsx';
 import InvoiceView from '../../components/ui/InvoiceView.jsx';
+import Tooltip from '../../components/ui/Tooltip.jsx';
 import * as DataService from '../../services/dataService.js';
 import { explainBillWithAI } from '../../services/deepseekService.js';
 import { formatDate, calculateDynamicPenalty, calculatePotentialPenalty } from '../../utils/userUtils.js';
@@ -249,13 +250,15 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
                     const invoiceNumber = getInvoiceNumber(bill);
                     const isPaid = bill.status === 'Paid';
                     const amountAfterDueDate = (bill.baseAmount + bill.potentialPenalty).toFixed(2);
-                    const canPayWithPoints = !isPaid && userRebatePoints >= Math.round(bill.amount);
+                    const pointsNeeded = Math.round(bill.amount);
+                    const canPayWithPoints = !isPaid && userRebatePoints >= pointsNeeded;
+                    const showDisabledPointsButton = !isPaid && !canPayWithPoints && userRebatePoints > 0 && systemSettings.isRebateProgramEnabled;
 
                     return (
                         <div key={bill.id} className={`p-4 rounded-lg shadow-md border-l-4 ${isPaid ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
                             <div className="flex flex-wrap justify-between items-center gap-2">
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-800">{bill.monthYear || bill.billingPeriod || 'N/A'}</h3>
+                                    <h3 className="text-lg font-semibold text-gray-800">{bill.monthYear || bill.billingPeriod || ''}</h3>
                                     <p className={`text-sm font-semibold ${isPaid ? 'text-green-600' : 'text-red-600'}`}>
                                         Due: {formatDate(bill.dueDate, {month: 'long', day: 'numeric'})}
                                     </p>
@@ -287,8 +290,15 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
                                 </button>
                                 {canPayWithPoints && systemSettings.isRebateProgramEnabled && (
                                     <button onClick={() => handlePayWithPointsClick(bill)} className="text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 px-4 py-1.5 rounded-md transition flex items-center">
-                                        <Gift size={14} className="mr-1.5"/> Pay with {Math.round(bill.amount)} Points
+                                        <Gift size={14} className="mr-1.5"/> Pay with {pointsNeeded} Points
                                     </button>
+                                )}
+                                {showDisabledPointsButton && (
+                                    <Tooltip text={`You need ${pointsNeeded} points to pay this bill. You currently have ${userRebatePoints}.`}>
+                                        <button className="text-xs font-bold bg-gray-300 text-gray-500 px-4 py-1.5 rounded-md flex items-center cursor-not-allowed">
+                                            <Gift size={14} className="mr-1.5"/> Pay with {pointsNeeded} Points
+                                        </button>
+                                    </Tooltip>
                                 )}
                                 {!isPaid && isOnlinePaymentsEnabled && (
                                     <button onClick={() => handlePayBillClick(bill)} className="text-xs font-bold bg-green-500 text-white hover:bg-green-600 px-4 py-1.5 rounded-md transition flex items-center">
