@@ -334,6 +334,7 @@ const CustomerBillsSection = ({ user, userData, setUserData, db, showNotificatio
                     isOpen={isInvoiceViewOpen} 
                     onClose={() => setIsInvoiceViewOpen(false)} 
                     bill={billToView} 
+                    allUserBills={bills}
                     userData={userData} 
                     calculateBillDetails={billingService} 
                     showNotification={showNotification}

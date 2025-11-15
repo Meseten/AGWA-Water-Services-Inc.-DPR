@@ -63,6 +63,10 @@ const SearchAccountOrBillSection = ({ db, showNotification, billingService: calc
                         const userProfileResult = await DataService.getUserProfile(db, foundBill.userId);
                         if (userProfileResult.success) {
                             setInvoiceUserData(userProfileResult.data);
+                            const allBillsResult = await DataService.getBillsForUser(db, foundBill.userId);
+                            if(allBillsResult.success) {
+                                setUserBills(allBillsResult.data);
+                            }
                         }
                     }
                 } else if (billsResult.success) {
@@ -214,6 +218,7 @@ const SearchAccountOrBillSection = ({ db, showNotification, billingService: calc
                     isOpen={!!viewingInvoice}
                     onClose={() => { setViewingInvoice(null); }} 
                     bill={viewingInvoice}
+                    allUserBills={userBills}
                     userData={invoiceUserData} 
                     calculateBillDetails={calculateBillDetails} 
                 />

@@ -9,12 +9,32 @@ const InvoiceView = ({
     isOpen,
     onClose,
     bill,
+    allUserBills = [],
     userData,
     calculateBillDetails,
     showNotification,
     systemSettings = {}
 }) => {
     if (!isOpen || !bill || !userData) return null;
+
+    const currentBillDate = bill.billDate?.toDate ? bill.billDate.toDate() : new Date();
+    const historyCutoffDate = new Date(currentBillDate);
+    historyCutoffDate.setDate(historyCutoffDate.getDate() - 90);
+
+    const recentBills = allUserBills
+        .filter(b => {
+            const bDate = b.billDate?.toDate ? b.billDate.toDate() : new Date(0);
+            return bDate >= historyCutoffDate && bDate <= currentBillDate;
+        })
+        .sort((a, b) => (b.billDate?.toDate ? b.billDate.toDate() : new Date(0)) - (a.billDate?.toDate ? a.billDate.toDate() : new Date(0)));
+
+    const allRecentPayments = recentBills.flatMap(b => 
+        (b.paymentHistory || []).map(p => ({ ...p, billMonthYear: b.monthYear || b.billingPeriod }))
+    ).sort((a,b) => (b.date?.toDate ? b.date.toDate() : new Date(b.date)) - (a.date?.toDate ? a.date.toDate() : new Date(a.date)));
+    
+    const allRecentAdjustments = recentBills.flatMap(b => 
+        (b.adjustments || []).map(a => ({ ...a, billMonthYear: b.monthYear || b.billingPeriod }))
+    ).sort((a,b) => (b.date?.toDate ? b.date.toDate() : new Date(b.date)) - (a.date?.toDate ? a.date.toDate() : new Date(a.date)));
 
     const charges = bill.calculatedCharges || calculateBillDetails(
         bill.consumption,
@@ -315,12 +335,12 @@ const InvoiceView = ({
                                 </div>
                                 
                                 <div className="invoice-section-print h-line">
-                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Adjustments (This Period)</h2>
+                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Adjustments (Last 90 Days)</h2>
                                     <table className="w-full history-table-print">
                                         <thead><tr><th>Posting Date</th><th>Description</th><th className="text-right">Amount</th></tr></thead>
                                         <tbody>
-                                            {bill.adjustments && bill.adjustments.length > 0 ? (
-                                                bill.adjustments.map((adj, index) => (
+                                            {allRecentAdjustments.length > 0 ? (
+                                                allRecentAdjustments.map((adj, index) => (
                                                     <tr key={index}>
                                                         <td>{formatDate(adj.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                                                         <td>{adj.reference || 'Adjustment'}</td>
@@ -328,34 +348,30 @@ const InvoiceView = ({
                                                     </tr>
                                                 ))
                                             ) : (
-                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No adjustments for this period.</td></tr>
+                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No adjustments in the last 90 days.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
                                 
                                 <div className="invoice-section-print h-line">
-                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Payments (This Period)</h2>
+                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Payment History (Last 90 Days)</h2>
                                     <table className="w-full history-table-print">
                                         <thead><tr><th>Billing Period/Month</th><th>Date Paid</th><th className="text-right">Amount Paid</th></tr></thead>
                                         <tbody>
-                                             {bill.paymentHistory && bill.paymentHistory.length > 0 ? (
-                                                bill.paymentHistory.map((payment, index) => (
+                                             {allRecentPayments.length > 0 ? (
+                                                allRecentPayments.map((payment, index) => (
                                                     <tr key={index}>
-                                                        <td>{bill.monthYear || bill.billingPeriod}</td>
-                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric' })}</td>
+                                                        <td>{payment.billMonthYear}</td>
+                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                                                         <td className="text-right">₱{payment.amount.toFixed(2)}</td>
                                                     </tr>
                                                 ))
                                             ) : (
-                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No payments posted this period.</td></tr>
+                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No payments posted in the last 90 days.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
-                                </div>
-                                
-                                <div className="invoice-section-print h-line text-xs italic text-gray-600 history-note">
-                                    <p>Note: An invoice is a snapshot for its single billing period. A complete history of all account payments and adjustments is available on your 'Payment Analytics' or 'Rebate Program' dashboard sections.</p>
                                 </div>
 
                                 <div className="invoice-section-print h-line text-center">
