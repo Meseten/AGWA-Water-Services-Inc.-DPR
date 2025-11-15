@@ -291,9 +291,8 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                         </div>
                         <div className="company-address-print">
                             <strong>AGWA Water Services, Inc.</strong><br/>
-                            123 Aqua Drive, Hydro Business Park<br/>
-                            Naic, Cavite, Philippines 4110<br/>
-                            VAT Reg. TIN: 000-123-456-789
+                            AGWA Water Services Bldg., Governor's Drive<br/>
+                            Brgy. Ibayo Silangan, Naic, Cavite 4110
                         </div>
                     </div>
 

@@ -382,8 +382,8 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         </div>
                         <div class="company-address-print">
                             <strong>AGWA Water Services, Inc.</strong><br/>
-                            123 Aqua Drive, Hydro Business Park<br/>
-                            Naic, Cavite, Philippines 4110
+                            AGWA Water Services Bldg., Governor's Drive<br/>
+                            Brgy. Ibayo Silangan, Naic, Cavite 4110
                         </div>
                     </header>
                     <h1 class="report-title">SYSTEM ANALYTICS REPORT</h1>

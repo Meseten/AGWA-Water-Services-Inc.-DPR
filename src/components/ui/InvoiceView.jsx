@@ -175,6 +175,7 @@ const InvoiceView = ({
                     .invoice-section-print p { margin: 0.15rem 0; line-height: 1.3; }
                     .invoice-section-print p span { font-weight: 600; }
                     .invoice-section-print .h-line { border-top: 1px solid #000; margin-top: 0.5rem; padding-top: 0.5rem; }
+                    .invoice-section-print .text-center { text-align: center; }
                     
                     .blue-box-print { background-color: #DBEAFE !important; border: 1px solid #BFDBFE !important; padding: 0.5rem 0.75rem; text-align: left; margin-top: 0.5rem; }
                     .blue-box-print p { margin: 0; font-size: 0.8rem; font-weight: 700; color: #1E40AF !important; }
@@ -269,9 +270,8 @@ const InvoiceView = ({
                             </div>
                             <div className="company-address-print text-right text-xs">
                                 <strong>AGWA Water Services, Inc.</strong><br/>
-                                123 Aqua Drive, Hydro Business Park<br/>
-                                Naic, Cavite, Philippines 4110<br/>
-                                VAT Reg. TIN: 000-123-456-789
+                                AGWA Water Services Bldg., Governor's Drive<br/>
+                                Brgy. Ibayo Silangan, Naic, Cavite 4110
                             </div>
                         </header>
                         
@@ -314,7 +314,7 @@ const InvoiceView = ({
                                 </div>
                                 
                                 <div className="invoice-section-print h-line">
-                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Adjustments (Rebates/Corrections)</h2>
+                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Rebate History</h2>
                                     <table className="w-full history-table-print">
                                         <thead><tr><th>Posting Date</th><th>Reference Number</th><th className="text-right">Amount</th></tr></thead>
                                         <tbody>
@@ -342,7 +342,7 @@ const InvoiceView = ({
                                                 bill.paymentHistory.map((payment, index) => (
                                                     <tr key={index}>
                                                         <td>{bill.monthYear || bill.billingPeriod}</td>
-                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric' })}</td>
                                                         <td className="text-right">₱{payment.amount.toFixed(2)}</td>
                                                     </tr>
                                                 ))
@@ -353,11 +353,11 @@ const InvoiceView = ({
                                     </table>
                                 </div>
 
-                                <div className="invoice-section-print h-line">
+                                <div className="invoice-section-print h-line text-center">
                                     <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Important Reminders</h2>
-                                    <p className="text-xs text-center">CUSTOMER SERVICE HOTLINE: 1627-AGWA</p>
+                                    <p className="text-xs">CUSTOMER SERVICE HOTLINE: 1627-AGWA</p>
                                     <hr className="border-t border-gray-400 my-1" />
-                                    <p className="text-xs text-center">PLEASE PAY VIA GCASH OR THROUGH OTHER ACCREDITED PAYMENT CENTERS. METER READERS AND CONTRACTORS ARE NOT ALLOWED TO ACCEPT PAYMENTS.</p>
+                                    <p className="text-xs">PLEASE PAY VIA GCASH OR THROUGH OTHER ACCREDITED PAYMENT CENTERS. METER READERS AND CONTRACTORS ARE NOT ALLOWED TO ACCEPT PAYMENTS.</p>
                                 </div>
 
                             </div>
@@ -459,7 +459,7 @@ const InvoiceView = ({
                                                             <td className="py-1 font-semibold text-red-600">Penalty (After Due Date)</td>
                                                             <td className="py-1 text-right font-semibold text-red-600">₱{potentialPenalty.toFixed(2)}</td>
                                                         </tr>
-                                                        <tr>
+                                                        <tr className="border-t border-gray-400">
                                                             <td className="py-1 font-semibold">Amount Due (After Due Date)</td>
                                                             <td className="py-1 text-right font-semibold">₱{amountDueAfterDate}</td>
                                                         </tr>
@@ -471,7 +471,7 @@ const InvoiceView = ({
                                                             <td className="py-1 text-right font-bold text-lg text-red-600">₱{finalTotalAmount.toFixed(2)}</td>
                                                         </tr>
                                                     )}
-                                                    {finalTotalAmount === baseAmount && (
+                                                    {finalTotalAmount === baseAmount && !potentialPenalty > 0 && (
                                                         <tr className="border-t border-gray-400">
                                                             <td className="py-1 font-bold text-lg">CURRENT TOTAL DUE</td>
                                                             <td className="py-1 text-right font-bold text-lg">₱{finalTotalAmount.toFixed(2)}</td>
