@@ -114,7 +114,8 @@ const PrivacyModal = ({ isOpen, onClose }) => {
                     please contact our Data Privacy Officer at:
                 </p>
                 <p>
-                    <strong>Email:</strong> <a href="mailto:dpo@agwa-waterservices.com.ph">dpo@agwa-waterservices.com.ph</a><br/>
+                    <strong>Email:</strong> <a href="mailto:dpo@agwa.ph">dpo@agwa.ph</a><br/>
+                    <strong>Email:</strong> <a href="mailto:benjamesduag.edu@gmail.com">benjamesduag.edu@gmail.com</a><br/>
                     <strong>Address:</strong> Attn: Data Privacy Officer, AGWA Water Services Bldg., Governor's Drive, Brgy. Ibayo Silangan, Naic, Cavite 4110
                 </p>
 
