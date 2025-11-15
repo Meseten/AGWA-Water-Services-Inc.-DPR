@@ -32,6 +32,10 @@ const InvoiceView = ({
         (b.paymentHistory || []).map(p => ({ ...p, billMonthYear: b.monthYear || b.billingPeriod }))
     ).sort((a,b) => (b.date?.toDate ? b.date.toDate() : new Date(b.date)) - (a.date?.toDate ? a.date.toDate() : new Date(a.date)));
     
+    const allRecentAdjustments = recentBills.flatMap(b => 
+        (b.adjustments || []).map(a => ({ ...a, billMonthYear: b.monthYear || b.billingPeriod }))
+    ).sort((a,b) => (b.date?.toDate ? b.date.toDate() : new Date(b.date)) - (a.date?.toDate ? a.date.toDate() : new Date(a.date)));
+    
     const consumptionLog = recentBills.map(b => ({
         id: b.id,
         monthYear: b.monthYear || b.billingPeriod,
@@ -45,7 +49,7 @@ const InvoiceView = ({
         userData.meterSize || '1/2"'
     );
     
-    const totalCurrentCharges = bill.baseAmount || 0;
+    const totalCurrentCharges = parseFloat(bill.totalCalculatedCharges?.toFixed(2) || 0);
     const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
     const baseAmount = bill.baseAmount || 0;
@@ -118,8 +122,8 @@ const InvoiceView = ({
             <div className="flex justify-between items-start">
                 <div className="pr-2 max-w-[50%]">
                     <p>Contract Account Number:</p>
-                    <p className="text-sm font-mono font-bold tracking-wider mb-1">{userData.accountNumber}</p>
-                    <p className="font-semibold">{userData.displayName}</p>
+                    <p className="font-mono font-bold tracking-wider mb-1 slip-account-number">{userData.accountNumber}</p>
+                    <p className="font-semibold slip-user-name">{userData.displayName}</p>
                     <p>{fullAddress}</p>
                     <p className="mt-2 font-semibold">Total Amount Due: ₱{finalTotalAmount.toFixed(2)}</p>
                     <p className="font-semibold">Due Date: {formatDate(bill.dueDate, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
@@ -185,49 +189,50 @@ const InvoiceView = ({
                         padding-bottom: 0.5rem;
                     }
                     .invoice-header-print .logo-print { font-size: 2rem; font-weight: 700; color: #1e3a8a !important; line-height: 1; }
-                    .invoice-header-print .tagline-print { font-size: 0.7rem; color: #1d4ed8 !important; font-style: italic; }
-                    .invoice-header-print .company-address-print { text-align: right; font-size: 0.75rem; line-height: 1.3; color: #374151 !important; }
+                    .invoice-header-print .tagline-print { font-size: 8pt; color: #1d4ed8 !important; font-style: italic; }
+                    .invoice-header-print .company-address-print { text-align: right; font-size: 8pt; line-height: 1.3; color: #374151 !important; }
                     
-                    .invoice-title-print { font-size: 1.5rem; font-weight: 700; text-align: center; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+                    .invoice-title-print { font-size: 14pt; font-weight: 700; text-align: center; margin-top: 0.5rem; margin-bottom: 0.5rem; }
 
                     .invoice-grid-print { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
                     .invoice-grid-print-left { grid-column: span 1 / span 1; }
                     .invoice-grid-print-right { grid-column: span 1 / span 1; }
 
-                    .invoice-section-print h2 { font-weight: 700; font-size: 0.75rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem; margin-bottom: 0.25rem; text-transform: uppercase; }
+                    .invoice-section-print h2 { font-weight: 700; font-size: 9pt; border-bottom: 1px solid #000; padding-bottom: 0.25rem; margin-bottom: 0.25rem; text-transform: uppercase; }
                     .invoice-section-print p { margin: 0.15rem 0; line-height: 1.3; }
                     .invoice-section-print p span { font-weight: 600; }
                     .invoice-section-print .h-line { border-top: 1px solid #000; margin-top: 0.5rem; padding-top: 0.5rem; }
                     .invoice-section-print .text-center { text-align: center; }
-                    .invoice-section-print .history-note { font-size: 0.7rem; font-style: italic; color: #555 !important; }
+                    .invoice-section-print .history-note { font-size: 7pt; font-style: italic; color: #555 !important; }
                     
                     .blue-box-print { background-color: #DBEAFE !important; border: 1px solid #BFDBFE !important; padding: 0.5rem 0.75rem; text-align: left; margin-top: 0.5rem; }
-                    .blue-box-print p { margin: 0; font-size: 0.8rem; font-weight: 700; color: #1E40AF !important; }
-                    .blue-box-print .due-amount { font-size: 1.25rem; color: #1D4ED8 !important; }
-                    .blue-box-print .due-date { font-size: 1.1rem; color: #1D4ED8 !important; }
+                    .blue-box-print p { margin: 0; font-size: 8pt; font-weight: 700; color: #1E40AF !important; }
+                    .blue-box-print .due-amount { font-size: 11pt; color: #1D4ED8 !important; }
+                    .blue-box-print .due-date { font-size: 10pt; color: #1D4ED8 !important; }
                     
-                    .charges-table-print { width: 100%; margin-top: 0.5rem; border-collapse: collapse; }
+                    .charges-table-print { width: 100%; margin-top: 0.5rem; border-collapse: collapse; font-size: 9pt; }
                     .charges-table-print td { padding: 0.15rem 0.25rem; }
                     .charges-table-print td:last-child { text-align: right; }
                     .charges-table-print tr.border-t td { border-top: 1px solid #999 !important; padding-top: 0.25rem; }
                     .charges-table-print .total-due-row td { padding-top: 0.25rem; }
                     .charges-table-print .total-due-row .border-t-2 td { border-top: 2px solid #000 !important; }
                     .charges-table-print .total-due-row .border-t td { border-top: 1px solid #999 !important; }
-                    .charges-table-print .total-due-row .text-lg { font-size: 1.1em; font-weight: 700; }
+                    .charges-table-print .total-due-row .text-lg { font-size: 10pt; font-weight: 700; }
                     .charges-table-print .total-due-row .text-red-600 { color: #A94442 !important; }
                     .charges-table-print .total-due-row .text-green-600 { color: #256625 !important; }
 
-                    .history-table-print { width: 100%; }
-                    .history-table-print th { text-align: left; font-size: 0.7rem; color: #374151 !important; border-bottom: 1px solid #999; padding-bottom: 2px; }
-                    .history-table-print td { text-align: left; font-size: 0.75rem; padding-top: 2px; }
+                    .history-table-print { width: 100%; font-size: 8pt; }
+                    .history-table-print th { text-align: left; font-size: 8pt; color: #374151 !important; border-bottom: 1px solid #999; padding-bottom: 2px; }
+                    .history-table-print td { text-align: left; font-size: 8pt; padding-top: 2px; }
                     .history-table-print td:last-child { text-align: right; }
                     
-                    .bir-permit-print { text-align: center; font-size: 0.6rem; color: #4B5563 !important; margin-top: 1rem; padding-top: 0.5rem; border-top: 1px solid #999; }
+                    .bir-permit-print { text-align: center; font-size: 7pt; color: #4B5563 !important; margin-top: 1rem; padding-top: 0.5rem; border-top: 1px solid #999; }
                     
-                    .tear-off-slip-print { border-top: 2px dashed #000; margin-top: 1rem; padding-top: 0.5rem; font-size: 0.8rem; page-break-before: auto; }
-                    .tear-off-slip-print .text-sm { font-size: 0.9rem; }
-                    .tear-off-slip-print .text-2xl { font-size: 1.3rem; }
-                    .barcode-container-print { max-width: 240px; margin: 0.25rem auto 0 auto; }
+                    .tear-off-slip-print { font-size: 8pt; border-top: 2px dashed #000; margin-top: 1rem; padding-top: 0.5rem; page-break-before: auto; }
+                    .tear-off-slip-print .slip-account-number { font-size: 9pt; }
+                    .tear-off-slip-print .slip-user-name { font-size: 9pt; }
+                    .tear-off-slip-print .logo-print { font-size: 1.5rem; }
+                    .barcode-container-print { max-width: 220px; margin: 0.25rem auto 0 auto; }
                     
                     .paid-stamp-print {
                         position: absolute;
@@ -240,11 +245,11 @@ const InvoiceView = ({
                         letter-spacing: 0.1em;
                         text-transform: uppercase;
                     }
-                    .paid-stamp-main-print { font-size: 4rem; font-weight: 900; line-height: 1; }
-                    .paid-stamp-date-print { font-size: 1rem; font-weight: 700; display: block; border-top: 2px solid rgba(220, 38, 38, 0.25); padding-top: 4px; margin-top: 4px; }
+                    .paid-stamp-main-print { font-size: 3rem; font-weight: 900; line-height: 1; }
+                    .paid-stamp-date-print { font-size: 0.9rem; font-weight: 700; display: block; border-top: 2px solid rgba(220, 38, 38, 0.25); padding-top: 4px; margin-top: 4px; }
                     
                     .penalty-notice-print {
-                        font-size: 0.75rem;
+                        font-size: 8pt;
                         color: #A94442 !important;
                         background-color: #FDF7F7 !important;
                         padding: 0.4rem;
@@ -437,17 +442,17 @@ const InvoiceView = ({
                                             <DetailRow label="Environmental Charge" value={charges.environmentalCharge?.toFixed(2)} />
                                             <DetailRow label="Sewer Charge" value={charges.sewerageCharge?.toFixed(2)} />
                                             <DetailRow label="Maintenance Service Charge" value={charges.maintenanceServiceCharge?.toFixed(2)} />
-                                            <DetailRow label="SUBTOTAL" value={(charges.subTotalBeforeTaxes).toFixed(2)} isBold={true} isSubtotal={true} />
+                                            <DetailRow label="SUBTOTAL (A)" value={(charges.subTotalBeforeTaxes).toFixed(2)} isBold={true} isSubtotal={true} />
 
                                             <tr className="h-2"><td colSpan="2"></td></tr>
                                             <DetailRow label="Taxes and Discounts" value={null} isBold={true} />
                                             <DetailRow label="Government Taxes" value={charges.governmentTaxes?.toFixed(2)} />
                                             <DetailRow label="VAT" value={charges.vat?.toFixed(2)} />
                                             <DetailRow label="Senior Citizen Discount" value={seniorCitizenDiscount > 0 ? `(${seniorCitizenDiscount.toFixed(2)})` : '0.00'} />
-                                            <DetailRow label="SUBTOTAL" value={(charges.governmentTaxes + charges.vat - seniorCitizenDiscount).toFixed(2)} isBold={true} isSubtotal={true} />
+                                            <DetailRow label="SUBTOTAL (B)" value={(charges.governmentTaxes + charges.vat - seniorCitizenDiscount).toFixed(2)} isBold={true} isSubtotal={true} />
                                             
                                             <tr className="h-2"><td colSpan="2"></td></tr>
-                                            <DetailRow label="TOTAL CURRENT CHARGES" value={totalCurrentCharges.toFixed(2)} isBold={true} isSubtotal={true} />
+                                            <DetailRow label="TOTAL CURRENT CHARGES (A+B)" value={totalCurrentCharges.toFixed(2)} isBold={true} isSubtotal={true} />
                                             
                                             <tr className="h-4"><td colSpan="2"></td></tr>
                                             
