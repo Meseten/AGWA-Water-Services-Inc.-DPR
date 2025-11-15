@@ -5,7 +5,7 @@ import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath, documentId, startAfter 
+    FieldPath, documentId, startAfter, runTransaction, FieldValue
 } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
@@ -60,5 +60,5 @@ export {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath, documentId, startAfter
+    FieldPath, documentId, startAfter, runTransaction, FieldValue
 };
