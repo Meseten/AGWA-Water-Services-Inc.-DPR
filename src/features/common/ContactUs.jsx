@@ -182,11 +182,8 @@ const ContactUsSection = ({ systemSettings = {} }) => {
                         Data Privacy Notice
                     </button>.
                 </p>
-                <p className="text-xs text-gray-500 mt-2">
-                    General public information is also available on our main website: <a href="https://www.agwa-waterservices.com.ph" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">www.agwa-waterservices.com.ph</a>.
-                </p>
                 <p className="text-center text-xs text-gray-400 mt-4">
-                    &copy; {new Date().getFullYear()} AGWA Water Services, Inc. All Rights Reserved.
+                    © {new Date().getFullYear()} AGWA Water Services, Inc. All Rights Reserved.
                 </p>
             </div>
 
