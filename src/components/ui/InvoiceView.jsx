@@ -32,9 +32,12 @@ const InvoiceView = ({
         (b.paymentHistory || []).map(p => ({ ...p, billMonthYear: b.monthYear || b.billingPeriod }))
     ).sort((a,b) => (b.date?.toDate ? b.date.toDate() : new Date(b.date)) - (a.date?.toDate ? a.date.toDate() : new Date(a.date)));
     
-    const allRecentAdjustments = recentBills.flatMap(b => 
-        (b.adjustments || []).map(a => ({ ...a, billMonthYear: b.monthYear || b.billingPeriod }))
-    ).sort((a,b) => (b.date?.toDate ? b.date.toDate() : new Date(b.date)) - (a.date?.toDate ? a.date.toDate() : new Date(a.date)));
+    const consumptionLog = recentBills.map(b => ({
+        id: b.id,
+        monthYear: b.monthYear || b.billingPeriod,
+        readingDate: b.currentReadingDate ? formatDate(b.currentReadingDate, { month: 'short', day: 'numeric', year: 'numeric' }) : formatDate(b.billDate, { month: 'short', day: 'numeric', year: 'numeric' }),
+        consumption: b.consumption
+    }));
 
     const charges = bill.calculatedCharges || calculateBillDetails(
         bill.consumption,
@@ -42,7 +45,7 @@ const InvoiceView = ({
         userData.meterSize || '1/2"'
     );
     
-    const totalCurrentCharges = parseFloat(bill.totalCalculatedCharges?.toFixed(2) || 0);
+    const totalCurrentCharges = bill.baseAmount || 0;
     const seniorCitizenDiscount = parseFloat((bill.seniorCitizenDiscount || 0).toFixed(2));
 
     const baseAmount = bill.baseAmount || 0;
@@ -335,20 +338,20 @@ const InvoiceView = ({
                                 </div>
                                 
                                 <div className="invoice-section-print h-line">
-                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Rebate & Adjustment History (Last 90 Days)</h2>
+                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Consumption Log (Last 90 Days)</h2>
                                     <table className="w-full history-table-print">
-                                        <thead><tr><th>Posting Date</th><th>Description</th><th className="text-right">Amount</th></tr></thead>
+                                        <thead><tr><th>Billing Period/Month</th><th>Reading Date</th><th className="text-right">Usage Read (m³)</th></tr></thead>
                                         <tbody>
-                                            {allRecentAdjustments.length > 0 ? (
-                                                allRecentAdjustments.map((adj, index) => (
-                                                    <tr key={index}>
-                                                        <td>{formatDate(adj.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                                                        <td>{adj.reference || 'Adjustment'}</td>
-                                                        <td className="text-right">{adj.amount.toFixed(2)}</td>
+                                            {consumptionLog.length > 0 ? (
+                                                consumptionLog.map((log) => (
+                                                    <tr key={log.id}>
+                                                        <td>{log.monthYear}</td>
+                                                        <td>{log.readingDate}</td>
+                                                        <td className="text-right">{log.consumption} m³</td>
                                                     </tr>
                                                 ))
                                             ) : (
-                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No adjustments in the last 90 days.</td></tr>
+                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No consumption history in the last 90 days.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -434,33 +437,23 @@ const InvoiceView = ({
                                             <DetailRow label="Environmental Charge" value={charges.environmentalCharge?.toFixed(2)} />
                                             <DetailRow label="Sewer Charge" value={charges.sewerageCharge?.toFixed(2)} />
                                             <DetailRow label="Maintenance Service Charge" value={charges.maintenanceServiceCharge?.toFixed(2)} />
-                                            <DetailRow label="Senior Citizen Discount" value={seniorCitizenDiscount > 0 ? `(${seniorCitizenDiscount.toFixed(2)})` : '0.00'} />
-                                            <DetailRow label="Government Taxes" value={charges.governmentTaxes?.toFixed(2)} />
-                                            <DetailRow label="SUBTOTAL" value={(charges.subTotalBeforeTaxes + charges.governmentTaxes - seniorCitizenDiscount).toFixed(2)} isBold={true} isSubtotal={true} />
-                                            
+                                            <DetailRow label="SUBTOTAL" value={(charges.subTotalBeforeTaxes).toFixed(2)} isBold={true} isSubtotal={true} />
+
                                             <tr className="h-2"><td colSpan="2"></td></tr>
-                                            <DetailRow label="Other Charges" value={null} isBold={true} />
-                                            <DetailRow label="Water Connection Fee" value="0.00" />
-                                            <DetailRow label="Government Taxes" value="0.00" />
-                                            <DetailRow label="Sewer Connection Fee" value="0.00" />
-                                            <DetailRow label="Government Taxes" value="0.00" />
-                                            <DetailRow label="Desludging Fee" value="0.00" />
-                                            <DetailRow label="Government Taxes" value="0.00" />
-                                            <DetailRow label="Reconnection Fee" value="0.00" />
-                                            <DetailRow label="Government Taxes" value="0.00" />
-                                            <DetailRow label="Others (VAT Exempt)" value="0.00" />
-                                            <DetailRow label="Government Taxes" value="0.00" />
-                                            <DetailRow label="Others (VATable)" value="0.00" />
-                                            <DetailRow label="VAT" value="0.00" />
-                                            <DetailRow label="SUBTOTAL" value="0.00" isBold={true} isSubtotal={true} />
+                                            <DetailRow label="Taxes and Discounts" value={null} isBold={true} />
+                                            <DetailRow label="Government Taxes" value={charges.governmentTaxes?.toFixed(2)} />
+                                            <DetailRow label="VAT" value={charges.vat?.toFixed(2)} />
+                                            <DetailRow label="Senior Citizen Discount" value={seniorCitizenDiscount > 0 ? `(${seniorCitizenDiscount.toFixed(2)})` : '0.00'} />
+                                            <DetailRow label="SUBTOTAL" value={(charges.governmentTaxes + charges.vat - seniorCitizenDiscount).toFixed(2)} isBold={true} isSubtotal={true} />
                                             
                                             <tr className="h-2"><td colSpan="2"></td></tr>
                                             <DetailRow label="TOTAL CURRENT CHARGES" value={totalCurrentCharges.toFixed(2)} isBold={true} isSubtotal={true} />
-                                            <DetailRow label="VATable Sales" value="0.00" />
+                                            
+                                            <tr className="h-4"><td colSpan="2"></td></tr>
+                                            
+                                            <DetailRow label="VATable Sales" value={charges.vatableSales?.toFixed(2)} />
                                             <DetailRow label="VAT Zero-rated" value="0.00" />
-                                            <DetailRow label="VAT Exempt" value={charges.subTotalBeforeTaxes?.toFixed(2)} />
-                                            <DetailRow label="VAT" value={charges.vat?.toFixed(2)} />
-                                            <DetailRow label="Government Taxes" value={charges.governmentTaxes?.toFixed(2)} />
+                                            <DetailRow label="VAT Exempt" value="0.00" />
                                         </tbody>
                                     </table>
                                     
