@@ -1,104 +1,136 @@
-import { loadStripe } from '@stripe/stripe-js';
-import { getAuth } from 'firebase/auth';
-import * as DataService from './dataService.js';
+const admin = require('firebase-admin');
+const Stripe = require('stripe');
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+let db;
+let stripe;
+let servicesInitialized = false;
 
-export const getStripe = () => stripePromise;
+try {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("CRITICAL: STRIPE_SECRET_KEY environment variable is not set.");
+  }
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-export const createCheckoutSession = async (
-  billId,
-  amount,
-  userEmail,
-  userId,
-  accountNumber
-) => {
+  if (admin.apps.length === 0) {
+    const serviceAccount = {
+      type: "service_account",
+      project_id: process.env.FIREBASE_ADMIN_PROJECT_ID,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_ADMIN_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_ADMIN_CLIENT_EMAIL.replace('@', '%40')}`
+    };
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+  }
+
+  db = admin.firestore();
+  servicesInitialized = true;
+  console.log("createStripeCheckoutSession API: Services initialized successfully.");
+} catch (error) {
+  console.error('CRITICAL: Failed to initialize services:', error.message, error.stack);
+}
+
+const verifyFirebaseToken = async (authorizationHeader) => {
+  if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
+    throw new Error('Unauthorized: No token provided.');
+  }
+  const token = authorizationHeader.split('Bearer ')[1];
   try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    return decodedToken;
+  } catch (error) {
+    console.error("Error verifying Firebase token:", error);
+    throw new Error('Unauthorized: Invalid token.');
+  }
+};
+
+export default async function handler(req, res) {
+  const allowedOrigins = [
+    'https://agwa-wsinc.verce.app', 
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  if (!servicesInitialized || !db || !stripe) {
+    console.error("createStripeCheckoutSession API: Services not initialized.");
+    return res.status(500).json({ error: 'Server configuration error. Check logs.' });
+  }
+
+  try {
+    const user = await verifyFirebaseToken(req.headers.authorization);
+    
+    const { 
+      billId, 
+      amount, 
+      userEmail, 
+      userId, 
+      accountNumber, 
+      successUrl, 
+      cancelUrl 
+    } = req.body;
+
+    if (!billId || !amount || !userEmail || !userId || !successUrl || !cancelUrl) {
+      return res.status(400).json({ error: 'Missing required payment details.' });
+    }
+    
+    if (user.uid !== userId) {
+        return res.status(403).json({ error: 'Forbidden: Token does not match user ID.' });
     }
 
-    const token = await user.getIdToken();
-    const amountInCents = Math.round(amount * 100);
-
-    const successUrl = `${window.location.origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${window.location.origin}/?payment=cancel`;
-
-    const response = await fetch('/api/createStripeCheckoutSession', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'php',
+            product_data: {
+              name: `AGWA Water Bill (${accountNumber || 'N/A'})`,
+              description: `Payment for Bill ID: ${billId}`,
+            },
+            unit_amount: amount, 
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      customer_email: userEmail,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: {
         billId: billId,
-        amount: amountInCents,
-        userEmail: userEmail,
         userId: userId,
-        accountNumber: accountNumber,
-        successUrl: successUrl,
-        cancelUrl: cancelUrl,
-      }),
-    });
-
-    if (!response.ok) {
-      let errorText = `API Error: ${response.statusText}`;
-      try {
-        const errorBody = await response.json();
-        errorText = errorBody.error || 'Failed to create session from API';
-      } catch (e) {
-        errorText = `API route returned an invalid or empty response. Status: ${response.status}.`;
-      }
-      throw new Error(errorText);
-    }
-
-    const data = await response.json();
-
-    if (!data || !data.sessionUrl) {
-      throw new Error('Invalid response from checkout session API. Missing sessionUrl.');
-    }
-
-    return data.sessionUrl;
-  } catch (error) {
-    console.error('Error creating checkout session:', error);
-    throw new Error(error.message || 'Could not connect to payment service.');
-  }
-};
-
-export const verifyCheckoutSession = async (sessionId, dbInstance) => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-    const token = await user.getIdToken();
-
-    const response = await fetch('/api/verifyStripePayment', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        accountNumber: accountNumber || 'N/A',
       },
-      body: JSON.stringify({ sessionId }),
     });
 
-    if (!response.ok) {
-      const errorBody = await response.json();
-      throw new Error(errorBody.error || 'Payment verification failed.');
-    }
+    return res.status(200).json({ sessionUrl: session.url });
 
-    const data = await response.json();
-
-    if (data.success && data.paymentDetails) {
-      return { success: true };
-    } else {
-      throw new Error(data.error || 'Invalid verification response from server.');
-    }
   } catch (error) {
-    console.error('Error verifying checkout session:', error);
-    return { success: false, error: 'An error occurred while verifying your payment. Please try again.' };
+    console.error('Error creating Stripe checkout session:', error);
+    return res.status(500).json({ error: error.message || 'An internal server error occurred.' });
   }
-};
+}
