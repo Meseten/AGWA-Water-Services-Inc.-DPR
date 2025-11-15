@@ -70,13 +70,13 @@ const ContactUsSection = ({ systemSettings = {} }) => {
         icon: Building2,
         title: "AGWA Head Office",
         addressLines: [
-            "AGWA Water Services Tower",
-            "123 Aqua Drive, Hydro Business Park",
+            "AGWA Water Services Bldg.",
+            "Governor's Drive, Brgy. Ibayo Silangan",
             "Naic, Cavite, Philippines 4110"
         ],
         hours: "Mon - Fri, 8:00 AM - 5:00 PM PHT (Closed on weekends & public holidays)",
         note: "Walk-ins are welcome for payments and specific services. For complex concerns, an appointment is recommended to ensure specialist availability.",
-        mapLink: "https://maps.google.com/?q=AGWA+Water+Services+Tower,Quezon+City",
+        mapLink: "https://www.google.com/maps/place/Naic,+Cavite/",
         bgColor: "bg-gray-100",
         iconColor: "text-gray-600"
     };

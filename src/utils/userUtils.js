@@ -19,7 +19,7 @@ export const generatePlaceholderPhotoURL = (displayName) => {
 };
 
 export const formatDate = (timestamp, options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) => {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return '';
     let date;
     if (timestamp.toDate && typeof timestamp.toDate === 'function') {
         date = timestamp.toDate();

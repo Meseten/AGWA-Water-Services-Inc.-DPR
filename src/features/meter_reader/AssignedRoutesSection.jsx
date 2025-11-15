@@ -62,7 +62,7 @@ const AssignedRoutesSection = ({ db, userData: meterReaderData, showNotification
         if (result.success) {
             const todayStr = new Date().toISOString().split('T')[0];
             const accountsWithStatus = await Promise.all(result.data.map(async acc => {
-                let lastReadingInfo = { readingValue: 'N/A', readingDate: null };
+                let lastReadingInfo = { readingValue: '', readingDate: null };
                 let completedToday = false;
 
                 const readingsResult = await DataService.getMeterReadingsForAccount(db, acc.accountNumber);
@@ -80,7 +80,7 @@ const AssignedRoutesSection = ({ db, userData: meterReaderData, showNotification
                 return { 
                     ...acc, 
                     lastReading: lastReadingInfo.readingValue,
-                    lastReadingDateDisplay: lastReadingInfo.readingDate ? formatDate(lastReadingInfo.readingDate, {month:'short', day:'numeric'}) : 'N/A',
+                    lastReadingDateDisplay: lastReadingInfo.readingDate ? formatDate(lastReadingInfo.readingDate, {month:'short', day:'numeric'}) : '',
                     readingStatus: completedToday ? 'Completed Today' : 'Pending'
                 };
             }));
@@ -139,7 +139,7 @@ const AssignedRoutesSection = ({ db, userData: meterReaderData, showNotification
     };
     
     const formatAddressToString = (addressObj) => {
-        if (!addressObj || typeof addressObj !== 'object') return 'N/A';
+        if (!addressObj || typeof addressObj !== 'object') return '';
         const parts = [addressObj.street, addressObj.barangay, addressObj.district];
         return parts.filter(p => p && p.trim()).join(', ');
     };
@@ -207,7 +207,7 @@ const AssignedRoutesSection = ({ db, userData: meterReaderData, showNotification
                                     }`}
                                 >
                                     <p className={`font-semibold text-sm ${selectedRoute?.id === route.id ? 'text-white' : 'text-blue-700'}`}>{route.name}</p>
-                                    <p className={`text-xs mt-0.5 ${selectedRoute?.id === route.id ? 'text-blue-100' : 'text-gray-500'}`}>Area: {route.areaCode || 'N/A'}</p>
+                                    <p className={`text-xs mt-0.5 ${selectedRoute?.id === route.id ? 'text-blue-100' : 'text-gray-500'}`}>Area: {route.areaCode || ''}</p>
                                     <div className="mt-1.5 text-xs">
                                         <span className={`px-1.5 py-0.5 rounded-full text-white text-[10px] ${ (route.pendingCount || 0) > 0 ? 'bg-orange-500' : 'bg-green-500'}`}>
                                             {(route.pendingCount || 0) === 0 && route.accountCount > 0 ? 'All Read' : `${route.pendingCount} Pending`}
@@ -256,7 +256,7 @@ const AssignedRoutesSection = ({ db, userData: meterReaderData, showNotification
                                             <div className="flex-grow mb-2 sm:mb-0">
                                                 <p className="font-medium text-slate-800 text-sm">{account.displayName} <span className="text-xs text-slate-500 font-mono">({account.accountNumber})</span></p>
                                                 <p className="text-xs text-slate-600 mt-0.5">{formatAddressToString(account.serviceAddress)}</p>
-                                                <p className="text-xs text-slate-500 mt-0.5">Meter: {account.meterSerialNumber} | Last Reading: {account.lastReading || 'N/A'} on {account.lastReadingDateDisplay}</p>
+                                                <p className="text-xs text-slate-500 mt-0.5">Meter: {account.meterSerialNumber} | Last Reading: {account.lastReading || ''} {account.lastReadingDateDisplay ? `on ${account.lastReadingDateDisplay}` : ''}</p>
                                                 <p className={`text-xs font-semibold mt-1 ${account.readingStatus === 'Completed Today' ? 'text-green-600' : 'text-orange-600'}`}>
                                                     Status: {account.readingStatus}
                                                 </p>

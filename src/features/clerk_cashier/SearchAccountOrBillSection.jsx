@@ -83,7 +83,7 @@ const SearchAccountOrBillSection = ({ db, showNotification, billingService: calc
     };
 
     const formatAddressToString = (addressObj) => {
-        if (!addressObj || typeof addressObj !== 'object') return addressObj || 'N/A';
+        if (!addressObj || typeof addressObj !== 'object') return addressObj || '';
         const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Naic, Cavite"];
         return parts.filter(p => p && p.trim()).join(', ');
     };
@@ -92,7 +92,7 @@ const SearchAccountOrBillSection = ({ db, showNotification, billingService: calc
         <div className="flex items-start py-1.5">
             {Icon && <Icon size={16} className="mr-2.5 text-blue-500 flex-shrink-0 mt-0.5" />}
             <span className="text-xs font-medium text-gray-500 w-32 sm:w-40">{label}:</span>
-            <span className={`text-sm ${valueClass} flex-1 break-words`}>{value || 'N/A'}</span>
+            <span className={`text-sm ${valueClass} flex-1 break-words`}>{value || ''}</span>
         </div>
     );
 

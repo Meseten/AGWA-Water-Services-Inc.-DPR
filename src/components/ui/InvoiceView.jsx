@@ -36,7 +36,7 @@ const InvoiceView = ({
     const invoiceNumber = bill.invoiceNumber || `AGWA-${bill.id?.slice(0,4).toUpperCase()}-${formattedDateForInvoiceNum}`;
 
     const formatAddressToString = (addressObj) => {
-        if (!addressObj || typeof addressObj !== 'object') return addressObj || 'N/A';
+        if (!addressObj || typeof addressObj !== 'object') return addressObj || '';
         const parts = [addressObj.street, addressObj.barangay, addressObj.district, "Naic, Cavite"];
         return parts.filter(p => p && p.trim()).join(', ');
     };
@@ -185,7 +185,11 @@ const InvoiceView = ({
                     .charges-table-print td { padding: 0.15rem 0.25rem; }
                     .charges-table-print td:last-child { text-align: right; }
                     .charges-table-print tr.border-t td { border-top: 1px solid #999 !important; padding-top: 0.25rem; }
-                    .charges-table-print tr.total-due-row td { border-top: 2px solid #000 !important; font-size: 1.1em; font-weight: 700; padding-top: 0.25rem; }
+                    .charges-table-print .total-due-row td { padding-top: 0.25rem; }
+                    .charges-table-print .total-due-row .border-t-2 td { border-top: 2px solid #000 !important; }
+                    .charges-table-print .total-due-row .border-t td { border-top: 1px solid #999 !important; }
+                    .charges-table-print .total-due-row .text-lg { font-size: 1.1em; font-weight: 700; }
+                    .charges-table-print .total-due-row .text-red-600 { color: #A94442 !important; }
 
                     .history-table-print { width: 100%; }
                     .history-table-print th { text-align: left; font-size: 0.7rem; color: #374151 !important; border-bottom: 1px solid #999; padding-bottom: 2px; }
@@ -212,17 +216,6 @@ const InvoiceView = ({
                     }
                     .paid-stamp-main-print { font-size: 4rem; font-weight: 900; line-height: 1; }
                     .paid-stamp-date-print { font-size: 1rem; font-weight: 700; display: block; border-top: 2px solid rgba(220, 38, 38, 0.25); padding-top: 4px; margin-top: 4px; }
-                    
-                    .penalty-notice-print {
-                        font-size: 0.75rem;
-                        color: #A94442 !important;
-                        background-color: #FDF7F7 !important;
-                        padding: 0.4rem;
-                        border: 1px solid #F3D0D0 !important;
-                        margin-top: 0.5rem;
-                        text-align: left;
-                    }
-                    .penalty-notice-print strong { color: #A94442 !important; }
                 }
             `}} />
             
@@ -258,7 +251,7 @@ const InvoiceView = ({
                         </div>
                     )}
                     <div className="relative z-0">
-                        <header className="invoice-header-print mb-4">
+                        <header className="invoice-header-print mb-4 flex justify-between items-start">
                             <div>
                                 <h1 className="logo-print text-4xl font-bold text-blue-700">AGWA</h1>
                                 <p className="tagline-print text-sm text-blue-600 italic -mt-1">Ensuring Clarity, Sustaining Life.</p>
@@ -280,9 +273,9 @@ const InvoiceView = ({
                                     <p>{fullAddress}</p>
                                     <p className="mt-2">CAN: <span className="font-semibold">{userData.accountNumber}</span></p>
                                     <p>Rate Class: <span className="font-semibold">{userData.serviceType}</span></p>
-                                    <p>Meter Number: <span className="font-semibold">{userData.meterSerialNumber}</span></p>
-                                    <p>Service Area: <span className="font-semibold">{userData.serviceAddress?.barangay || 'N/A'}</span></p>
-                                    <p>MRU/SEQ No.: <span className="font-semibold">{userData.mruSeq || 'N/A'}</span></p>
+                                    <p>Meter Number: <span className="font-semibold">{userData.meterSerialNumber || ''}</span></p>
+                                    <p>Service Area: <span className="font-semibold">{userData.serviceAddress?.barangay || ''}</span></p>
+                                    <p>MRU/SEQ No.: <span className="font-semibold">{userData.mruSeq || ''}</span></p>
                                     <p className="mt-2">SC, PWD/Gov't ID No./Signature:</p>
                                     <div className="h-6 border-b border-gray-400"></div>
                                 </div>
@@ -304,7 +297,7 @@ const InvoiceView = ({
                                             <p>{bill.currentReading} m³</p>
                                             <p>{bill.previousReading} m³</p>
                                             <p>{bill.consumption} m³</p>
-                                            <p>{bill.prev3MonthsConsumption ? `${bill.prev3MonthsConsumption} m³` : 'N/A'}</p>
+                                            <p>{bill.prev3MonthsConsumption ? `${bill.prev3MonthsConsumption} m³` : ''}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -323,7 +316,7 @@ const InvoiceView = ({
                                                     </tr>
                                                 ))
                                             ) : (
-                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No adjustments.</td></tr>
+                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No adjustments for this period.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -343,7 +336,7 @@ const InvoiceView = ({
                                                     </tr>
                                                 ))
                                             ) : (
-                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No recent payments.</td></tr>
+                                                <tr><td colSpan="3" className="text-center py-1 text-gray-500">No payments posted this period.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -358,13 +351,12 @@ const InvoiceView = ({
 
                             </div>
                             
-                            {/* --- RIGHT COLUMN --- */}
                             <div className="invoice-grid-print-right">
                                 <div className="invoice-section-print">
                                     <p>Invoice No.: <span className="font-semibold">{invoiceNumber}</span></p>
-                                    <p>TIN: <span className="font-semibold">{userData.tin || 'N/A'}</span></p>
+                                    <p>TIN: <span className="font-semibold">{userData.tin || ''}</span></p>
                                     <p>Payer Name: <span className="font-semibold">{userData.displayName}</span></p>
-                                    <p>Payer TIN: <span className="font-semibold">{userData.tin || 'N/A'}</span></p>
+                                    <p>Payer TIN: <span className="font-semibold">{userData.tin || ''}</span></p>
                                 </div>
                                 
                                 <div className="blue-box-print p-3 bg-blue-50 border border-blue-200 my-2">
@@ -378,18 +370,6 @@ const InvoiceView = ({
                                     </p>
                                 </div>
                                 
-                                {bill.status === 'Unpaid' && potentialPenalty > 0 && finalTotalAmount === baseAmount && (
-                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
-                                        Pay after {formatDate(bill.dueDate, { month: 'short', day: 'numeric' })} to include a 
-                                        <strong> ₱{potentialPenalty.toFixed(2)} penalty</strong>.
-                                        <br/>Total amount after due date will be <strong> ₱{amountDueAfterDate.toFixed(2)}</strong>.
-                                    </div>
-                                )}
-                                 {bill.status === 'Unpaid' && finalTotalAmount > baseAmount && (
-                                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 text-left penalty-notice-print">
-                                        This amount includes a <strong>₱{(finalTotalAmount - baseAmount).toFixed(2)} penalty</strong> for late payment.
-                                    </div>
-                                )}
                                 {bill.status === 'Paid' && (
                                     <div className="text-center p-2 bg-green-100 border border-green-300 rounded-lg">
                                         <p className="font-bold text-green-700">AMOUNT PAID: ₱{(bill.amountPaid || bill.amount).toFixed(2)}</p>
@@ -436,12 +416,40 @@ const InvoiceView = ({
                                         </tbody>
                                     </table>
                                     
-                                    <table className="charges-table-print w-full mt-4 total-due-row">
-                                        <tbody>
-                                            <tr className="border-t-2 border-black">
-                                                <td className="py-1 font-semibold">TOTAL AMOUNT DUE</td>
-                                                <td className="py-1 text-right font-semibold">₱{finalTotalAmount.toFixed(2)}</td>
-                                            </tr>
+                                    <table className="charges-table-print w-full mt-4">
+                                        <tbody className="total-due-row">
+                                            {bill.status === 'Paid' && (
+                                                <tr className="border-t-2 border-black">
+                                                    <td className="py-1 font-semibold">AMOUNT PAID</td>
+                                                    <td className="py-1 text-right font-semibold text-green-600">₱{(bill.amountPaid || finalTotalAmount).toFixed(2)}</td>
+                                                </tr>
+                                            )}
+                                            {bill.status === 'Unpaid' && (
+                                                <>
+                                                    <tr className="border-t-2 border-black">
+                                                        <td className="py-1 font-semibold">Amount Due (on/before Due Date)</td>
+                                                        <td className="py-1 text-right font-semibold">₱{baseAmount.toFixed(2)}</td>
+                                                    </tr>
+                                                    {potentialPenalty > 0 && (
+                                                        <tr>
+                                                            <td className="py-1 font-semibold text-red-600">Penalty (Applied after Due Date)</td>
+                                                            <td className="py-1 text-right font-semibold text-red-600">₱{potentialPenalty.toFixed(2)}</td>
+                                                        </tr>
+                                                    )}
+                                                    {finalTotalAmount > baseAmount && (
+                                                        <tr className="border-t border-gray-400">
+                                                            <td className="py-1 font-bold text-lg text-red-600">CURRENT TOTAL DUE (incl. Penalty)</td>
+                                                            <td className="py-1 text-right font-bold text-lg text-red-600">₱{finalTotalAmount.toFixed(2)}</td>
+                                                        </tr>
+                                                    )}
+                                                    {finalTotalAmount === baseAmount && (
+                                                        <tr className="border-t border-gray-400">
+                                                            <td className="py-1 font-bold text-lg">CURRENT TOTAL DUE</td>
+                                                            <td className="py-1 text-right font-bold text-lg">₱{finalTotalAmount.toFixed(2)}</td>
+                                                        </tr>
+                                                    )}
+                                                </>
+                                            )}
                                             <tr>
                                                 <td className="py-1 font-semibold">DUE DATE</td>
                                                 <td className="py-1 text-right font-semibold">{formatDate(bill.dueDate, { month: 'long', day: 'numeric', year: 'numeric' })}</td>

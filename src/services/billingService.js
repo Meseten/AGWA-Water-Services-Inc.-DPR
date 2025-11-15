@@ -21,15 +21,78 @@ export const calculateBillDetails = (
         sewerageChargePercentageCommercial: 32.85,
         governmentTaxPercentage: 2,
         vatPercentage: 12,
+
+        minimumChargeResidential: 195.49,
+        minimumChargeCommercial: 512.30,
+        minimumChargeResLowIncome: 70.07,
+        minimumChargeSemiBusiness: 195.49,
+        minimumChargeIndustrial: 72.68,
+
+        rates: {
+            resLowIncome: [
+                { limit: 10, rate: 0, fixed: 70.07 },
+                { limit: 20, rate: 14.29 },
+                { limit: 30, rate: 23.82 },
+                { limit: 40, rate: 45.17 },
+                { limit: Infinity, rate: 59.54 }
+            ],
+            residential: [
+                { limit: 10, rate: 0, fixed: 195.49 },
+                { limit: 20, rate: 23.82 },
+                { limit: 30, rate: 45.17 },
+                { limit: 50, rate: 59.54 },
+                { limit: 70, rate: 69.52 },
+                { limit: 90, rate: 72.89 },
+                { limit: 140, rate: 76.14 },
+                { limit: 200, rate: 79.42 },
+                { limit: Infinity, rate: 82.67 }
+            ],
+            semiBusiness: [
+                { limit: 10, rate: 0, fixed: 195.49 },
+                { limit: 20, rate: 39.90 },
+                { limit: 40, rate: 49.22 },
+                { limit: 60, rate: 62.55 },
+                { limit: 80, rate: 72.88 },
+                { limit: 130, rate: 76.14 },
+                { limit: 180, rate: 79.42 },
+                { limit: Infinity, rate: 82.67 }
+            ],
+            commercial: [
+                { limit: 10, rate: 0, fixed: 512.30 },
+                { limit: 20, rate: 53.61 },
+                { limit: 40, rate: 58.98 },
+                { limit: 60, rate: 64.33 },
+                { limit: 80, rate: 69.69 },
+                { limit: 100, rate: 72.88 },
+                { limit: 150, rate: 76.14 },
+                { limit: 200, rate: 79.42 },
+                { limit: Infinity, rate: 82.67 }
+            ],
+            industrial: { rate: 72.68 }
+        }
     };
 
     const settings = { ...defaultSettings, ...systemSettingsInput };
-
+    
     const fcdaRate = (settings.fcdaPercentage || defaultSettings.fcdaPercentage) / 100;
     const ecRate = (settings.environmentalChargePercentage || defaultSettings.environmentalChargePercentage) / 100;
     const scRateCommercial = (settings.sewerageChargePercentageCommercial || defaultSettings.sewerageChargePercentageCommercial) / 100;
     const govTaxRate = (settings.governmentTaxPercentage || defaultSettings.governmentTaxPercentage) / 100;
     const vatRate = (settings.vatPercentage || defaultSettings.vatPercentage) / 100;
+
+    const rates = {
+        resLowIncome: settings.rates?.resLowIncome || defaultSettings.rates.resLowIncome,
+        residential: settings.rates?.residential || defaultSettings.rates.residential,
+        semiBusiness: settings.rates?.semiBusiness || defaultSettings.rates.semiBusiness,
+        commercial: settings.rates?.commercial || defaultSettings.rates.commercial,
+        industrial: settings.rates?.industrial || defaultSettings.rates.industrial,
+    };
+    
+    rates.resLowIncome[0].fixed = settings.minimumChargeResLowIncome || defaultSettings.minimumChargeResLowIncome;
+    rates.residential[0].fixed = settings.minimumChargeResidential || defaultSettings.minimumChargeResidential;
+    rates.semiBusiness[0].fixed = settings.minimumChargeSemiBusiness || defaultSettings.minimumChargeSemiBusiness;
+    rates.commercial[0].fixed = settings.minimumChargeCommercial || defaultSettings.minimumChargeCommercial;
+    rates.industrial.rate = settings.minimumChargeIndustrial || defaultSettings.minimumChargeIndustrial;
 
 
     const meterSizeCleaned = String(meterSize).replace(/["“”]/g, '').trim();
@@ -44,56 +107,12 @@ export const calculateBillDetails = (
     else if (meterSizeCleaned === '6' || meterSizeCleaned === '150mm') maintenanceServiceCharge = 35.00;
     else if (meterSizeCleaned === '8' || meterSizeCleaned === '200mm') maintenanceServiceCharge = 50.00;
     else maintenanceServiceCharge = 1.50;
-
-
-    if (serviceType === 'Residential Low-Income') {
-        if (cons <= 10) basicCharge = 70.07;
-        else if (cons <= 20) basicCharge = 70.07 + (cons - 10) * 14.29;
-        else { 
-            basicCharge = 70.07 + (10 * 14.29); 
-            let remainingCons = cons - 20;
-            if (remainingCons > 0) {
-                 if (remainingCons <=10) basicCharge += remainingCons * 23.82; 
-                 else if (remainingCons <=20) basicCharge += (10*23.82) + (remainingCons-10)*45.17; 
-                 else basicCharge += (10*23.82) + (10*45.17) + (remainingCons-20)*59.54;
-            }
-        }
-    } else if (serviceType === 'Residential') {
-        if (cons <= 10) basicCharge = 195.49;
-        else if (cons <= 20) basicCharge = 195.49 + (cons - 10) * 23.82;
-        else if (cons <= 30) basicCharge = 195.49 + (10 * 23.82) + (cons - 20) * 45.17;
-        else if (cons <= 50) basicCharge = 195.49 + (10 * 23.82) + (10 * 45.17) + (cons - 30) * 59.54;
-        else if (cons <= 70) basicCharge = 195.49 + (10*23.82) + (10*45.17) + (20*59.54) + (cons-50)*69.52;
-        else if (cons <= 90) basicCharge = 195.49 + (10*23.82) + (10*45.17) + (20*59.54) + (20*69.52) + (cons-70)*72.89;
-        else if (cons <= 140) basicCharge = 195.49 + (10*23.82) + (10*45.17) + (20*59.54) + (20*69.52) + (20*72.89) + (cons-90)*76.14;
-        else if (cons <= 200) basicCharge = 195.49 + (10*23.82) + (10*45.17) + (20*59.54) + (20*69.52) + (20*72.89) + (50*76.14) + (cons-140)*79.42;
-        else basicCharge = 195.49 + (10*23.82) + (10*45.17) + (20*59.54) + (20*69.52) + (20*72.89) + (50*76.14) + (60*79.42) + (cons-200)*82.67;
-    } else if (serviceType === 'Semi-Business') { 
-        if (cons <= 10) {
-            basicCharge = 195.49; 
-        } else { 
-            basicCharge = 195.49; 
-            let excessCons = cons - 10;
-            if (excessCons <= 10) basicCharge += excessCons * 39.90; 
-            else if (excessCons <= 30) basicCharge += (10 * 39.90) + (excessCons - 10) * 49.22; 
-            else if (excessCons <= 50) basicCharge += (10 * 39.90) + (20 * 49.22) + (excessCons - 30) * 62.55; 
-            else if (excessCons <= 70) basicCharge += (10*39.90) + (20*49.22) + (20*62.55) + (excessCons-50)*72.88;
-            else if (excessCons <= 120) basicCharge += (10*39.90) + (20*49.22) + (20*62.55) + (20*72.88) + (excessCons-70)*76.14;
-            else if (excessCons <= 170) basicCharge += (10*39.90) + (20*49.22) + (20*62.55) + (20*72.88) + (50*76.14) + (excessCons-120)*79.42;
-            else basicCharge += (10*39.90) + (20*49.22) + (20*62.55) + (20*72.88) + (50*76.14) + (50*79.42) + (excessCons-170)*82.67;
-        }
-    } else if (serviceType === 'Commercial' || serviceType === 'Admin') {
-        const tiers = [
-            { limit: 10, rate: 0, fixed: 512.30 }, { limit: 20, rate: 53.61 }, 
-            { limit: 40, rate: 58.98 }, { limit: 60, rate: 64.33 }, 
-            { limit: 80, rate: 69.69 }, { limit: 100, rate: 72.88 }, 
-            { limit: 150, rate: 76.14 }, { limit: 200, rate: 79.42 }, 
-            { limit: Infinity, rate: 82.67 }
-        ];
+    
+    const calculateTieredCharge = (tiers) => {
+        let charge = 0;
         let remainingCons = cons;
-        basicCharge = 0;
         if (remainingCons > 0 && tiers[0].fixed) {
-            basicCharge += tiers[0].fixed;
+            charge += tiers[0].fixed;
             remainingCons -= tiers[0].limit;
         }
         for (let i = 1; i < tiers.length; i++) {
@@ -101,13 +120,24 @@ export const calculateBillDetails = (
             const prevLimit = tiers[i-1].limit;
             const currentTierConsumptionCap = tiers[i].limit - prevLimit;
             const chargeableCons = Math.min(remainingCons, currentTierConsumptionCap);
-            basicCharge += chargeableCons * tiers[i].rate;
+            charge += chargeableCons * tiers[i].rate;
             remainingCons -= chargeableCons;
         }
+        return charge;
+    };
+
+    if (serviceType === 'Residential Low-Income') {
+        basicCharge = calculateTieredCharge(rates.resLowIncome);
+    } else if (serviceType === 'Residential') {
+        basicCharge = calculateTieredCharge(rates.residential);
+    } else if (serviceType === 'Semi-Business') { 
+        basicCharge = calculateTieredCharge(rates.semiBusiness);
+    } else if (serviceType === 'Commercial' || serviceType === 'Admin') {
+        basicCharge = calculateTieredCharge(rates.commercial);
     } else if (serviceType === 'Industrial' || serviceType === 'Meter Reading Personnel') {
-        basicCharge = cons * 72.68;
+        basicCharge = cons * rates.industrial.rate;
     } else { 
-        if (cons <= 10) basicCharge = 195.49; else basicCharge = 195.49 + (cons - 10) * 23.82;
+        basicCharge = calculateTieredCharge(rates.residential);
     }
 
     fcda = basicCharge * fcdaRate;
@@ -117,7 +147,7 @@ export const calculateBillDetails = (
     if (serviceType === 'Commercial' || serviceType === 'Industrial' || serviceType === 'Admin' || serviceType === 'Meter Reading Personnel') {
         sewerageCharge = waterCharge * scRateCommercial;
     } else { 
-        sewerageCharge = 0;
+        sewerageCharge = (settings.sewerageChargeResidential / 100) * waterCharge || 0;
     }
 
     const sumForGovTaxAndVat = waterCharge + environmentalCharge + sewerageCharge + maintenanceServiceCharge;
