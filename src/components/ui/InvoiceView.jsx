@@ -178,61 +178,61 @@ const InvoiceView = ({
                         -webkit-print-color-adjust: exact !important; 
                         print-color-adjust: exact !important;
                         color: #000;
-                        font-size: 9pt; 
+                        font-size: 8.5pt; 
                     }
                     .no-print { display: none !important; }
-                    .printable-area { padding: 0 !important; max-width: 100%; margin: auto; box-shadow: none !important; border: none !important; font-size: 9pt; }
+                    .printable-area { padding: 0 !important; max-width: 100%; margin: auto; box-shadow: none !important; border: none !important; font-size: 8.5pt; }
                     .invoice-header-print {
                         display: flex;
                         justify-content: space-between;
                         align-items: flex-start;
-                        padding-bottom: 0.5rem;
+                        padding-bottom: 0.25rem;
                     }
-                    .invoice-header-print .logo-print { font-size: 2rem; font-weight: 700; color: #1e3a8a !important; line-height: 1; }
-                    .invoice-header-print .tagline-print { font-size: 8pt; color: #1d4ed8 !important; font-style: italic; }
-                    .invoice-header-print .company-address-print { text-align: right; font-size: 8pt; line-height: 1.3; color: #374151 !important; }
+                    .invoice-header-print .logo-print { font-size: 18pt; font-weight: 700; color: #1e3a8a !important; line-height: 1; }
+                    .invoice-header-print .tagline-print { font-size: 7pt; color: #1d4ed8 !important; font-style: italic; }
+                    .invoice-header-print .company-address-print { text-align: right; font-size: 7pt; line-height: 1.3; color: #374151 !important; }
                     
-                    .invoice-title-print { font-size: 14pt; font-weight: 700; text-align: center; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+                    .invoice-title-print { font-size: 12pt; font-weight: 700; text-align: center; margin-top: 0.25rem; margin-bottom: 0.25rem; }
 
                     .invoice-grid-print { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
                     .invoice-grid-print-left { grid-column: span 1 / span 1; }
                     .invoice-grid-print-right { grid-column: span 1 / span 1; }
 
-                    .invoice-section-print h2 { font-weight: 700; font-size: 9pt; border-bottom: 1px solid #000; padding-bottom: 0.25rem; margin-bottom: 0.25rem; text-transform: uppercase; }
-                    .invoice-section-print p { margin: 0.15rem 0; line-height: 1.3; }
+                    .invoice-section-print h2 { font-weight: 700; font-size: 8.5pt; border-bottom: 1px solid #000; padding-bottom: 0.25rem; margin-bottom: 0.25rem; text-transform: uppercase; }
+                    .invoice-section-print p { margin: 0.1rem 0; line-height: 1.3; }
                     .invoice-section-print p span { font-weight: 600; }
-                    .invoice-section-print .h-line { border-top: 1px solid #000; margin-top: 0.5rem; padding-top: 0.5rem; }
+                    .invoice-section-print .h-line { border-top: 1px solid #000; margin-top: 0.25rem; padding-top: 0.25rem; }
                     .invoice-section-print .text-center { text-align: center; }
                     .invoice-section-print .history-note { font-size: 7pt; font-style: italic; color: #555 !important; }
                     
-                    .blue-box-print { background-color: #DBEAFE !important; border: 1px solid #BFDBFE !important; padding: 0.5rem 0.75rem; text-align: left; margin-top: 0.5rem; }
-                    .blue-box-print p { margin: 0; font-size: 8pt; font-weight: 700; color: #1E40AF !important; }
-                    .blue-box-print .due-amount { font-size: 11pt; color: #1D4ED8 !important; }
-                    .blue-box-print .due-date { font-size: 10pt; color: #1D4ED8 !important; }
+                    .blue-box-print { background-color: #DBEAFE !important; border: 1px solid #BFDBFE !important; padding: 0.25rem 0.5rem; text-align: left; margin-top: 0.5rem; }
+                    .blue-box-print p { margin: 0; font-size: 7.5pt; font-weight: 700; color: #1E40AF !important; }
+                    .blue-box-print .due-amount { font-size: 10pt; color: #1D4ED8 !important; }
+                    .blue-box-print .due-date { font-size: 9pt; color: #1D4ED8 !important; }
                     
-                    .charges-table-print { width: 100%; margin-top: 0.5rem; border-collapse: collapse; font-size: 9pt; }
-                    .charges-table-print td { padding: 0.15rem 0.25rem; }
+                    .charges-table-print { width: 100%; margin-top: 0.5rem; border-collapse: collapse; font-size: 8.5pt; }
+                    .charges-table-print td { padding: 0.1rem 0.25rem; }
                     .charges-table-print td:last-child { text-align: right; }
                     .charges-table-print tr.border-t td { border-top: 1px solid #999 !important; padding-top: 0.25rem; }
                     .charges-table-print .total-due-row td { padding-top: 0.25rem; }
                     .charges-table-print .total-due-row .border-t-2 td { border-top: 2px solid #000 !important; }
                     .charges-table-print .total-due-row .border-t td { border-top: 1px solid #999 !important; }
-                    .charges-table-print .total-due-row .text-lg { font-size: 10pt; font-weight: 700; }
+                    .charges-table-print .total-due-row .text-lg { font-size: 9.5pt; font-weight: 700; }
                     .charges-table-print .total-due-row .text-red-600 { color: #A94442 !important; }
                     .charges-table-print .total-due-row .text-green-600 { color: #256625 !important; }
 
-                    .history-table-print { width: 100%; font-size: 8pt; }
-                    .history-table-print th { text-align: left; font-size: 8pt; color: #374151 !important; border-bottom: 1px solid #999; padding-bottom: 2px; }
-                    .history-table-print td { text-align: left; font-size: 8pt; padding-top: 2px; }
+                    .history-table-print { width: 100%; font-size: 7.5pt; }
+                    .history-table-print th { text-align: left; font-size: 7.5pt; color: #374151 !important; border-bottom: 1px solid #999; padding-bottom: 2px; }
+                    .history-table-print td { text-align: left; font-size: 7.5pt; padding-top: 1px; }
                     .history-table-print td:last-child { text-align: right; }
                     
                     .bir-permit-print { text-align: center; font-size: 7pt; color: #4B5563 !important; margin-top: 1rem; padding-top: 0.5rem; border-top: 1px solid #999; }
                     
-                    .tear-off-slip-print { font-size: 8pt; border-top: 2px dashed #000; margin-top: 1rem; padding-top: 0.5rem; page-break-before: auto; }
-                    .tear-off-slip-print .slip-account-number { font-size: 9pt; }
-                    .tear-off-slip-print .slip-user-name { font-size: 9pt; }
-                    .tear-off-slip-print .logo-print { font-size: 1.5rem; }
-                    .barcode-container-print { max-width: 220px; margin: 0.25rem auto 0 auto; }
+                    .tear-off-slip-print { font-size: 8pt; border-top: 2px dashed #000; margin-top: 0.5rem; padding-top: 0.25rem; page-break-before: auto; }
+                    .tear-off-slip-print .slip-account-number { font-size: 8pt; }
+                    .tear-off-slip-print .slip-user-name { font-size: 8pt; }
+                    .tear-off-slip-print .logo-print { font-size: 14pt; }
+                    .barcode-container-print { max-width: 180px; margin: 0.25rem auto 0 auto; }
                     
                     .paid-stamp-print {
                         position: absolute;
@@ -245,11 +245,11 @@ const InvoiceView = ({
                         letter-spacing: 0.1em;
                         text-transform: uppercase;
                     }
-                    .paid-stamp-main-print { font-size: 3rem; font-weight: 900; line-height: 1; }
-                    .paid-stamp-date-print { font-size: 0.9rem; font-weight: 700; display: block; border-top: 2px solid rgba(220, 38, 38, 0.25); padding-top: 4px; margin-top: 4px; }
+                    .paid-stamp-main-print { font-size: 2.5rem; font-weight: 900; line-height: 1; }
+                    .paid-stamp-date-print { font-size: 8pt; font-weight: 700; display: block; border-top: 2px solid rgba(220, 38, 38, 0.25); padding-top: 4px; margin-top: 4px; }
                     
                     .penalty-notice-print {
-                        font-size: 8pt;
+                        font-size: 7.5pt;
                         color: #A94442 !important;
                         background-color: #FDF7F7 !important;
                         padding: 0.4rem;

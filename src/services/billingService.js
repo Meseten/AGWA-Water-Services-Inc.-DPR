@@ -11,7 +11,6 @@ export const calculateBillDetails = (
     let maintenanceServiceCharge = 0;
     let governmentTaxes = 0;
     let vat = 0;
-    let waterCharge = 0;
 
     const cons = parseFloat(consumption) || 0;
 
@@ -141,7 +140,7 @@ export const calculateBillDetails = (
     }
 
     fcda = basicCharge * fcdaRate;
-    waterCharge = basicCharge + fcda;
+    const waterCharge = basicCharge + fcda;
     environmentalCharge = waterCharge * ecRate;
 
     if (serviceType === 'Commercial' || serviceType === 'Industrial' || serviceType === 'Admin' || serviceType === 'Meter Reading Personnel') {
@@ -150,25 +149,24 @@ export const calculateBillDetails = (
         sewerageCharge = (settings.sewerageChargeResidential / 100) * waterCharge || 0;
     }
 
-    const sumForGovTaxAndVat = waterCharge + environmentalCharge + sewerageCharge + maintenanceServiceCharge;
-    governmentTaxes = sumForGovTaxAndVat * govTaxRate;
+    const subTotalBeforeTaxes = waterCharge + environmentalCharge + sewerageCharge + maintenanceServiceCharge;
     
-    const vatableSales = sumForGovTaxAndVat;
-    vat = vatableSales * vatRate;
+    governmentTaxes = subTotalBeforeTaxes * govTaxRate;
+    vat = subTotalBeforeTaxes * vatRate;
 
-    const totalCalculatedCharges = vatableSales + governmentTaxes + vat;
+    // This is the total *before* discounts are applied.
+    const totalCalculatedCharges = subTotalBeforeTaxes + governmentTaxes + vat;
 
     return {
         consumption: cons, serviceType, meterSize: meterSizeCleaned,
         basicCharge: parseFloat(basicCharge.toFixed(2)),
         fcda: parseFloat(fcda.toFixed(2)),
-        waterCharge: parseFloat(waterCharge.toFixed(2)),
         environmentalCharge: parseFloat(environmentalCharge.toFixed(2)),
         sewerageCharge: parseFloat(sewerageCharge.toFixed(2)),
         maintenanceServiceCharge: parseFloat(maintenanceServiceCharge.toFixed(2)),
-        subTotalBeforeTaxes: parseFloat(vatableSales.toFixed(2)),
+        subTotalBeforeTaxes: parseFloat(subTotalBeforeTaxes.toFixed(2)),
         governmentTaxes: parseFloat(governmentTaxes.toFixed(2)),
-        vatableSales: parseFloat(vatableSales.toFixed(2)),
+        vatableSales: parseFloat(subTotalBeforeTaxes.toFixed(2)), // VATable Sales is the subtotal
         vat: parseFloat(vat.toFixed(2)),
         totalCalculatedCharges: parseFloat(totalCalculatedCharges.toFixed(2)),
     };
