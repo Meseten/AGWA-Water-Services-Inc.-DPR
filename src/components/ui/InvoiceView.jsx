@@ -335,7 +335,7 @@ const InvoiceView = ({
                                 </div>
                                 
                                 <div className="invoice-section-print h-line">
-                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Adjustments (Last 90 Days)</h2>
+                                    <h2 className="font-bold text-xs border-b border-black pb-1 mb-1 uppercase">Rebate & Adjustment History (Last 90 Days)</h2>
                                     <table className="w-full history-table-print">
                                         <thead><tr><th>Posting Date</th><th>Description</th><th className="text-right">Amount</th></tr></thead>
                                         <tbody>
@@ -363,7 +363,7 @@ const InvoiceView = ({
                                                 allRecentPayments.map((payment, index) => (
                                                     <tr key={index}>
                                                         <td>{payment.billMonthYear}</td>
-                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                                        <td>{formatDate(payment.date, { month: 'short', day: 'numeric' })}</td>
                                                         <td className="text-right">₱{payment.amount.toFixed(2)}</td>
                                                     </tr>
                                                 ))
