@@ -1,5 +1,7 @@
-import React from 'react';
-import { PhoneCall, Mail, Building2, MapPin, Facebook, Twitter, Instagram, MessageSquare, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { PhoneCall, Mail, Building2, MapPin, Facebook, X, Instagram, MessageSquare, Clock } from 'lucide-react';
+import TermsModal from './TermsModal.jsx';
+import PrivacyModal from './PrivacyModal.jsx';
 
 const SocialIcon = ({ type, href }) => {
     let IconComponent;
@@ -10,9 +12,9 @@ const SocialIcon = ({ type, href }) => {
             IconComponent = Facebook;
             hoverColor = 'hover:text-blue-600';
             break;
-        case 'Twitter':
-            IconComponent = Twitter;
-            hoverColor = 'hover:text-sky-500';
+        case 'X':
+            IconComponent = X;
+            hoverColor = 'hover:text-black';
             break;
         case 'Instagram':
             IconComponent = Instagram;
@@ -36,9 +38,12 @@ const SocialIcon = ({ type, href }) => {
 
 
 const ContactUsSection = ({ systemSettings = {} }) => {
+    const [showTerms, setShowTerms] = useState(false);
+    const [showPrivacy, setShowPrivacy] = useState(false);
+
     const { 
         supportHotline = "1627-AGWA (24/7 Emergency)",
-        supportEmail = "support@agwa-waterservices.com.ph"
+        supportEmail = "support@agwa.ph"
     } = systemSettings;
 
     const contactDetails = [
@@ -83,7 +88,7 @@ const ContactUsSection = ({ systemSettings = {} }) => {
 
     const socialMediaLinks = [
         { type: 'Facebook', href: 'https://facebook.com/AGWAwaterservices' },
-        { type: 'Twitter', href: 'https://twitter.com/AGWAwaterserv' },
+        { type: 'X', href: 'https://x.com/AGWAwaterserv' },
         { type: 'Instagram', href: 'https://instagram.com/AGWAwater' }
     ];
 
@@ -134,15 +139,23 @@ const ContactUsSection = ({ systemSettings = {} }) => {
                         ))}
                     </div>
                 </div>
-                <div className="text-sm text-gray-600 space-y-1 mt-2">
-                    <p className="flex items-center"><Clock size={14} className="mr-2 text-gray-500"/><strong>Hours:</strong> {officeInfo.hours}</p>
-                    <p className="flex items-start"><MapPin size={14} className="mr-2 mt-0.5 text-gray-500 flex-shrink-0"/><strong>Location Note:</strong> {officeInfo.note}</p>
+                <div className="text-sm text-gray-600 space-y-2 mt-3">
+                    <div className="flex items-center">
+                        <Clock size={14} className="mr-2.5 text-gray-500 flex-shrink-0"/>
+                        <span className="font-semibold w-24">Hours:</span>
+                        <span>{officeInfo.hours}</span>
+                    </div>
+                    <div className="flex items-start">
+                        <MapPin size={14} className="mr-2.5 mt-0.5 text-gray-500 flex-shrink-0"/>
+                        <span className="font-semibold w-24">Location Note:</span>
+                        <span>{officeInfo.note}</span>
+                    </div>
                 </div>
                 <a
                     href={officeInfo.mapLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                    className="mt-4 inline-flex items-center text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
                 >
                     View on Map <MapPin size={12} className="ml-1" />
                 </a>
@@ -158,11 +171,27 @@ const ContactUsSection = ({ systemSettings = {} }) => {
                         <SocialIcon key={social.type} type={social.type} href={social.href} />
                     ))}
                 </div>
+                
                 <p className="mt-8 text-xs text-gray-500">
-                    For online self-service options, please <button onClick={() => { alert("Please log in to access self-service options.")}} className="text-blue-600 hover:underline font-medium">log in</button> to your account. <br/>
-                    General information is also available on our official website: <a href="https://www.agwa-waterservices.com.ph" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">www.agwa-waterservices.com.ph</a>
+                    For more details, review our{' '}
+                    <button type="button" onClick={() => setShowTerms(true)} className="font-medium text-blue-600 hover:underline">
+                        Terms of Service
+                    </button>
+                    {' & '}
+                    <button type="button" onClick={() => setShowPrivacy(true)} className="font-medium text-blue-600 hover:underline">
+                        Data Privacy Notice
+                    </button>.
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                    General public information is also available on our main website: <a href="https://www.agwa-waterservices.com.ph" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">www.agwa-waterservices.com.ph</a>.
+                </p>
+                <p className="text-center text-xs text-gray-400 mt-4">
+                    &copy; {new Date().getFullYear()} AGWA Water Services, Inc. All Rights Reserved.
                 </p>
             </div>
+
+            <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+            <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
         </div>
     );
 };
