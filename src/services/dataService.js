@@ -453,7 +453,7 @@ export async function searchUserProfiles(dbInstance, searchTerm) {
     }
 };
 
-function formatDateSimple(date) { return date ? date.toLocaleDateString('en-CA') : 'N/A'; };
+function formatDateSimple(date) { return date ? date.toLocaleDateString('en-CA') : ''; };
 
 export async function generateBillForUser(dbInstance, userId, userProfile) {
      if (!userId || !userProfile) return { success: false, error: "User ID and profile required." };
