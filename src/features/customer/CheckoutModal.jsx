@@ -27,7 +27,7 @@ const CheckoutModal = ({ isOpen, onClose, billToPay, userData, showNotification,
             );
             
             if (sessionUrl && (sessionUrl.startsWith('https://checkout.stripe.com/') || sessionUrl.startsWith('https://test.stripe.com/'))) {
-                window.location.href = sessionUrl;
+                window.location.assign(sessionUrl);
             } else {
                 console.error("Invalid or untrusted session URL received:", sessionUrl);
                 throw new Error("Received an invalid payment URL. Please try again.");

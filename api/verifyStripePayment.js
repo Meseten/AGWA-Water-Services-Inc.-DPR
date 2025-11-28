@@ -78,7 +78,7 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
     const userProfileRef = dbInstance.doc(`public/data/profiles/${userId}`);
     const userProfileSnap = await userProfileRef.get();
     if (!userProfileSnap.exists()) {
-      console.error(`[Rebate] User profile ${userId} not found. Cannot award points.`);
+      console.error('[Rebate] User profile not found. Cannot award points for user:', { userId });
       return;
     }
 
@@ -102,13 +102,13 @@ async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSet
     await batch.commit();
     console.log(`[Rebate] Awarded ${roundedPointsToAward} points to ${userId}. New total: ${newTotalPoints}`);
   } catch (error) {
-    console.error(`[Rebate] Failed to award rebate points to ${userId}:`, error);
+    console.error('[Rebate] Failed to award rebate points:', { userId, error });
   }
 }
 
 export default async function handler(req, res) {
   const allowedOrigins = [
-    'https://agwa-wsinc.verce.app', 
+    'https://agwa-wsinc.vercel.app',
     'http://localhost:3000',
     'http://localhost:5173'
   ];
