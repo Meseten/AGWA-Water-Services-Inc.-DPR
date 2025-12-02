@@ -15,7 +15,7 @@
     "dependencies": {
         "@stripe/react-stripe-js": "^5.3.0",
         "@stripe/stripe-js": "^8.5.3",
-        "caniuse-lite": "^1.0.30001753",
+        "caniuse-lite": "^1.0.30001754",
         "chart.js": "^4.5.1",
         "clsx": "^2.1.1",
         "dompurify": "^3.3.0",
