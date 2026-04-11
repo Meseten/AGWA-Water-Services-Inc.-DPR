@@ -4,7 +4,6 @@ import CustomerDashboardMain from '../../features/customer/CustomerDashboardMain
 import CustomerBillsSection from '../../features/customer/CustomerBillsSection.jsx';
 import WaterAnalyticsSection from '../../features/customer/WaterAnalyticsSection.jsx';
 import PaymentAnalyticsSection from '../../features/customer/PaymentAnalyticsSection.jsx';
-import RebateProgramSection from '../../features/customer/RebateProgramSection.jsx';
 import MyProfileSection from '../../features/common/MyProfileSection.jsx';
 import ReportIssueSection from '../../features/common/ReportIssuesSection.jsx';
 import FaqsSection from '../../features/common/FaqsSection.jsx';
@@ -22,6 +21,8 @@ import StatisticsDashboard from '../../features/admin/StatisticsDashboard.jsx';
 import MeterReadingEditor from '../../features/admin/MeterReadingEditor.jsx';
 import RouteManagementSection from '../../features/admin/RouteManagementSection.jsx';
 import BatchBillingSection from '../../features/admin/BatchBillingSection.jsx';
+import DemandForecastingSection from '../../features/admin/DemandForecastingSection.jsx';
+import DataMigrationSection from '../../features/admin/DataMigrationSection.jsx';
 import MeterReaderDashboardMain from '../../features/meter_reader/MeterReaderDashboardMain.jsx';
 import AssignedRoutesSection from '../../features/meter_reader/AssignedRoutesSection.jsx';
 import MeterReadingForm from '../../features/meter_reader/MeterReadingForm.jsx';
@@ -35,7 +36,7 @@ import ServiceInterruptionMap from '../../features/common/ServiceInterruptionMap
 import NotFound from '../core/NotFound.jsx';
 import ChatbotModal from '../ui/ChatbotModal.jsx';
 import LinkAccountModal from '../auth/LinkAccountModal.jsx';
-import { MessageSquare as ChatIcon, Menu, TrendingUp, Gift, AlertTriangle as AlertIcon, ShieldCheck, Eye, Map, Settings, Users, BarChart3, Edit, Gauge, FileText, ClipboardEdit, Search, Banknote, FileSearch, Home, UserCog, HelpCircle, Info, PhoneCall, Megaphone, CreditCard } from 'lucide-react';
+import { MessageSquare as ChatIcon, Menu, TrendingUp, AlertTriangle as AlertIcon, ShieldCheck, Eye, Map, Settings, Users, BarChart3, Edit, Gauge, FileText, ClipboardEdit, Search, Banknote, FileSearch, Home, UserCog, HelpCircle, Info, PhoneCall, Megaphone, CreditCard, Database } from 'lucide-react';
 import * as billingService from '../../services/billingService.js';
 import * as dataService from '../../services/dataService.js';
 import * as userUtils from '../../utils/userUtils.js';
@@ -116,7 +117,6 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
             { name: 'My Bills & Payments', iconName: 'FileText', section: 'myBills', group: 'Account' },
             { name: 'Consumption Analytics', iconName: 'TrendingUp', section: 'waterAnalytics', group: 'Account' },
             { name: 'Payment Analytics', iconName: 'CreditCard', section: 'paymentAnalytics', group: 'Account' },
-            { name: 'Rewards Program', iconName: 'Gift', section: 'rebateProgram', group: 'Account' },
             { name: 'My Support Tickets', iconName: 'MessageSquare', section: 'myTickets', group: 'Support' },
             { name: 'Report an Issue', iconName: 'AlertTriangle', section: 'reportIssue', group: 'Support' },
             { name: 'View Announcements', iconName: 'Megaphone', section: 'viewAnnouncements', group: 'Information' },
@@ -129,7 +129,9 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
         admin: [
             { name: 'Dashboard', iconName: 'Home', section: 'mainDashboard', group: 'Main' },
             { name: 'System Analytics', iconName: 'BarChart3', section: 'systemAnalytics', group: 'Main' },
+            { name: 'Demand Forecasting', iconName: 'TrendingUp', section: 'demandForecasting', group: 'Main' },
             { name: 'User Management', iconName: 'Users', section: 'userManagement', group: 'Administration' },
+            { name: 'Data Migration', iconName: 'Database', section: 'dataMigration', group: 'Administration' },
             { name: 'Support Tickets', iconName: 'MessageSquare', section: 'supportTickets', group: 'Administration' },
             { name: 'Manage Announcements', iconName: 'Edit', section: 'manageAnnouncements', group: 'Administration' },
             { name: 'Manage Interruptions', iconName: 'AlertIcon', section: 'manageInterruptions', group: 'Administration' },
@@ -181,7 +183,6 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
              return null;
         }
 
-
         switch (activeSection) {
             case 'mainDashboard':
                 if (userData.role === 'customer') return <CustomerDashboardMain {...sectionProps} />;
@@ -201,11 +202,12 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
             case 'myBills': if(userData.role === 'customer') return <CustomerBillsSection {...sectionProps} />; break;
             case 'waterAnalytics': if(userData.role === 'customer') return <WaterAnalyticsSection {...sectionProps} />; break;
             case 'paymentAnalytics': if(userData.role === 'customer') return <PaymentAnalyticsSection {...sectionProps} />; break;
-            case 'rebateProgram': if(userData.role === 'customer') return <RebateProgramSection {...sectionProps} />; break;
 
             case 'myTickets': if(['customer', 'clerk_cashier', 'meter_reader'].includes(userData.role)) return <MyTicketsSection {...sectionProps} />; break;
 
             case 'userManagement': if(userData.role === 'admin') return <UserManagementSection {...sectionProps} />; break;
+            case 'dataMigration': if(userData.role === 'admin') return <DataMigrationSection {...sectionProps} />; break;
+            case 'demandForecasting': if(userData.role === 'admin') return <DemandForecastingSection {...sectionProps} />; break;
             case 'batchBilling': if(userData.role === 'admin') return <BatchBillingSection {...sectionProps} />; break;
             case 'routeManagement': if(userData.role === 'admin') return <RouteManagementSection {...sectionProps} />; break;
             case 'supportTickets': if(userData.role === 'admin') return <SupportTicketManagementSection {...sectionProps} />; break;

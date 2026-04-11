@@ -2,7 +2,7 @@ import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath, documentId, startAfter, runTransaction, FieldValue
+    documentId, startAfter, runTransaction, FieldValue
 } from '../firebase/firebaseConfig.js';
 import {
     userProfileDocumentPath,
@@ -32,70 +32,7 @@ function handleFirestoreError(functionName, error) {
          userFriendlyMessage = `An error occurred in ${functionName}: ${message} (Code: ${code}). Please check your connection or contact support if the issue persists.`;
     }
     return { success: false, error: userFriendlyMessage };
-};
-
-export async function payBillWithPoints(dbInstance, userId, billId, pointsToUse, billAmount) {
-    try {
-        await runTransaction(dbInstance, async (transaction) => {
-            const publicProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
-            const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userId));
-            const billRef = doc(dbInstance, allBillDocumentPath(billId));
-
-            const [publicProfileSnap, billSnap] = await Promise.all([
-                transaction.get(publicProfileRef),
-                transaction.get(billRef)
-            ]);
-
-            if (!publicProfileSnap.exists()) {
-                throw new Error("User profile not found.");
-            }
-            if (!billSnap.exists()) {
-                throw new Error("Bill document not found.");
-            }
-
-            const currentPoints = publicProfileSnap.data().rebatePoints || 0;
-            if (currentPoints < pointsToUse) {
-                throw new Error("Insufficient rebate points.");
-            }
-
-            const paymentDate = new Date();
-            const paymentTimestamp = Timestamp.fromDate(paymentDate);
-            
-            const paymentDetails = {
-                date: paymentDate,
-                timestamp: paymentTimestamp,
-                reference: `POINTS-PAY-${paymentDate.getTime().toString().slice(-6)}`,
-                amount: billAmount,
-                method: 'Rebate Points'
-            };
-
-            const billUpdates = {
-                status: 'Paid',
-                paymentDate: paymentDate,
-                paymentTimestamp: paymentTimestamp,
-                amountPaid: billAmount,
-                paymentMethod: 'Rebate Points',
-                paymentReference: paymentDetails.reference,
-                lastUpdatedAt: serverTimestamp(),
-                paymentHistory: arrayUnion(paymentDetails)
-            };
-            
-            const profileUpdates = {
-                rebatePoints: FieldValue.increment(-pointsToUse),
-                updatedAt: serverTimestamp()
-            };
-
-            transaction.update(billRef, billUpdates);
-            transaction.update(publicProfileRef, profileUpdates);
-            transaction.update(nestedProfileRef, profileUpdates);
-        });
-
-        return { success: true };
-    } catch (error) {
-        return handleFirestoreError('paying bill with points', error);
-    }
 }
-
 
 export async function batchUpdateTicketStatus(dbInstance, ticketIds, newStatus) {
     if (!ticketIds || ticketIds.length === 0) return { success: true };
@@ -110,7 +47,7 @@ export async function batchUpdateTicketStatus(dbInstance, ticketIds, newStatus) 
     } catch (error) {
         return handleFirestoreError('batch updating ticket status', error);
     }
-};
+}
 
 export async function deleteUserProfile(dbInstance, userId) {
     if (!userId) return { success: false, error: "User ID is required." };
@@ -127,7 +64,7 @@ export async function deleteUserProfile(dbInstance, userId) {
     } catch (error) {
         return handleFirestoreError(`deleting user profile ${userId}`, error);
     }
-};
+}
 
 async function deleteAllFromCollection(dbInstance, collectionPath) {
     try {
@@ -153,46 +90,14 @@ async function deleteAllFromCollection(dbInstance, collectionPath) {
     } catch (error) {
         return handleFirestoreError(`deleting all from ${collectionPath}`, error);
     }
-};
+}
 
-export function deleteAllTickets(dbInstance) { return deleteAllFromCollection(dbInstance, supportTicketsCollectionPath()); };
-export function deleteAllBills(dbInstance) { return deleteAllFromCollection(dbInstance, allBillsCollectionPath()); };
-export function deleteAllReadings(dbInstance) { return deleteAllFromCollection(dbInstance, allMeterReadingsCollectionPath()); };
-export function deleteAllAnnouncements(dbInstance) { return deleteAllFromCollection(dbInstance, announcementsCollectionPath()); };
-export function deleteAllInterruptions(dbInstance) { return deleteAllFromCollection(dbInstance, serviceInterruptionsCollectionPath()); };
-export function deleteAllRoutes(dbInstance) { return deleteAllFromCollection(dbInstance, meterRoutesCollectionPath()); };
-
-export async function deleteAllRebatePoints(dbInstance) {
-    try {
-        const profilesRef = collection(dbInstance, profilesCollectionPath());
-        const snapshot = await getDocs(query(profilesRef, limit(500)));
-        if (snapshot.empty) return { success: true, count: 0 };
-
-        let count = 0;
-        let lastSnapshot = snapshot;
-        const updates = { rebatePoints: 0, rebateTier: 'Bronze' };
-
-        while (!lastSnapshot.empty) {
-            const batch = writeBatch(dbInstance);
-            lastSnapshot.docs.forEach((userDoc) => {
-                batch.update(userDoc.ref, updates);
-                const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userDoc.id));
-                batch.update(nestedProfileRef, updates);
-            });
-            await batch.commit();
-            count += lastSnapshot.size;
-
-            if (lastSnapshot.size < 500) break;
-
-            const lastVisible = lastSnapshot.docs[lastSnapshot.docs.length - 1];
-            lastSnapshot = await getDocs(query(profilesRef, orderBy(documentId()), startAfter(lastVisible), limit(500)));
-        }
-        
-        return { success: true, count };
-    } catch (error) {
-        return handleFirestoreError('clearing all rebate points', error);
-    }
-};
+export function deleteAllTickets(dbInstance) { return deleteAllFromCollection(dbInstance, supportTicketsCollectionPath()); }
+export function deleteAllBills(dbInstance) { return deleteAllFromCollection(dbInstance, allBillsCollectionPath()); }
+export function deleteAllReadings(dbInstance) { return deleteAllFromCollection(dbInstance, allMeterReadingsCollectionPath()); }
+export function deleteAllAnnouncements(dbInstance) { return deleteAllFromCollection(dbInstance, announcementsCollectionPath()); }
+export function deleteAllInterruptions(dbInstance) { return deleteAllFromCollection(dbInstance, serviceInterruptionsCollectionPath()); }
+export function deleteAllRoutes(dbInstance) { return deleteAllFromCollection(dbInstance, meterRoutesCollectionPath()); }
 
 export async function deleteAllUsers(dbInstance) {
     try {
@@ -209,7 +114,7 @@ export async function deleteAllUsers(dbInstance) {
     } catch (error) {
         return handleFirestoreError('deleting all users', error);
     }
-};
+}
 
 export async function linkAccountNumberToProfile(dbInstance, userId, accountNumber) {
     if (!accountNumber || !userId) {
@@ -262,7 +167,7 @@ export async function linkAccountNumberToProfile(dbInstance, userId, accountNumb
     } catch (error) {
         return handleFirestoreError('linking account number', error);
     }
-};
+}
 
 export async function getUniqueServiceLocations(dbInstance) {
     try {
@@ -277,7 +182,7 @@ export async function getUniqueServiceLocations(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting unique service locations', error);
     }
-};
+}
 
 export async function getAccountsByLocation(dbInstance, location) {
     if (!location) return { success: true, data: [] };
@@ -290,7 +195,7 @@ export async function getAccountsByLocation(dbInstance, location) {
     } catch (error) {
         return handleFirestoreError(`getting accounts in ${location}`, error);
     }
-};
+}
 
 export async function createOrUpdateMeterRoute(dbInstance, routeData, routeId = null) {
     try {
@@ -305,7 +210,7 @@ export async function createOrUpdateMeterRoute(dbInstance, routeData, routeId = 
     } catch (error) {
         return handleFirestoreError('saving meter route', error);
     }
-};
+}
 
 export async function getAllMeterRoutes(dbInstance) {
     try {
@@ -315,7 +220,7 @@ export async function getAllMeterRoutes(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting all meter routes', error);
     }
-};
+}
 
 export async function deleteMeterRoute(dbInstance, routeId) {
     try {
@@ -324,7 +229,7 @@ export async function deleteMeterRoute(dbInstance, routeId) {
     } catch (error) {
         return handleFirestoreError('deleting meter route', error);
     }
-};
+}
 
 export async function getAllMeterReaders(dbInstance) {
     try {
@@ -334,7 +239,7 @@ export async function getAllMeterReaders(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting all meter readers', error);
     }
-};
+}
 
 export async function getRevenueStats(dbInstance) {
     try {
@@ -355,7 +260,7 @@ export async function getRevenueStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting revenue stats', error);
     }
-};
+}
 
 export async function getRevenueByLocationStats(dbInstance) {
     try {
@@ -387,7 +292,7 @@ export async function getRevenueByLocationStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting revenue by location', error);
     }
-};
+}
 
 export async function getOutstandingBalanceStats(dbInstance) {
     try {
@@ -401,8 +306,7 @@ export async function getOutstandingBalanceStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting outstanding balance', error);
     }
-};
-
+}
 
 export async function getPaymentDayOfWeekStats(dbInstance) {
     try {
@@ -424,7 +328,7 @@ export async function getPaymentDayOfWeekStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting payment day stats', error);
     }
-};
+}
 
 export async function getReadingsCountByReaderForDate(dbInstance, readerId, dateString) {
     try {
@@ -437,7 +341,7 @@ export async function getReadingsCountByReaderForDate(dbInstance, readerId, date
     } catch (error) {
         return handleFirestoreError('getting readings count by reader', error);
     }
-};
+}
 
 export async function getAccountsInRoute(dbInstance, route) {
     const accountNumbers = route?.accountNumbers;
@@ -458,7 +362,7 @@ export async function getAccountsInRoute(dbInstance, route) {
     } catch (error) {
         return handleFirestoreError('getting accounts in route', error);
     }
-};
+}
 
 export async function getUserProfile(dbInstance, userId) {
     if (!userId) return { success: false, error: "User ID required." };
@@ -478,7 +382,7 @@ export async function getUserProfile(dbInstance, userId) {
     } catch (error) {
         return handleFirestoreError(`getting user profile ${userId}`, error);
     }
-};
+}
 
 export async function searchUserProfiles(dbInstance, searchTerm) {
     const term = searchTerm?.trim().toLowerCase();
@@ -514,9 +418,9 @@ export async function searchUserProfiles(dbInstance, searchTerm) {
     } catch (error) {
         return handleFirestoreError('searching user profiles', error);
     }
-};
+}
 
-function formatDateSimple(date) { return date ? date.toLocaleDateString('en-CA') : ''; };
+function formatDateSimple(date) { return date ? date.toLocaleDateString('en-CA') : ''; }
 
 export async function generateBillForUser(dbInstance, userId, userProfile) {
      if (!userId || !userProfile) return { success: false, error: "User ID and profile required." };
@@ -639,7 +543,7 @@ export async function generateBillForUser(dbInstance, userId, userProfile) {
     } catch (error) {
         return handleFirestoreError(`generating bill for ${userProfile?.accountNumber}`, error);
     }
-};
+}
 
 export async function getBillableAccountsInLocation(dbInstance, location) {
     if (!location) return { success: false, error: "Location required." };
@@ -690,7 +594,7 @@ export async function getBillableAccountsInLocation(dbInstance, location) {
     } catch (error) {
         return handleFirestoreError(`getting billable accounts in ${location}`, error);
     }
-};
+}
 
 export async function generateBillsForMultipleAccounts(dbInstance, accounts) {
     const logs = [];
@@ -702,8 +606,7 @@ export async function generateBillsForMultipleAccounts(dbInstance, accounts) {
         if (result.success) successCount++; else failCount++;
     }
     return { logs, successCount, failCount };
-};
-
+}
 
 export async function createUserProfile(dbInstance, userId, profileData) {
     if (!userId) return { success: false, error: "User ID required." };
@@ -716,8 +619,6 @@ export async function createUserProfile(dbInstance, userId, profileData) {
             createdAt: serverTimestamp(),
             lastLoginAt: serverTimestamp(),
             displayNameLower: profileData.displayName ? profileData.displayName.toLowerCase() : '',
-            rebatePoints: 0,
-            rebateTier: 'Bronze',
             discountStatus: 'none', 
         };
 
@@ -729,7 +630,7 @@ export async function createUserProfile(dbInstance, userId, profileData) {
     } catch (error) {
         return handleFirestoreError('creating user profile', error);
     }
-};
+}
 
 export async function updateUserProfile(dbInstance, userId, profileUpdates) {
      if (!userId) return { success: false, error: "User ID required." };
@@ -751,7 +652,7 @@ export async function updateUserProfile(dbInstance, userId, profileUpdates) {
     } catch (error) {
         return handleFirestoreError(`updating user profile ${userId}`, error);
     }
-};
+}
 
 export async function getAllUsersProfiles(dbInstance) {
     try {
@@ -760,7 +661,7 @@ export async function getAllUsersProfiles(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting all users profiles', error);
     }
-};
+}
 
 export async function createSupportTicket(dbInstance, ticketData) {
     try {
@@ -776,7 +677,7 @@ export async function createSupportTicket(dbInstance, ticketData) {
     } catch (error) {
         return handleFirestoreError('creating support ticket', error);
     }
-};
+}
 
 export async function deleteSupportTicket(dbInstance, ticketId) {
     try {
@@ -785,7 +686,7 @@ export async function deleteSupportTicket(dbInstance, ticketId) {
     } catch (error) {
         return handleFirestoreError('deleting support ticket', error);
     }
-};
+}
 
 export async function addTicketReply(dbInstance, ticketId, replyData) {
      if (!ticketId || !replyData?.text) return { success: false, error: "Ticket ID and reply text required." };
@@ -811,7 +712,7 @@ export async function addTicketReply(dbInstance, ticketId, replyData) {
     } catch (error) {
         return handleFirestoreError('adding ticket reply', error);
     }
-};
+}
 
 export async function getAllSupportTickets(dbInstance) {
     try {
@@ -821,7 +722,7 @@ export async function getAllSupportTickets(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting all support tickets', error);
     }
-};
+}
 
 export async function getTicketsByReporter(dbInstance, reporterId) {
     try {
@@ -831,7 +732,7 @@ export async function getTicketsByReporter(dbInstance, reporterId) {
     } catch (error) {
         return handleFirestoreError('getting tickets by reporter', error);
     }
-};
+}
 
 export async function updateSupportTicket(dbInstance, ticketId, updates) {
     try {
@@ -840,7 +741,7 @@ export async function updateSupportTicket(dbInstance, ticketId, updates) {
     } catch (error) {
         return handleFirestoreError('updating support ticket', error);
     }
-};
+}
 
 export async function createAnnouncement(dbInstance, data) {
     try {
@@ -854,7 +755,7 @@ export async function createAnnouncement(dbInstance, data) {
     } catch (error) {
         return handleFirestoreError('creating announcement', error);
     }
-};
+}
 
 export async function getAllAnnouncements(dbInstance, onlyActive = false) {
     try {
@@ -867,7 +768,7 @@ export async function getAllAnnouncements(dbInstance, onlyActive = false) {
     } catch (error) {
         return handleFirestoreError('getting announcements', error);
     }
-};
+}
 
 export async function updateAnnouncement(dbInstance, id, updates) {
     try {
@@ -876,7 +777,7 @@ export async function updateAnnouncement(dbInstance, id, updates) {
     } catch (error) {
         return handleFirestoreError('updating announcement', error);
     }
-};
+}
 
 export async function deleteAnnouncement(dbInstance, id) {
     try {
@@ -885,7 +786,7 @@ export async function deleteAnnouncement(dbInstance, id) {
     } catch (error) {
         return handleFirestoreError('deleting announcement', error);
     }
-};
+}
 
 export async function getSystemSettings(dbInstance) {
     try {
@@ -894,7 +795,7 @@ export async function getSystemSettings(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting system settings', error);
     }
-};
+}
 
 export async function updateSystemSettings(dbInstance, settingsData) {
     try {
@@ -903,7 +804,7 @@ export async function updateSystemSettings(dbInstance, settingsData) {
     } catch (error) {
         return handleFirestoreError('updating system settings', error);
     }
-};
+}
 
 export async function getBillsForUser(dbInstance, userId) {
     try {
@@ -920,83 +821,12 @@ export async function getBillsForUser(dbInstance, userId) {
     } catch (error) {
         return handleFirestoreError('getting bills for user', error);
     }
-};
-
-async function awardRebatePoints(dbInstance, userId, bill, amountPaid, systemSettings) {
-    if (!systemSettings?.isRebateProgramEnabled || !userId) {
-        return;
-    }
-
-    try {
-        const pointsPerPeso = parseFloat(systemSettings.pointsPerPeso);
-        if (isNaN(pointsPerPeso) || pointsPerPeso <= 0) {
-            return;
-        }
-
-        const earlyPaymentDays = parseInt(systemSettings.earlyPaymentDaysThreshold, 10) || 7;
-        const earlyPaymentBonus = parseInt(systemSettings.earlyPaymentBonusPoints, 10) || 10;
-
-        let pointsToAward = (amountPaid * pointsPerPeso);
-
-        const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : (bill.dueDate?.seconds ? new Date(bill.dueDate.seconds * 1000) : null);
-        
-        const paymentDate = bill.paymentDate?.toDate 
-            ? bill.paymentDate.toDate() 
-            : (bill.paymentDate instanceof Date ? bill.paymentDate : (bill.paymentDate?.seconds ? bill.paymentDate.toDate() : new Date()));
-        
-        if(dueDate) {
-            const daysEarly = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
-            if (daysEarly >= earlyPaymentDays) {
-                pointsToAward += earlyPaymentBonus;
-            }
-        }
-
-        const roundedPointsToAward = Math.round(pointsToAward);
-        if (roundedPointsToAward <= 0) {
-            return;
-        }
-
-        const publicProfileRef = doc(dbInstance, profilesCollectionPath(), userId);
-        const publicSnap = await getDoc(publicProfileRef);
-
-        if (!publicSnap.exists()) {
-            console.error(`dataService: CRITICAL! Public profile ${userId} not found. Cannot award points.`);
-            return;
-        }
-        
-        const nestedProfileRef = doc(dbInstance, userProfileDocumentPath(userId));
-
-        const currentPoints = publicSnap.data().rebatePoints || 0;
-        const newTotalPoints = currentPoints + roundedPointsToAward;
-
-        let newTier = 'Bronze';
-        if (newTotalPoints >= 3000) newTier = 'Platinum';
-        else if (newTotalPoints >= 1500) newTier = 'Gold';
-        else if (newTotalPoints >= 500) newTier = 'Silver';
-
-        const updates = {
-            rebatePoints: newTotalPoints,
-            rebateTier: newTier,
-            updatedAt: serverTimestamp()
-        };
-        
-        const batch = writeBatch(dbInstance);
-        batch.update(publicProfileRef, updates);
-        batch.update(nestedProfileRef, updates);
-        await batch.commit();
-
-    } catch (error) {
-        console.error("dataService: Failed to award rebate points:", error);
-    }
-};
+}
 
 export async function updateBill(dbInstance, billId, updates) {
     try {
         const billRef = doc(dbInstance, allBillDocumentPath(billId));
         
-        const actualAmountPaid = updates.amountPaid; 
-        let finalBillData = {};
-
         if (updates.status === 'Paid') {
             const billSnap = await getDoc(billRef);
             if (billSnap.exists()) {
@@ -1035,18 +865,8 @@ export async function updateBill(dbInstance, billId, updates) {
                     };
                     finalUpdates.paymentHistory = arrayUnion(paymentDetails);
                 }
-                
-                finalBillData = { ...bill, ...finalUpdates };
 
                 await updateDoc(billRef, finalUpdates);
-
-                if (bill.userId && actualAmountPaid > 0 && finalUpdates.paymentMethod !== 'Rebate Points') {
-                    const settingsSnap = await getDoc(doc(dbInstance, systemSettingsDocumentPath()));
-                    const settings = settingsSnap.exists() ? settingsSnap.data() : {};
-                    
-                    await awardRebatePoints(dbInstance, bill.userId, finalBillData, actualAmountPaid, settings);
-                }
-
                 return { success: true };
 
             } else {
@@ -1060,9 +880,7 @@ export async function updateBill(dbInstance, billId, updates) {
     } catch (error) {
         return handleFirestoreError('updating bill', error);
     }
-};
-
-
+}
 
 export async function addMeterReading(dbInstance, readingData) {
     try {
@@ -1084,7 +902,7 @@ export async function addMeterReading(dbInstance, readingData) {
     } catch (error) {
         return handleFirestoreError('adding meter reading', error);
     }
-};
+}
 
 export async function updateMeterReading(dbInstance, readingId, updates) {
     try {
@@ -1110,7 +928,7 @@ export async function updateMeterReading(dbInstance, readingId, updates) {
     } catch (error) {
         return handleFirestoreError('updating meter reading', error);
     }
-};
+}
 
 export async function deleteMeterReading(dbInstance, readingId) {
     try {
@@ -1119,7 +937,7 @@ export async function deleteMeterReading(dbInstance, readingId) {
     } catch (error) {
         return handleFirestoreError('deleting meter reading', error);
     }
-};
+}
 
 export async function getMeterReadingsForAccount(dbInstance, accountNumber) {
     try {
@@ -1129,7 +947,7 @@ export async function getMeterReadingsForAccount(dbInstance, accountNumber) {
     } catch (error) {
         return handleFirestoreError('getting meter readings for account', error);
     }
-};
+}
 
 export async function getRoutesForReader(dbInstance, readerId) {
     try {
@@ -1139,7 +957,7 @@ export async function getRoutesForReader(dbInstance, readerId) {
     } catch (error) {
         return handleFirestoreError('getting routes for reader', error);
     }
-};
+}
 
 export async function getDocuments(dbInstance, collectionPath, queryConstraints = []) {
     try {
@@ -1149,7 +967,7 @@ export async function getDocuments(dbInstance, collectionPath, queryConstraints 
     } catch (error) {
         return handleFirestoreError(`getting documents from ${collectionPath.split('/').pop()}`, error);
     }
-};
+}
 
 export async function getUsersStats(dbInstance) {
     try {
@@ -1165,7 +983,7 @@ export async function getUsersStats(dbInstance) {
     } catch(e) {
         return handleFirestoreError('getting users stats', e);
     }
-};
+}
 
 export async function getTicketsStats(dbInstance) {
     try {
@@ -1198,8 +1016,7 @@ export async function getTicketsStats(dbInstance) {
     } catch(e) {
         return handleFirestoreError('getting tickets stats', e);
     }
-};
-
+}
 
 export async function getAnnouncementsStats(dbInstance) {
     try {
@@ -1211,7 +1028,7 @@ export async function getAnnouncementsStats(dbInstance) {
     } catch(e) {
         return handleFirestoreError('getting announcements stats', e);
     }
-};
+}
 
 export async function getPaymentsByClerkForToday(dbInstance, clerkId) {
     if (!clerkId) return { success: false, error: "Clerk ID required." };
@@ -1246,7 +1063,7 @@ export async function getPaymentsByClerkForToday(dbInstance, clerkId) {
     } catch (error) {
         return handleFirestoreError('getting payments by clerk for today', error);
     }
-};
+}
 
 export async function createServiceInterruption(dbInstance, data) {
     try {
@@ -1263,7 +1080,7 @@ export async function createServiceInterruption(dbInstance, data) {
     } catch (error) {
         return handleFirestoreError('creating service interruption', error);
     }
-};
+}
 
 export async function updateServiceInterruption(dbInstance, id, updates) {
     try {
@@ -1277,7 +1094,7 @@ export async function updateServiceInterruption(dbInstance, id, updates) {
     } catch (error) {
         return handleFirestoreError('updating service interruption', error);
     }
-};
+}
 
 export async function deleteServiceInterruption(dbInstance, id) {
     try {
@@ -1286,7 +1103,7 @@ export async function deleteServiceInterruption(dbInstance, id) {
     } catch (error) {
         return handleFirestoreError('deleting service interruption', error);
     }
-};
+}
 
 export async function getActiveServiceInterruptions(dbInstance) {
     try {
@@ -1316,7 +1133,7 @@ export async function getActiveServiceInterruptions(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting active service interruptions', error);
     }
-};
+}
 
 export async function getAllServiceInterruptions(dbInstance) {
     try {
@@ -1328,8 +1145,7 @@ export async function getAllServiceInterruptions(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting all service interruptions', error);
     }
-};
-
+}
 
 export async function getHourlyActivityStats(dbInstance) {
     try {
@@ -1362,7 +1178,7 @@ export async function getHourlyActivityStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting hourly activity stats', error);
     }
-};
+}
 
 export async function getStaffActivityStats(dbInstance) {
     try {
@@ -1400,7 +1216,7 @@ export async function getStaffActivityStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting staff activity stats', error);
     }
-};
+}
 
 export async function getTechnicalStats(dbInstance) {
     try {
@@ -1419,7 +1235,8 @@ export async function getTechnicalStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting technical stats', error);
     }
-};
+}
+
 export async function getConsumptionStats(dbInstance) {
     try {
         const billsQuery = query(collection(dbInstance, allBillsCollectionPath()));
@@ -1440,7 +1257,7 @@ export async function getConsumptionStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting consumption stats', error);
     }
-};
+}
 
 export async function getPaymentMethodStats(dbInstance) {
     try {
@@ -1455,7 +1272,7 @@ export async function getPaymentMethodStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting payment method stats', error);
     }
-};
+}
 
 export async function getUserGrowthStats(dbInstance) {
     try {
@@ -1477,7 +1294,7 @@ export async function getUserGrowthStats(dbInstance) {
     } catch (error) {
         return handleFirestoreError('getting user growth stats', error);
     }
-};
+}
 
 export async function getDiscountStats(dbInstance) {
     try {
@@ -1501,4 +1318,4 @@ export async function getDiscountStats(dbInstance) {
     } catch(e) {
         return handleFirestoreError('getting discount stats', e);
     }
-};
+}

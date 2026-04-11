@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { LayoutDashboard, Users, MessageSquare, Settings, BarChart3, Megaphone, Gauge, AlertTriangle, ShieldCheck, RotateCcw, Loader2, Info } from "lucide-react";
+import { LayoutDashboard, Users, MessageSquare, Settings, BarChart3, Megaphone, Gauge, AlertTriangle, ShieldCheck, RotateCcw, Loader2, Info, TrendingUp, Database } from "lucide-react";
 import DashboardInfoCard from "../../components/ui/DashboardInfoCard.jsx";
 import LoadingSpinner from "../../components/ui/LoadingSpinner.jsx";
 import * as DataService from "../../services/dataService.js";
@@ -63,15 +63,17 @@ const AdminDashboardMain = ({ user, userData, db, showNotification, setActiveSec
 
     const adminActions = [
         { title: "User Management", icon: Users, section: "userManagement", description: "View, edit, and manage all user accounts.", color: "blue" },
+        { title: "Data Migration", icon: Database, section: "dataMigration", description: "Securely import and validate legacy offline datasets.", color: "emerald" },
+        { title: "Demand Forecasting", icon: TrendingUp, section: "demandForecasting", description: "MLR-based district water demand prediction.", color: "indigo" },
+        { title: "Meter Readings Mgt.", icon: Gauge, section: "editMeterReadingsAdmin", description: "Oversee and manage meter reading entries.", color: "sky" },
+        { title: "System Analytics", icon: BarChart3, section: "systemAnalytics", description: "View key metrics and system performance data.", color: "orange" },
         { title: "Support Tickets", icon: MessageSquare, section: "supportTickets", description: "Address and manage user-submitted issues.", color: "purple" },
         { title: "Announcements", icon: Megaphone, section: "manageAnnouncements", description: "Create and publish portal-wide announcements.", color: "teal" },
-        { title: "System Analytics", icon: BarChart3, section: "systemAnalytics", description: "View key metrics and system performance data.", color: "orange" },
-        { title: "Meter Readings Mgt.", icon: Gauge, section: "editMeterReadingsAdmin", description: "Oversee and manage meter reading entries.", color: "sky" },
         { title: "System Settings", icon: Settings, section: "systemSettings", description: "Configure application parameters and settings.", color: "gray" },
     ];
     
     if (isLoading) {
-        return <LoadingSpinner message="Loading admin dashboard statistics..." className="mt-10 h-48" />;
+        return <LoadingSpinner message="Loading AGWA administrative statistics..." className="mt-10 h-48" />;
     }
 
     return (
@@ -79,7 +81,7 @@ const AdminDashboardMain = ({ user, userData, db, showNotification, setActiveSec
             <div className="p-6 bg-gradient-to-r from-slate-700 to-slate-900 text-white rounded-xl shadow-2xl">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h2 className="text-2xl sm:text-3xl font-bold">Administrator Dashboard</h2>
+                        <h2 className="text-2xl sm:text-3xl font-bold">AGWA Administrator Dashboard</h2>
                         <p className="mt-1 text-slate-300">Welcome, {userData?.displayName || 'Admin'}. Oversee portal operations.</p>
                     </div>
                     <button onClick={fetchAdminStats} className="text-sm flex items-center bg-slate-600 hover:bg-slate-500 text-white font-medium py-2 px-3 rounded-lg transition-colors disabled:opacity-70" disabled={isLoading} title="Refresh Statistics">
@@ -94,7 +96,7 @@ const AdminDashboardMain = ({ user, userData, db, showNotification, setActiveSec
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 <DashboardInfoCard title="Total Users" value={dashboardStats.totalUsers ?? 'N/A'} icon={Users} borderColor="border-blue-500" iconColor="text-blue-500" onClick={() => setActiveSection('userManagement')} />
                 <DashboardInfoCard title="Open Support Tickets" value={dashboardStats.openTickets} icon={AlertTriangle} borderColor="border-red-500" iconColor="text-red-500" onClick={() => setActiveSection('supportTickets')} />
-                <DashboardInfoCard title="Active Announcements" value={dashboardStats.activeAnnouncements ?? 'N/A'} icon={Megaphone} borderColor="border-teal-500" iconColor="text-teal-500" onClick={() => setActiveSection('viewAnnouncements')}/>
+                <DashboardInfoCard title="Active Announcements" value={dashboardStats.activeAnnouncements ?? 'N/A'} icon={Megaphone} borderColor="border-teal-500" iconColor="text-teal-500" onClick={() => setActiveSection('manageAnnouncements')}/>
                 <DashboardInfoCard title="System Status" value={dashboardStats.systemStatus} icon={ShieldCheck} borderColor={dashboardStats.systemStatus === 'Error' ? "border-red-500" : "border-green-500"} iconColor={dashboardStats.systemStatus === 'Error' ? "text-red-500" : "text-green-500"} />
             </div>
 
