@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
     LayoutDashboard, Map, ClipboardEdit, Search, AlertTriangle, 
-    CheckCircle, ListFilter, RotateCcw, Loader2, Info, MapPin 
+    CheckCircle, ListFilter, RotateCcw, Loader2, Info, MapPin, WifiOff, Wifi 
 } from "lucide-react";
 import DashboardInfoCard from "../../components/ui/DashboardInfoCard.jsx";
 import LoadingSpinner from "../../components/ui/LoadingSpinner.jsx";
@@ -19,6 +19,28 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
     const [myBarangays, setMyBarangays] = useState(new Set());
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+    // Track network status for the PWA
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOffline(false);
+            showNotification("Connection restored. Syncing with AGWA Cloud...", "success");
+            fetchMeterReaderStats(); // Auto-refresh when back online
+        };
+        const handleOffline = () => {
+            setIsOffline(true);
+            showNotification("You are offline. Switched to local PWA cache.", "warning");
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     const fetchMeterReaderStats = useCallback(async () => {
         if (!userData || !userData.uid) {
@@ -31,6 +53,7 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
         setRouteHighlights([]);
         
         try {
+            // In offline mode, Firestore automatically uses its multi-tab IndexedDB cache
             const [routesResult, issuesReportedResult, interruptionsResult] = await Promise.allSettled([
                 DataService.getRoutesForReader(db, userData.uid),
                 DataService.getTicketsByReporter(db, userData.uid),
@@ -52,13 +75,12 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
                 newStats.assignedRoutesCount = augmentedRoutes.length;
                 newStats.totalAccountsInRoutes = augmentedRoutes.reduce((sum, route) => sum + route.accountCount, 0);
                 newStats.pendingReadingsInRoutes = augmentedRoutes.reduce((sum, route) => sum + route.pendingCount, 0);
-                
                 newStats.readingsCompletedToday = augmentedRoutes.reduce((sum, route) => sum + route.completedCount, 0);
                 
                 barangaySet = new Set(augmentedRoutes.flatMap(route => route.barangays || []));
                 setMyBarangays(barangaySet);
             } else {
-                partialError += "Route data unavailable. ";
+                partialError += isOffline ? "Cached routes unavailable. " : "Route data unavailable. ";
             }
 
             if (interruptionsResult.status === 'fulfilled' && interruptionsResult.value.success) {
@@ -69,34 +91,36 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
                     setRouteHighlights(highlights);
                 }
             } else {
-                partialError += "Interruption data unavailable. ";
+                partialError += isOffline ? "" : "Interruption data unavailable. "; // Don't warn heavily about interruptions if offline
             }
 
             if (issuesReportedResult.status === 'fulfilled' && issuesReportedResult.value.success) {
                 newStats.issuesReportedByMe = issuesReportedResult.value.data.length;
             } else {
-                 partialError += "Reported issues data unavailable. ";
+                 partialError += isOffline ? "" : "Reported issues data unavailable. ";
             }
 
             setDashboardStats(prev => ({ ...prev, ...newStats }));
-            if (partialError.trim()) {
+            
+            if (partialError.trim() && !isOffline) {
                 setError(partialError.trim());
                 showNotification("Some dashboard statistics could not be loaded.", "warning");
             }
 
         } catch(e) {
-            const fetchErr = "Could not load meter reader dashboard statistics. Please try refreshing.";
-            setError(fetchErr);
-            showNotification(fetchErr, "error");
+            if (!isOffline) {
+                const fetchErr = "Could not load meter reader dashboard statistics. Please try refreshing.";
+                setError(fetchErr);
+                showNotification(fetchErr, "error");
+            }
         } finally {
             setIsLoading(false);
         }
-    }, [db, userData, showNotification]);
+    }, [db, userData, showNotification, isOffline]);
 
     useEffect(() => {
         fetchMeterReaderStats();
     }, [fetchMeterReaderStats]);
-
 
     const quickActions = [
         { title: "View Assigned Routes", icon: Map, section: "assignedRoutes", description: "Check your daily routes and assigned accounts for reading.", color: "blue" },
@@ -106,25 +130,37 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
     ];
     
     if (isLoading) {
-        return <LoadingSpinner message="Loading your dashboard..." className="mt-10 h-48" />;
+        return <LoadingSpinner message={isOffline ? "Loading cached dashboard..." : "Loading your dashboard..."} className="mt-10 h-48" />;
     }
     
     return (
         <div className="space-y-8 animate-fadeIn">
-            <div className="p-6 bg-gradient-to-r from-sky-600 to-cyan-700 text-white rounded-xl shadow-xl">
+            <div className={`p-6 text-white rounded-xl shadow-xl transition-colors duration-300 ${isOffline ? 'bg-gradient-to-r from-amber-600 to-orange-700' : 'bg-gradient-to-r from-sky-600 to-cyan-700'}`}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                     <div>
-                        <h2 className="text-2xl sm:text-3xl font-bold">Meter Reader Dashboard</h2>
-                        <p className="mt-1 text-sky-100">Welcome, {userData.displayName || 'Meter Reader'}! Your tasks and tools are below.</p>
+                        <div className="flex items-center space-x-3">
+                            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Meter Reader Dashboard</h2>
+                            {isOffline && (
+                                <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-xs font-black uppercase tracking-widest flex items-center shadow-sm">
+                                    <WifiOff size={14} className="mr-2" /> Offline Mode
+                                </span>
+                            )}
+                        </div>
+                        <p className="mt-1 text-white text-opacity-90 font-medium">Welcome, {userData.displayName || 'Meter Reader'}! {isOffline ? 'You are working from local storage.' : 'Your tasks and tools are below.'}</p>
                     </div>
-                    <button onClick={fetchMeterReaderStats} className="mt-3 sm:mt-0 text-sm flex items-center bg-sky-500 hover:bg-sky-400 text-white font-medium py-2 px-3 rounded-lg transition-colors disabled:opacity-70 self-start sm:self-center" disabled={isLoading} title="Refresh Statistics">
+                    <button 
+                        onClick={fetchMeterReaderStats} 
+                        className={`mt-4 sm:mt-0 text-sm flex items-center font-bold py-2 px-4 rounded-lg transition-colors shadow-md disabled:opacity-70 self-start sm:self-center ${isOffline ? 'bg-amber-800 hover:bg-amber-900 text-amber-100' : 'bg-sky-500 hover:bg-sky-400 text-white'}`} 
+                        disabled={isLoading} 
+                        title="Refresh Statistics"
+                    >
                         {isLoading ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                         <span className="ml-2 hidden sm:inline">Refresh</span>
+                         <span className="ml-2 hidden sm:inline">{isOffline ? 'Reload Cache' : 'Refresh Sync'}</span>
                     </button>
                 </div>
             </div>
 
-            {error && <p className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-md text-center my-4 flex items-center justify-center gap-2"><Info size={16}/> {error}</p>}
+            {error && <p className="text-sm font-bold text-red-800 bg-red-100 border border-red-300 p-4 rounded-lg shadow-sm my-4 flex items-center justify-center gap-2"><AlertTriangle size={18}/> {error}</p>}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 <DashboardInfoCard title="Assigned Routes" value={dashboardStats.assignedRoutesCount} icon={Map} borderColor="border-blue-500" iconColor="text-blue-500" onClick={() => setActiveSection('assignedRoutes')} />
@@ -134,40 +170,40 @@ const MeterReaderDashboardMain = ({ userData, db, showNotification, setActiveSec
             </div>
 
             <div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-5 mt-8 pt-5 border-t border-gray-200">Your Tools & Actions</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-5 mt-8 pt-5 border-t border-gray-200">Field Actions</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {quickActions.map(action => (
-                        <button key={action.section} onClick={() => setActiveSection(action.section)} className={`p-6 bg-white rounded-xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1.5 transition-all duration-300 ease-in-out text-left focus:outline-none focus:ring-2 focus:ring-${action.color}-500 focus:ring-opacity-75 group h-full flex flex-col`}>
-                             <div className={`p-3 bg-${action.color}-100 rounded-full inline-block mb-3 self-start group-hover:scale-110 transition-transform`}>
-                                <action.icon size={28} className={`text-${action.color}-600`} />
+                        <button key={action.section} onClick={() => setActiveSection(action.section)} className={`p-6 bg-white border border-gray-100 rounded-xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 ease-in-out text-left focus:outline-none focus:ring-2 focus:ring-${action.color}-500 focus:ring-opacity-75 group h-full flex flex-col`}>
+                             <div className={`p-3 bg-${action.color}-100 rounded-xl inline-block mb-4 self-start group-hover:scale-110 transition-transform shadow-sm`}>
+                                <action.icon size={28} className={`text-${action.color}-700`} />
                             </div>
-                            <h4 className={`text-lg font-semibold text-gray-800 group-hover:text-${action.color}-700 transition-colors`}>{action.title}</h4>
-                            <p className="text-sm text-gray-500 mt-1 leading-normal flex-grow">{action.description}</p>
+                            <h4 className={`text-lg font-bold text-gray-900 group-hover:text-${action.color}-700 transition-colors`}>{action.title}</h4>
+                            <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed flex-grow">{action.description}</p>
                         </button>
                     ))}
                 </div>
             </div>
             
-            <div className="mt-8 p-5 bg-gray-50 rounded-xl shadow">
-                <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
-                    <AlertTriangle size={20} className="mr-2 text-yellow-500" /> Important Notices / Route Highlights
+            <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                    <AlertTriangle size={20} className="mr-2 text-amber-500" /> Route Highlights & System Notices
                 </h3>
                 {routeHighlights.length > 0 ? (
                     <div className="space-y-3 mb-4">
                         {routeHighlights.map(item => (
-                            <div key={item.id} className="p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-r-lg">
-                                <p className="font-semibold text-sm">{item.title}</p>
-                                <p className="text-xs mt-1 flex items-center"><MapPin size={12} className="mr-1.5"/><strong>Affected Areas on your route:</strong> {item.affectedAreas.filter(area => myBarangays.has(area)).join(', ')}</p>
+                            <div key={item.id} className="p-4 bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 text-amber-900 rounded-r-lg shadow-sm">
+                                <p className="font-bold text-sm uppercase tracking-wide mb-1">{item.title}</p>
+                                <p className="text-sm font-medium flex items-center text-amber-800"><MapPin size={14} className="mr-2"/><strong>Affected Areas:</strong> <span className="ml-1">{item.affectedAreas.filter(area => myBarangays.has(area)).join(', ')}</span></p>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <p className="text-sm text-gray-500 mb-4">
-                        No specific system notices for your routes today.
+                    <p className="text-sm font-medium text-gray-500 mb-4 bg-white p-4 rounded-lg border border-gray-100">
+                        {isOffline ? "Cannot fetch live notices while offline. Please rely on standard procedures." : "No specific system notices for your assigned routes today."}
                     </p>
                 )}
-                <p className="text-sm text-gray-500 border-t border-gray-200 pt-3 mt-3">
-                    Please ensure all readings are accurate and submitted on time. Report any discrepancies or issues immediately. Stay safe and hydrated!
+                <p className="text-sm font-bold text-gray-400 border-t border-gray-200 pt-4 mt-4 uppercase tracking-wider text-center">
+                    Ensure all readings are accurate. Stay safe and hydrated!
                 </p>
             </div>
         </div>

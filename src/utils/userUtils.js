@@ -1,3 +1,4 @@
+// src/utils/userUtils.js
 export const determineServiceTypeAndRole = (accNum) => {
     if (!accNum || typeof accNum !== 'string') {
         return { serviceType: 'Residential', role: 'customer' };
@@ -6,10 +7,12 @@ export const determineServiceTypeAndRole = (accNum) => {
     if (upperAccNum.startsWith('ADM')) return { serviceType: 'Admin', role: 'admin' };
     if (upperAccNum.startsWith('PER')) return { serviceType: 'Meter Reading Personnel', role: 'meter_reader' };
     if (upperAccNum.startsWith('CLE')) return { serviceType: 'Clerk Operations', role: 'clerk_cashier' };
-    if (upperAccNum.startsWith('RES-LI')) return { serviceType: 'Residential Low-Income', role: 'customer' };
-    if (upperAccNum.startsWith('RES')) return { serviceType: 'Residential', role: 'customer' };
+    if (upperAccNum.startsWith('GOV')) return { serviceType: 'Government', role: 'customer' };
+    if (upperAccNum.startsWith('COMC')) return { serviceType: 'Commercial C', role: 'customer' };
+    if (upperAccNum.startsWith('COMB')) return { serviceType: 'Commercial B', role: 'customer' };
+    if (upperAccNum.startsWith('COMA')) return { serviceType: 'Commercial A', role: 'customer' };
     if (upperAccNum.startsWith('COM')) return { serviceType: 'Commercial', role: 'customer' };
-    if (upperAccNum.startsWith('IND')) return { serviceType: 'Industrial', role: 'customer' };
+    if (upperAccNum.startsWith('RES')) return { serviceType: 'Residential', role: 'customer' };
     return { serviceType: 'Residential', role: 'customer' };
 };
 
@@ -40,50 +43,46 @@ export const formatDate = (timestamp, options = { year: 'numeric', month: 'long'
     }
 };
 
-export const calculatePotentialPenalty = (bill, systemSettings) => {
-    if (!bill || !systemSettings) {
+export const calculatePotentialPenalty = (bill) => {
+    if (!bill) {
         return 0;
     }
-
     if (bill.penaltyAmount && bill.penaltyAmount > 0) {
         return bill.penaltyAmount;
     }
-
-    const penaltyRate = (systemSettings.latePaymentPenaltyPercentage || 2.0) / 100;
-    const currentCharges = bill.totalCalculatedCharges || 0; 
+    const penaltyRate = 0.15;
+    const currentCharges = bill.totalCalculatedCharges || bill.currentCharges || 0;
+    const previousBalance = bill.previousBalance || 0;
+    const totalDue = currentCharges + previousBalance;
     
-    if (currentCharges > 0 && penaltyRate > 0) {
-        return parseFloat((currentCharges * penaltyRate).toFixed(2));
+    if (totalDue > 0) {
+        return parseFloat((totalDue * penaltyRate).toFixed(2));
     }
-
     return 0;
 };
 
-
-export const calculateDynamicPenalty = (bill, systemSettings) => {
-    if (!bill || !systemSettings || bill.status === 'Paid') {
+export const calculateDynamicPenalty = (bill) => {
+    if (!bill || bill.status === 'Paid') {
         return 0;
     }
-
     const today = new Date();
     const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : null;
     
     if (!dueDate) {
         return 0;
     }
-
     if (today > dueDate) {
         if (bill.penaltyAmount && bill.penaltyAmount > 0) {
             return bill.penaltyAmount;
         }
-
-        const penaltyRate = (systemSettings.latePaymentPenaltyPercentage || 2.0) / 100;
-        const currentCharges = bill.totalCalculatedCharges || 0;
+        const penaltyRate = 0.15;
+        const currentCharges = bill.totalCalculatedCharges || bill.currentCharges || 0;
+        const previousBalance = bill.previousBalance || 0;
+        const totalDue = currentCharges + previousBalance;
         
-        if (currentCharges > 0 && penaltyRate > 0) {
-            return parseFloat((currentCharges * penaltyRate).toFixed(2));
+        if (totalDue > 0) {
+            return parseFloat((totalDue * penaltyRate).toFixed(2));
         }
     }
-
     return 0;
 };

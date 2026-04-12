@@ -36,25 +36,19 @@ const SocialIcon = ({ type, href }) => {
     );
 };
 
-
-const ContactUsSection = ({ systemSettings = {} }) => {
+const ContactUs = ({ systemSettings = {} }) => {
     const [showTerms, setShowTerms] = useState(false);
     const [showPrivacy, setShowPrivacy] = useState(false);
-
-    const { 
-        supportHotline = "1627-AGWA (24/7 Emergency)",
-        supportEmail = "support@agwa.ph"
-    } = systemSettings;
 
     const contactDetails = [
         {
             icon: PhoneCall,
             title: "Customer Service Hotlines",
             lines: [
-                { text: supportHotline, valueClass: "text-2xl font-semibold text-blue-700 tracking-tight" },
-                { text: "(+63 2) 8162-2492 (Outside Metro Manila / Standard Hours)", valueClass: "text-lg text-gray-700" }
+                { text: "0917-5289190", valueClass: "text-2xl font-semibold text-blue-700 tracking-tight" },
+                { text: "(6346) 412-1575", valueClass: "text-lg text-gray-700" }
             ],
-            note: "Emergency reports are handled 24/7. General inquiries: Mon - Fri, 8 AM - 5 PM PHT.",
+            note: "Emergency reports are handled 24/7. General inquiries: Mon - Fri, 8:00 AM - 5:00 PM PHT.",
             bgColor: "bg-blue-50",
             iconColor: "text-blue-600"
         },
@@ -62,10 +56,10 @@ const ContactUsSection = ({ systemSettings = {} }) => {
             icon: Mail,
             title: "Email Support",
             lines: [
-                { text: supportEmail, valueClass: "text-lg text-green-700 hover:underline" }
+                { text: "padcs.mwd@gmail.com", valueClass: "text-lg text-green-700 hover:underline", href: "mailto:padcs.mwd@gmail.com" },
+                { text: "maragondowaterdistrict@gmail.com", valueClass: "text-md text-green-600 hover:underline", href: "mailto:maragondowaterdistrict@gmail.com" }
             ],
-            note: "For general inquiries, billing concerns, feedback, and non-urgent requests. Expect a response within 1-2 business days.",
-            href: `mailto:${supportEmail}`,
+            note: "For general inquiries, billing concerns, feedback, and non-urgent requests.",
             bgColor: "bg-green-50",
             iconColor: "text-green-600"
         }
@@ -73,23 +67,21 @@ const ContactUsSection = ({ systemSettings = {} }) => {
 
     const officeInfo = {
         icon: Building2,
-        title: "AGWA Head Office",
+        title: "Maragondon Water District Office",
         addressLines: [
-            "AGWA Water Services Bldg.",
-            "Governor's Drive, Brgy. Ibayo Silangan",
-            "Naic, Cavite, Philippines 4110"
+            "18 Colonel Riel Street",
+            "Barangay Poblacion 2A",
+            "Maragondon, Cavite 4112"
         ],
-        hours: "Mon - Fri, 8:00 AM - 5:00 PM PHT (Closed on weekends & public holidays)",
-        note: "Walk-ins are welcome for payments and specific services. For complex concerns, an appointment is recommended to ensure specialist availability.",
-        mapLink: "https://www.google.com/maps/place/Naic,+Cavite/",
+        hours: "Mon - Fri, 8:00 AM - 5:00 PM PHT (No Noon Break)",
+        note: "Walk-ins are welcome for payments and specific services. Closed on weekends & public holidays.",
+        mapLink: "https://maps.google.com/?q=18+Colonel+Riel+Street,+Barangay+Poblacion+2A,+Maragondon,+Cavite",
         bgColor: "bg-gray-100",
         iconColor: "text-gray-600"
     };
 
     const socialMediaLinks = [
-        { type: 'Facebook', href: 'https://facebook.com/AGWAwaterservices' },
-        { type: 'X', href: 'https://x.com/AGWAwaterserv' },
-        { type: 'Instagram', href: 'https://instagram.com/AGWAwater' }
+        { type: 'Facebook', href: 'https://www.facebook.com/maragondonwaterdistrict/' }
     ];
 
     return (
@@ -97,12 +89,12 @@ const ContactUsSection = ({ systemSettings = {} }) => {
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
                 <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 flex items-center">
                     <MessageSquare size={30} className="mr-3 text-blue-600" />
-                    Get In Touch With AGWA
+                    Get In Touch With MWD
                 </h2>
             </div>
 
             <p className="text-gray-700 mb-8 leading-relaxed text-sm sm:text-base">
-                We value your feedback and are dedicated to assisting you with your water service needs. For immediate assistance, especially during emergencies like major leaks or widespread service interruptions, please use our 24/7 hotline. For other inquiries, choose the most convenient channel below.
+                We value your feedback and are dedicated to assisting you with your water service needs. For immediate assistance, especially during emergencies like major leaks or widespread service interruptions, please use our hotline. For other inquiries, choose the most convenient channel below.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -115,8 +107,8 @@ const ContactUsSection = ({ systemSettings = {} }) => {
                                 <div>
                                     <h3 className={`text-lg font-semibold ${contact.iconColor}`}>{contact.title}</h3>
                                     {contact.lines.map((line, idx) => (
-                                        contact.href && idx === 0 ? (
-                                            <a key={idx} href={contact.href} className={line.valueClass}>{line.text}</a>
+                                        line.href ? (
+                                            <a key={idx} href={line.href} className={`block ${line.valueClass}`}>{line.text}</a>
                                         ) : (
                                             <p key={idx} className={line.valueClass}>{line.text}</p>
                                         )
@@ -183,7 +175,7 @@ const ContactUsSection = ({ systemSettings = {} }) => {
                     </button>.
                 </p>
                 <p className="text-center text-xs text-gray-400 mt-4">
-                    © {new Date().getFullYear()} AGWA Water Services, Inc. All Rights Reserved.
+                    © {new Date().getFullYear()} Maragondon Water District. All Rights Reserved.
                 </p>
             </div>
 
@@ -193,4 +185,4 @@ const ContactUsSection = ({ systemSettings = {} }) => {
     );
 };
 
-export default ContactUsSection;
+export default ContactUs;

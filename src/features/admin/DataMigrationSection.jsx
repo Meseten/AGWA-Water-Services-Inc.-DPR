@@ -3,6 +3,7 @@ import { Upload, AlertTriangle, CheckCircle, Database, Loader2, XCircle } from '
 import { collection, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase/firebaseConfig';
 import { profilesCollectionPath, userProfileDocumentPath } from '../../firebase/firestorePaths';
+import { determineServiceTypeAndRole } from '../../utils/userUtils';
 
 export default function DataMigrationSection({ showNotification }) {
     const [file, setFile] = useState(null);
@@ -45,7 +46,7 @@ export default function DataMigrationSection({ showNotification }) {
                 const values = lines[i].split(',').map(v => v.trim());
                 let rowObject = {};
                 headers.forEach((header, index) => {
-                    rowObject[header] = values[index] || '';
+                    rowObject[header] = values[index] !== undefined ? values[index] : '';
                 });
                 rowObject.rowIndex = i + 1;
                 dataRows.push(rowObject);
@@ -71,10 +72,25 @@ export default function DataMigrationSection({ showNotification }) {
 
         data.forEach(row => {
             const errors = [];
-            if (!row.accountNumber) errors.push("Missing Account Number");
-            if (!row.displayName) errors.push("Missing Display Name");
-            if (!row.role) row.role = 'customer'; 
-            if (!row.serviceType) row.serviceType = 'Residential'; 
+            
+            if (!row.accountNumber || row.accountNumber.trim() === '') {
+                errors.push("CRITICAL: Missing Account Number");
+            } else {
+                const derivedClassification = determineServiceTypeAndRole(row.accountNumber);
+                if (!row.role || row.role.trim() === '') {
+                    row.role = derivedClassification.role;
+                }
+                if (!row.serviceType || row.serviceType.trim() === '') {
+                    row.serviceType = derivedClassification.serviceType;
+                }
+            }
+
+            if (!row.displayName || row.displayName.trim() === '') {
+                errors.push("CRITICAL: Missing Display Name");
+            }
+            if (row.email && row.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim())) {
+                errors.push("INVALID: Email format incorrect");
+            }
 
             if (errors.length > 0) {
                 invalidRows.push({ ...row, validationErrors: errors });
@@ -87,6 +103,11 @@ export default function DataMigrationSection({ showNotification }) {
     };
 
     const executeMigration = async () => {
+        if (validationResults.invalid.length > 0) {
+            showNotification("Cannot migrate. Please fix all validation errors in the CSV first.", "error");
+            return;
+        }
+
         if (validationResults.valid.length === 0) {
             showNotification("No valid data rows to migrate.", "warning");
             return;
@@ -101,17 +122,19 @@ export default function DataMigrationSection({ showNotification }) {
                 const batch = writeBatch(db);
                 const currentBatch = validData.slice(i, i + batchSize);
 
-                currentBatch.forEach(userRow => {
-                    const docId = `migrated_${userRow.accountNumber}`;
+                for (const userRow of currentBatch) {
+                    const cleanAccountNumber = userRow.accountNumber.trim().toUpperCase();
+                    const docId = `migrated_${cleanAccountNumber}`;
+                    
                     const profileData = {
-                        accountNumber: userRow.accountNumber.toUpperCase(),
-                        displayName: userRow.displayName,
-                        displayNameLower: userRow.displayName.toLowerCase(),
-                        email: userRow.email || '',
-                        meterSerialNumber: userRow.meterSerialNumber || '',
-                        role: userRow.role,
-                        serviceType: userRow.serviceType,
-                        serviceAddress: { barangay: userRow.barangay || '' },
+                        accountNumber: cleanAccountNumber,
+                        displayName: userRow.displayName.trim(),
+                        displayNameLower: userRow.displayName.trim().toLowerCase(),
+                        email: userRow.email ? userRow.email.trim() : '',
+                        meterSerialNumber: userRow.meterSerialNumber ? userRow.meterSerialNumber.trim() : '',
+                        role: userRow.role.trim(),
+                        serviceType: userRow.serviceType.trim(),
+                        serviceAddress: { barangay: userRow.barangay ? userRow.barangay.trim() : '' },
                         discountStatus: 'none',
                         createdAt: serverTimestamp(),
                         migratedAt: serverTimestamp(),
@@ -120,7 +143,7 @@ export default function DataMigrationSection({ showNotification }) {
 
                     batch.set(doc(db, profilesCollectionPath(), docId), profileData, { merge: true });
                     batch.set(doc(db, userProfileDocumentPath(docId), 'profile'), profileData, { merge: true });
-                });
+                }
 
                 await batch.commit();
             }
@@ -128,7 +151,6 @@ export default function DataMigrationSection({ showNotification }) {
             setMigrationComplete(true);
             showNotification(`Successfully migrated ${validationResults.valid.length} records to AGWA Database.`, "success");
         } catch (error) {
-            console.error("Migration Error:", error);
             showNotification(`Migration failed: ${error.message}`, "error");
         } finally {
             setIsProcessing(false);
@@ -145,61 +167,69 @@ export default function DataMigrationSection({ showNotification }) {
                 <Database className="w-8 h-8 text-emerald-600 mr-3" />
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">AGWA Data Migration Protocol</h2>
-                    <p className="text-sm text-gray-500">Securely import and validate offline legacy collections.</p>
+                    <p className="text-sm text-gray-500">Securely import, classify, and validate offline legacy collections natively using Account Number analytics.</p>
                 </div>
             </div>
 
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 mb-6 text-center">
                 <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileChange} disabled={isProcessing} />
-                <button onClick={triggerFileInput} disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-8 rounded-lg flex items-center justify-center mx-auto transition-colors disabled:opacity-60">
+                <button onClick={triggerFileInput} disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-8 rounded-lg flex items-center justify-center mx-auto transition-colors disabled:opacity-60 shadow-md">
                     <Upload className="mr-2" size={20} />
                     {isProcessing ? 'Processing File...' : 'Upload Legacy Database (CSV)'}
                 </button>
-                {file && <p className="mt-3 text-sm font-medium text-emerald-800">Selected: {file.name}</p>}
-                <p className="mt-4 text-xs text-emerald-600">Expected columns: accountNumber, displayName, email, barangay, meterSerialNumber, role, serviceType</p>
+                {file && <p className="mt-3 text-sm font-bold text-emerald-900">Selected File: {file.name}</p>}
+                <p className="mt-4 text-xs font-semibold text-emerald-700 uppercase tracking-wide">Expected columns: accountNumber, displayName, email, barangay, meterSerialNumber. (Role & Service Type Auto-Extracted if omitted)</p>
             </div>
 
             {parsedData.length > 0 && !migrationComplete && (
-                <div className="space-y-6 animate-fadeIn">
+                <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-green-50 border border-green-200 p-4 rounded-lg flex items-start">
-                            <CheckCircle className="text-green-500 mt-1 mr-3 flex-shrink-0" size={24} />
+                        <div className="bg-green-50 border border-green-300 p-5 rounded-xl shadow-sm flex items-start">
+                            <CheckCircle className="text-green-600 mt-1 mr-4 flex-shrink-0" size={28} />
                             <div>
-                                <h4 className="font-bold text-green-800">Ready for Migration</h4>
-                                <p className="text-2xl font-black text-green-600">{validationResults.valid.length} Rows</p>
+                                <h4 className="font-extrabold text-green-900 uppercase tracking-wide text-sm mb-1">Passed Validation</h4>
+                                <p className="text-3xl font-black text-green-700">{validationResults.valid.length} <span className="text-lg font-medium text-green-600">Rows</span></p>
                             </div>
                         </div>
-                        <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-start">
-                            <AlertTriangle className="text-red-500 mt-1 mr-3 flex-shrink-0" size={24} />
+                        <div className={`border p-5 rounded-xl shadow-sm flex items-start ${validationResults.invalid.length > 0 ? 'bg-red-50 border-red-400' : 'bg-gray-50 border-gray-200'}`}>
+                            <AlertTriangle className={`${validationResults.invalid.length > 0 ? 'text-red-600' : 'text-gray-400'} mt-1 mr-4 flex-shrink-0`} size={28} />
                             <div>
-                                <h4 className="font-bold text-red-800">Validation Errors</h4>
-                                <p className="text-2xl font-black text-red-600">{validationResults.invalid.length} Rows</p>
+                                <h4 className={`font-extrabold uppercase tracking-wide text-sm mb-1 ${validationResults.invalid.length > 0 ? 'text-red-900' : 'text-gray-500'}`}>Validation Errors</h4>
+                                <p className={`text-3xl font-black ${validationResults.invalid.length > 0 ? 'text-red-700' : 'text-gray-400'}`}>{validationResults.invalid.length} <span className={`text-lg font-medium ${validationResults.invalid.length > 0 ? 'text-red-600' : 'text-gray-400'}`}>Rows</span></p>
                             </div>
                         </div>
                     </div>
 
                     {validationResults.invalid.length > 0 && (
-                        <div className="border border-red-200 rounded-lg overflow-hidden">
-                            <div className="bg-red-100 px-4 py-3 border-b border-red-200">
-                                <h4 className="font-semibold text-red-800">Rows Requiring Manual Fixes</h4>
+                        <div className="border-2 border-red-300 rounded-xl overflow-hidden shadow-sm">
+                            <div className="bg-red-100 px-5 py-4 border-b border-red-300 flex items-center justify-between">
+                                <h4 className="font-bold text-red-900 flex items-center">
+                                    <XCircle className="w-5 h-5 mr-2" />
+                                    Rows Requiring Mandatory Fixes Before Migration
+                                </h4>
+                                <span className="text-xs font-bold bg-red-200 text-red-800 px-3 py-1 rounded-full">Upload Blocked</span>
                             </div>
-                            <div className="max-h-60 overflow-y-auto bg-white">
-                                <table className="w-full text-sm text-left text-gray-500">
-                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                            <div className="max-h-80 overflow-y-auto bg-white">
+                                <table className="w-full text-sm text-left text-gray-600">
+                                    <thead className="text-xs text-gray-800 uppercase bg-gray-100 sticky top-0 shadow-sm">
                                         <tr>
-                                            <th className="px-4 py-2">Row</th>
-                                            <th className="px-4 py-2">Account No</th>
-                                            <th className="px-4 py-2">Name</th>
-                                            <th className="px-4 py-2">Errors</th>
+                                            <th className="px-5 py-3 font-bold">Row</th>
+                                            <th className="px-5 py-3 font-bold">Account No</th>
+                                            <th className="px-5 py-3 font-bold">Display Name</th>
+                                            <th className="px-5 py-3 font-bold">Identified Errors</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="divide-y divide-gray-200">
                                         {validationResults.invalid.map((row, idx) => (
-                                            <tr key={idx} className="border-b">
-                                                <td className="px-4 py-2 font-medium text-gray-900">{row.rowIndex}</td>
-                                                <td className="px-4 py-2">{row.accountNumber || '-'}</td>
-                                                <td className="px-4 py-2">{row.displayName || '-'}</td>
-                                                <td className="px-4 py-2 text-red-600">{row.validationErrors.join(', ')}</td>
+                                            <tr key={idx} className="hover:bg-red-50 transition-colors">
+                                                <td className="px-5 py-3 font-bold text-gray-900">{row.rowIndex}</td>
+                                                <td className="px-5 py-3 font-mono text-xs">{row.accountNumber || <span className="text-red-500 font-bold italic">[BLANK]</span>}</td>
+                                                <td className="px-5 py-3 font-medium">{row.displayName || <span className="text-red-500 font-bold italic">[BLANK]</span>}</td>
+                                                <td className="px-5 py-3">
+                                                    <ul className="list-disc list-inside text-red-700 font-bold text-xs">
+                                                        {row.validationErrors.map((err, i) => <li key={i}>{err}</li>)}
+                                                    </ul>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -208,20 +238,24 @@ export default function DataMigrationSection({ showNotification }) {
                         </div>
                     )}
 
-                    <div className="flex justify-end pt-4 border-t border-gray-200">
-                        <button onClick={executeMigration} disabled={isProcessing || validationResults.valid.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg flex items-center transition-all disabled:opacity-50">
+                    <div className="flex justify-end pt-5 border-t border-gray-200 mt-6">
+                        <button 
+                            onClick={executeMigration} 
+                            disabled={isProcessing || validationResults.valid.length === 0 || validationResults.invalid.length > 0} 
+                            className={`font-bold py-3 px-8 rounded-xl flex items-center transition-all shadow-md ${validationResults.invalid.length > 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                        >
                             {isProcessing ? <Loader2 className="animate-spin mr-2" size={20} /> : <Database className="mr-2" size={20} />}
-                            {isProcessing ? 'Committing to Cloud...' : `Commit ${validationResults.valid.length} Valid Records to AGWA`}
+                            {isProcessing ? 'Committing to Cloud...' : validationResults.invalid.length > 0 ? 'Fix Errors to Commit' : `Commit ${validationResults.valid.length} Valid Records to AGWA`}
                         </button>
                     </div>
                 </div>
             )}
 
             {migrationComplete && (
-                <div className="bg-green-100 border border-green-300 text-green-800 p-8 rounded-lg text-center mt-6 animate-fadeIn">
-                    <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                    <h3 className="text-2xl font-bold mb-2">Migration Successful</h3>
-                    <p>The legacy data has been securely verified and committed to the AGWA cloud infrastructure.</p>
+                <div className="bg-emerald-100 border-2 border-emerald-400 text-emerald-900 p-8 rounded-xl text-center mt-6 shadow-sm">
+                    <CheckCircle className="w-20 h-20 text-emerald-500 mx-auto mb-5" />
+                    <h3 className="text-3xl font-black mb-3">Migration Deployed Successfully</h3>
+                    <p className="text-lg font-medium text-emerald-800">The legacy data has been strictly validated, dynamically classified, and perfectly committed to the AGWA cloud infrastructure.</p>
                 </div>
             )}
         </div>

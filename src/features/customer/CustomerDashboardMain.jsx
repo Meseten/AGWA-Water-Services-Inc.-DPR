@@ -20,9 +20,9 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
     const [isTipsModalOpen, setIsTipsModalOpen] = useState(false);
 
     const fetchCustomerDashboardData = useCallback(async () => {
-        if (!user || !user.uid || !userData || !calculateBillDetails) {
+        if (!user || !user.uid || !userData) {
             setIsLoadingData(false);
-            setDataError("User data or essential services are unavailable.");
+            setDataError("User data is unavailable.");
             return;
         }
         setIsLoadingData(true);
@@ -31,7 +31,10 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
             const billsResult = await DataService.getBillsForUser(db, user.uid);
             if (billsResult.success) {
                 const billsWithCalculatedAmounts = billsResult.data.map(bill => {
-                    const charges = calculateBillDetails(bill.consumption, userData.serviceType, userData.meterSize, systemSettings || {});
+                    let charges = bill.calculatedCharges;
+                    if (!charges && calculateBillDetails) {
+                        charges = calculateBillDetails(bill.consumption, userData.serviceType, userData.meterSize, systemSettings || {});
+                    }
                     
                     const dynamicPenalty = calculateDynamicPenalty(bill, systemSettings);
                     const finalAmount = (bill.amount || 0) + dynamicPenalty;
@@ -82,12 +85,8 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
         setIsTipsModalOpen(true);
         setWaterSavingTips('');
         try {
-            const serviceArea = (userData.serviceAddress && userData.serviceAddress.barangay)
-                ? `for a household in ${userData.serviceAddress.barangay}`
-                : 'for a household';
-            
             const prompt = `
-                You are Agie, a professional and helpful AI assistant for AGWA Water Services.
+                You are Agie, a professional and helpful AI assistant for Maragondon Water District.
                 Please provide 8 practical water-saving tips and 2 surprising water trivia facts for a customer in the Philippines.
                 
                 Instructions:
@@ -124,7 +123,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
         <div className="space-y-8 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 <DashboardInfoCard title="Account Status" value={isLoadingData && !userData.accountStatus ? <Loader2 className="animate-spin h-5 w-5"/> : userData.accountStatus || 'Active'} icon={ShieldCheck} borderColor="border-green-500" iconColor="text-green-500" />
-                <DashboardInfoCard title="Current Balance" value={isLoadingData && currentBalance === 0 && nextDueDate === '' ? <Loader2 className="animate-spin h-5 w-5"/> : currentBalanceDisplay} subtext={balanceSubtext} icon={PesoIcon} borderColor={currentBalance > 0 ? "border-red-500" : "border-green-500"} iconColor={currentBalance > 0 ? "text-red-500" : "text-green-500"} />
+                <DashboardInfoCard title="Current Balance" value={isLoadingData && currentBalance === 0 && nextDueDate === '' ? <Loader2 className="animate-spin h-5 w-5"/> : currentBalanceDisplay} subtext={balanceSubtext} icon={PesoIcon} borderColor={currentBalance > 0 ? "border-red-500" : "text-green-500"} iconColor={currentBalance > 0 ? "text-red-500" : "text-green-500"} />
                 <DashboardInfoCard title="Account Number" value={userData.accountNumber || 'N/A'} icon={UserCircle} borderColor="border-blue-500" iconColor="text-blue-500" />
                 <DashboardInfoCard title="Service Type" value={userData.serviceType || 'Residential'} icon={Home} borderColor="border-purple-500" iconColor="text-purple-500" />
             </div>
@@ -186,7 +185,7 @@ const CustomerDashboardMain = ({ user, userData, db, showNotification, setActive
                 <button onClick={() => setActiveSection('myBills')} className={`${quickActionCardClass} focus:ring-green-500 border-l-4 border-green-500`}>
                     <CreditCard size={26} className="mb-2 text-green-500" />
                     <h4 className="font-semibold text-green-700 text-md">Pay My Bill</h4>
-                    <p className="text-xs text-gray-500 mt-0.5">View outstanding bills and make (simulated) payments.</p>
+                    <p className="text-xs text-gray-500 mt-0.5">View outstanding bills and make payments.</p>
                 </button>
                 <button onClick={() => setActiveSection('reportIssue')} className={`${quickActionCardClass} focus:ring-orange-500 border-l-4 border-orange-500`}>
                     <AlertTriangle size={26} className="mb-2 text-orange-500" />

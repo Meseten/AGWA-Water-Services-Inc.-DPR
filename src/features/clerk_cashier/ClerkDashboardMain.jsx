@@ -4,6 +4,7 @@ import DashboardInfoCard from '../../components/ui/DashboardInfoCard.jsx';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from '../../services/dataService.js';
 import { formatDate } from '../../utils/userUtils.js';
+import mwdLogo from '../../assets/mwdlogo.png'; 
 
 const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }) => {
     const [dashboardStats, setDashboardStats] = useState({
@@ -106,29 +107,11 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                 .report-header { 
                     display: flex;
                     justify-content: space-between;
-                    align-items: flex-start;
+                    align-items: center;
                     text-align: left;
                     border-bottom: 2px solid #000; 
                     padding-bottom: 1rem; 
-                }
-                .report-header .logo-print { 
-                    font-size: 2.5rem; 
-                    font-weight: 700; 
-                    color: #1e3a8a !important; 
-                    line-height: 1;
-                    margin: 0; 
-                }
-                .report-header .tagline-print { 
-                    font-size: 0.8rem; 
-                    color: #1d4ed8 !important; 
-                    font-style: italic;
-                    margin: 0;
-                }
-                .report-header .company-address-print {
-                    text-align: right;
-                    font-size: 0.8rem;
-                    line-height: 1.4;
-                    color: #374151 !important;
+                    margin-bottom: 1.5rem;
                 }
                 h1.report-title { 
                     font-size: 1.5rem; 
@@ -284,15 +267,17 @@ const ClerkDashboardMain = ({ userData, showNotification, setActiveSection, db }
                 </div>
                 
                 <div id="eod-report-content" className="bg-white p-6 sm:p-10 rounded-lg border border-gray-200 text-gray-800 text-[10pt] leading-normal printable-area">
+                    {/* Updated MWD Header */}
                     <div className="report-header">
-                        <div>
-                            <h1 className="logo-print">AGWA</h1>
-                            <p className="tagline-print">Ensuring Clarity, Sustaining Life.</p>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                             <img src={mwdLogo} alt="MWD Logo" style={{ height: '60px', width: '60px', marginRight: '15px' }} />
+                             <div>
+                                <h1 style={{ margin: 0, fontSize: '1.5rem', color: 'black', textTransform: 'uppercase', fontWeight: 'bold' }}>MARAGONDON WATER DISTRICT</h1>
+                             </div>
                         </div>
-                        <div className="company-address-print">
-                            <strong>AGWA Water Services, Inc.</strong><br/>
-                            AGWA Water Services Bldg., Governor's Drive<br/>
-                            Brgy. Ibayo Silangan, Naic, Cavite 4110
+                        <div style={{ textAlign: 'right', fontSize: '0.9rem', color: 'black' }}>
+                            <p style={{ margin: 0 }}>Maragondon, Cavite</p>
+                            <p style={{ margin: 0 }}>0917-5289190 / (6346) 412-1575</p>
                         </div>
                     </div>
 

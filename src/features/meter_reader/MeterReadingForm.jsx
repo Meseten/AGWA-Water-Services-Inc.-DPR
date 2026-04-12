@@ -55,7 +55,7 @@ const MeterReadingForm = ({ db, userData: meterReaderData, showNotification, cus
         
         setIsSubmitting(false);
         updatePendingCount();
-        showNotification(`Synced ${successCount} offline readings to AGOS database.`, "success");
+        showNotification(`Synced ${successCount} offline readings to AGWA database.`, "success");
     };
 
     const handleSearchUser = async (e) => {
@@ -109,7 +109,7 @@ const MeterReadingForm = ({ db, userData: meterReaderData, showNotification, cus
                 if(isModalMode && onReadingSubmitted) {
                     onReadingSubmitted(submissionResult.id, readingData);
                 } else {
-                    showNotification(`Reading submitted to AGOS successfully!`, "success");
+                    showNotification(`Reading submitted to AGWA database successfully!`, "success");
                     resetForm();
                 }
             } else {

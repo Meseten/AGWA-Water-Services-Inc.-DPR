@@ -4,6 +4,7 @@ import {
     LogOut, ShieldCheck, Megaphone, BarChart3, Edit, Gauge, Map, ClipboardEdit, Search, Banknote, FileSearch,
     TrendingUp, Gift, AlertTriangle as AlertIcon, Edit as EditIcon, Eye
 } from 'lucide-react';
+import mwdLogo from '../../assets/mwdlogo.png';
 
 const iconMap = {
     Home, UserCog, FileText, AlertTriangle, Users, MessageSquare, Settings, HelpCircle, Info, PhoneCall,
@@ -35,9 +36,9 @@ const Sidebar = ({
 
     const sidebarContent = (
         <div className="h-full flex flex-col bg-gradient-to-b from-blue-700 to-blue-900 text-white shadow-2xl">
-            <div className="p-5 pt-6 text-center border-b border-blue-600">
-                <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">AGWA</h1>
-                <p className="text-xs text-blue-200 font-light mt-0.5 italic">Ensuring Clarity, Sustaining Life.</p>
+            <div className="p-5 pt-6 text-center border-b border-blue-600 flex flex-col items-center">
+                <img src={mwdLogo} alt="MWD Logo" className="h-16 w-auto mb-3 drop-shadow-lg" />
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">MARAGONDON WATER DISTRICT</h1>
             </div>
 
             <nav className="flex-grow p-3 space-y-1.5 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-blue-800">

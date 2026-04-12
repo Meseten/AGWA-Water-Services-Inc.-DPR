@@ -5,7 +5,7 @@ import {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath, documentId, startAfter, runTransaction, FieldValue
+    FieldPath, documentId, startAfter, runTransaction, FieldValue, CACHE_SIZE_UNLIMITED
 } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
@@ -30,6 +30,12 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app);
 
+try {
+    db._settings = { ...db._settings, cacheSizeBytes: CACHE_SIZE_UNLIMITED };
+} catch (error) {
+    console.warn("AGWA PWA: Proceeding with default cache sizing.", error);
+}
+
 const USE_EMULATOR = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
 
 if (USE_EMULATOR) {
@@ -43,15 +49,15 @@ if (USE_EMULATOR) {
 
 enableMultiTabIndexedDbPersistence(db)
   .then(() => {
-    console.log("Firestore offline persistence enabled for multiple tabs.");
+    console.log("AGWA PWA: Firestore offline persistence enabled and verified for multi-tab fieldwork.");
   })
   .catch((err) => {
     if (err.code === 'failed-precondition') {
-      console.warn("Firestore offline persistence failed: Multiple tabs open or other issues.");
+      console.warn("AGWA PWA: Offline persistence fallback active - Multiple tabs open.");
     } else if (err.code === 'unimplemented') {
-      console.warn("Firestore offline persistence failed: Browser does not support all features.");
+      console.warn("AGWA PWA: Offline persistence degraded - Browser lacking full support.");
     } else {
-      console.warn("Firestore persistence error:", err.message);
+      console.error("AGWA PWA: Firestore persistence initialization fault:", err.message);
     }
   });
 
@@ -60,5 +66,6 @@ export {
     doc, setDoc, getDoc, addDoc, collection, updateDoc,
     deleteDoc, query, where, getDocs, serverTimestamp,
     Timestamp, orderBy, writeBatch, getCountFromServer, arrayUnion, limit,
-    FieldPath, documentId, startAfter, runTransaction, FieldValue
+    FieldPath, documentId, startAfter, runTransaction, FieldValue,
+    CACHE_SIZE_UNLIMITED
 };

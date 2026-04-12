@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import TermsModal from '../../features/common/TermsModal.jsx';
 import PrivacyModal from '../../features/common/PrivacyModal.jsx';
+import mwdLogo from '../../assets/mwdlogo.png';
 
 export const commonInputClass = "w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition duration-200 text-gray-900 placeholder-gray-500 text-sm";
 export const commonButtonClass = "w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-60 active:scale-95 text-sm";
@@ -16,8 +17,8 @@ const AuthFormContainer = React.memo(({ children, authError, appIdForPaths, syst
       <div className="min-h-screen bg-gradient-to-br from-blue-700 to-indigo-800 flex flex-col justify-center items-center p-4 font-sans selection:bg-blue-300 selection:text-blue-900">
         <div className="bg-white p-8 sm:p-10 md:p-12 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-500 ease-out animate-fadeInUp">
           <div className="text-center mb-8">
-            <h1 className="text-5xl font-bold text-blue-600 tracking-tight">AGWA</h1>
-            <p className="text-sm text-gray-500 mt-1 italic">Ensuring Clarity, Sustaining Life.</p>
+            <img src={mwdLogo} alt="MWD Logo" className="h-20 w-auto mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-blue-800 tracking-tight">MARAGONDON WATER DISTRICT</h1>
           </div>
 
           {authError && (
@@ -46,7 +47,7 @@ const AuthFormContainer = React.memo(({ children, authError, appIdForPaths, syst
             </p>
         )}
         <p className="text-center text-xs text-blue-300 mt-2">
-          &copy; {new Date().getFullYear()} AGWA Water Services, Inc.
+          &copy; {new Date().getFullYear()} Maragondon Water District. All Rights Reserved.
         </p>
 
         <div id="recaptcha-container" className="my-2 mx-auto"></div>

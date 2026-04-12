@@ -3,7 +3,7 @@ import { Map, AlertTriangle, Loader2 } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import BarangayMap from '../../components/ui/BarangayMap';
 import * as DataService from '../../services/dataService';
-import naicBarangaysGeoJson from '../../data/naic_barangays.json';
+import maragondonBarangaysGeoJson from '../../data/maragondon_barangays.json';
 
 const ServiceInterruptionMap = ({ db, showNotification }) => {
     const [allAffectedAreas, setAllAffectedAreas] = useState([]);
@@ -33,7 +33,7 @@ const ServiceInterruptionMap = ({ db, showNotification }) => {
         fetchInterruptions();
     }, [fetchInterruptions]);
     
-    const geoJsonData = useMemo(() => naicBarangaysGeoJson, []);
+    const geoJsonData = useMemo(() => maragondonBarangaysGeoJson, []);
 
     return (
         <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn h-[calc(100vh-4rem)] flex flex-col">

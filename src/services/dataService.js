@@ -858,7 +858,7 @@ export async function updateBill(dbInstance, billId, updates) {
                 if (finalUpdates.amountPaid > 0) {
                     const paymentDetails = {
                         date: finalUpdates.paymentDate || today,
-                        timestamp: finalUpdates.paymentTimestamp || serverTimestamp(),
+                        timestamp: finalUpdates.paymentTimestamp || Timestamp.now(),
                         reference: finalUpdates.paymentReference || `PAY-${Date.now().toString().slice(-6)}`,
                         amount: finalUpdates.amountPaid,
                         method: finalUpdates.paymentMethod || 'Unknown'

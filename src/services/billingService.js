@@ -1,173 +1,118 @@
-export const calculateBillDetails = (
-    consumption,
-    serviceType,
-    meterSize = '1/2"',
-    systemSettingsInput = {}
-) => {
-    let basicCharge = 0;
-    let fcda = 0;
-    let environmentalCharge = 0;
-    let sewerageCharge = 0;
-    let maintenanceServiceCharge = 0;
-    let governmentTaxes = 0;
-    let vat = 0;
+import { collection, addDoc, updateDoc, doc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../firebase/firebaseConfig';
+import { allBillsCollectionPath } from '../firebase/firestorePaths';
 
-    const cons = parseFloat(consumption) || 0;
+export const mwdTariffRates = {
+    'Residential': { min: 185.00, t11_20: 19.80, t21_30: 21.45, t31_40: 23.70, t41_50: 26.45, t51_up: 29.75 },
+    'Government': { min: 185.00, t11_20: 19.80, t21_30: 21.45, t31_40: 23.70, t41_50: 26.45, t51_up: 29.75 },
+    'Commercial': { min: 370.00, t11_20: 39.60, t21_30: 42.90, t31_40: 47.40, t41_50: 52.90, t51_up: 59.50 },
+    'Commercial A': { min: 323.75, t11_20: 34.65, t21_30: 37.54, t31_40: 41.48, t41_50: 46.28, t51_up: 52.06 },
+    'Commercial B': { min: 277.50, t11_20: 29.70, t21_30: 32.18, t31_40: 35.55, t41_50: 39.67, t51_up: 44.62 },
+    'Commercial C': { min: 231.25, t11_20: 24.75, t21_30: 26.81, t31_40: 29.62, t41_50: 33.06, t51_up: 37.18 }
+};
 
-    const defaultSettings = {
-        fcdaPercentage: 1.29,
-        environmentalChargePercentage: 25,
-        sewerageChargePercentageCommercial: 32.85,
-        governmentTaxPercentage: 2,
-        vatPercentage: 12,
+export const calculateWaterBill = (consumption, serviceType, discountStatus, previousBalance = 0) => {
+    const rates = mwdTariffRates[serviceType] || mwdTariffRates['Residential'];
+    let currentCharges = 0;
 
-        minimumChargeResidential: 195.49,
-        minimumChargeCommercial: 512.30,
-        minimumChargeResLowIncome: 70.07,
-        minimumChargeSemiBusiness: 195.49,
-        minimumChargeIndustrial: 72.68,
+    if (consumption <= 10) {
+        currentCharges = rates.min;
+    } else {
+        currentCharges += rates.min;
+        let remaining = consumption - 10;
 
-        rates: {
-            resLowIncome: [
-                { limit: 10, rate: 0, fixed: 70.07 },
-                { limit: 20, rate: 14.29 },
-                { limit: 30, rate: 23.82 },
-                { limit: 40, rate: 45.17 },
-                { limit: Infinity, rate: 59.54 }
-            ],
-            residential: [
-                { limit: 10, rate: 0, fixed: 195.49 },
-                { limit: 20, rate: 23.82 },
-                { limit: 30, rate: 45.17 },
-                { limit: 50, rate: 59.54 },
-                { limit: 70, rate: 69.52 },
-                { limit: 90, rate: 72.89 },
-                { limit: 140, rate: 76.14 },
-                { limit: 200, rate: 79.42 },
-                { limit: Infinity, rate: 82.67 }
-            ],
-            semiBusiness: [
-                { limit: 10, rate: 0, fixed: 195.49 },
-                { limit: 20, rate: 39.90 },
-                { limit: 40, rate: 49.22 },
-                { limit: 60, rate: 62.55 },
-                { limit: 80, rate: 72.88 },
-                { limit: 130, rate: 76.14 },
-                { limit: 180, rate: 79.42 },
-                { limit: Infinity, rate: 82.67 }
-            ],
-            commercial: [
-                { limit: 10, rate: 0, fixed: 512.30 },
-                { limit: 20, rate: 53.61 },
-                { limit: 40, rate: 58.98 },
-                { limit: 60, rate: 64.33 },
-                { limit: 80, rate: 69.69 },
-                { limit: 100, rate: 72.88 },
-                { limit: 150, rate: 76.14 },
-                { limit: 200, rate: 79.42 },
-                { limit: Infinity, rate: 82.67 }
-            ],
-            industrial: { rate: 72.68 }
+        if (remaining > 0) {
+            const t11_20 = Math.min(remaining, 10);
+            currentCharges += t11_20 * rates.t11_20;
+            remaining -= t11_20;
         }
-    };
-
-    const settings = { ...defaultSettings, ...systemSettingsInput };
-    
-    const fcdaRate = (settings.fcdaPercentage || defaultSettings.fcdaPercentage) / 100;
-    const ecRate = (settings.environmentalChargePercentage || defaultSettings.environmentalChargePercentage) / 100;
-    const scRateCommercial = (settings.sewerageChargePercentageCommercial || defaultSettings.sewerageChargePercentageCommercial) / 100;
-    const govTaxRate = (settings.governmentTaxPercentage || defaultSettings.governmentTaxPercentage) / 100;
-    const vatRate = (settings.vatPercentage || defaultSettings.vatPercentage) / 100;
-
-    const rates = {
-        resLowIncome: settings.rates?.resLowIncome || defaultSettings.rates.resLowIncome,
-        residential: settings.rates?.residential || defaultSettings.rates.residential,
-        semiBusiness: settings.rates?.semiBusiness || defaultSettings.rates.semiBusiness,
-        commercial: settings.rates?.commercial || defaultSettings.rates.commercial,
-        industrial: settings.rates?.industrial || defaultSettings.rates.industrial,
-    };
-    
-    rates.resLowIncome[0].fixed = settings.minimumChargeResLowIncome || defaultSettings.minimumChargeResLowIncome;
-    rates.residential[0].fixed = settings.minimumChargeResidential || defaultSettings.minimumChargeResidential;
-    rates.semiBusiness[0].fixed = settings.minimumChargeSemiBusiness || defaultSettings.minimumChargeSemiBusiness;
-    rates.commercial[0].fixed = settings.minimumChargeCommercial || defaultSettings.minimumChargeCommercial;
-    rates.industrial.rate = settings.minimumChargeIndustrial || defaultSettings.minimumChargeIndustrial;
-
-
-    const meterSizeCleaned = String(meterSize).replace(/["“”]/g, '').trim();
-    if (meterSizeCleaned === '1/2' || meterSizeCleaned === '15mm') maintenanceServiceCharge = 1.50;
-    else if (meterSizeCleaned === '3/4' || meterSizeCleaned === '20mm') maintenanceServiceCharge = 2.00;
-    else if (meterSizeCleaned === '1' || meterSizeCleaned === '25mm') maintenanceServiceCharge = 3.00;
-    else if (meterSizeCleaned === '1 1/4' || meterSizeCleaned === '40mm') maintenanceServiceCharge = 4.00;
-    else if (meterSizeCleaned === '1 1/2' || meterSizeCleaned === '32mm') maintenanceServiceCharge = 4.00;
-    else if (meterSizeCleaned === '2' || meterSizeCleaned === '50mm') maintenanceServiceCharge = 6.00;
-    else if (meterSizeCleaned === '3' || meterSizeCleaned === '75mm') maintenanceServiceCharge = 10.00;
-    else if (meterSizeCleaned === '4' || meterSizeCleaned === '100mm') maintenanceServiceCharge = 20.00;
-    else if (meterSizeCleaned === '6' || meterSizeCleaned === '150mm') maintenanceServiceCharge = 35.00;
-    else if (meterSizeCleaned === '8' || meterSizeCleaned === '200mm') maintenanceServiceCharge = 50.00;
-    else maintenanceServiceCharge = 1.50;
-    
-    const calculateTieredCharge = (tiers) => {
-        let charge = 0;
-        let remainingCons = cons;
-        if (remainingCons > 0 && tiers[0].fixed) {
-            charge += tiers[0].fixed;
-            remainingCons -= tiers[0].limit;
+        if (remaining > 0) {
+            const t21_30 = Math.min(remaining, 10);
+            currentCharges += t21_30 * rates.t21_30;
+            remaining -= t21_30;
         }
-        for (let i = 1; i < tiers.length; i++) {
-            if (remainingCons <= 0) break;
-            const prevLimit = tiers[i-1].limit;
-            const currentTierConsumptionCap = tiers[i].limit - prevLimit;
-            const chargeableCons = Math.min(remainingCons, currentTierConsumptionCap);
-            charge += chargeableCons * tiers[i].rate;
-            remainingCons -= chargeableCons;
+        if (remaining > 0) {
+            const t31_40 = Math.min(remaining, 10);
+            currentCharges += t31_40 * rates.t31_40;
+            remaining -= t31_40;
         }
-        return charge;
-    };
-
-    if (serviceType === 'Residential Low-Income') {
-        basicCharge = calculateTieredCharge(rates.resLowIncome);
-    } else if (serviceType === 'Residential') {
-        basicCharge = calculateTieredCharge(rates.residential);
-    } else if (serviceType === 'Semi-Business') { 
-        basicCharge = calculateTieredCharge(rates.semiBusiness);
-    } else if (serviceType === 'Commercial' || serviceType === 'Admin') {
-        basicCharge = calculateTieredCharge(rates.commercial);
-    } else if (serviceType === 'Industrial' || serviceType === 'Meter Reading Personnel') {
-        basicCharge = cons * rates.industrial.rate;
-    } else { 
-        basicCharge = calculateTieredCharge(rates.residential);
+        if (remaining > 0) {
+            const t41_50 = Math.min(remaining, 10);
+            currentCharges += t41_50 * rates.t41_50;
+            remaining -= t41_50;
+        }
+        if (remaining > 0) {
+            currentCharges += remaining * rates.t51_up;
+        }
     }
 
-    fcda = basicCharge * fcdaRate;
-    const waterCharge = basicCharge + fcda;
-    environmentalCharge = waterCharge * ecRate;
-
-    if (serviceType === 'Commercial' || serviceType === 'Industrial' || serviceType === 'Admin' || serviceType === 'Meter Reading Personnel') {
-        sewerageCharge = waterCharge * scRateCommercial;
-    } else { 
-        sewerageCharge = (settings.sewerageChargeResidential / 100) * waterCharge || 0;
+    let discountAmount = 0;
+    if (discountStatus === 'Senior Citizen' && consumption <= 30) {
+        discountAmount = currentCharges * 0.05;
     }
 
-    const subTotalBeforeTaxes = waterCharge + environmentalCharge + sewerageCharge + maintenanceServiceCharge;
-    
-    governmentTaxes = subTotalBeforeTaxes * govTaxRate;
-    vat = subTotalBeforeTaxes * vatRate;
-
-    // This is the total *before* discounts are applied.
-    const totalCalculatedCharges = subTotalBeforeTaxes + governmentTaxes + vat;
+    const netCurrentCharges = currentCharges - discountAmount;
+    const totalDueBeforePenalty = netCurrentCharges + previousBalance;
 
     return {
-        consumption: cons, serviceType, meterSize: meterSizeCleaned,
-        basicCharge: parseFloat(basicCharge.toFixed(2)),
-        fcda: parseFloat(fcda.toFixed(2)),
-        environmentalCharge: parseFloat(environmentalCharge.toFixed(2)),
-        sewerageCharge: parseFloat(sewerageCharge.toFixed(2)),
-        maintenanceServiceCharge: parseFloat(maintenanceServiceCharge.toFixed(2)),
-        subTotalBeforeTaxes: parseFloat(subTotalBeforeTaxes.toFixed(2)),
-        governmentTaxes: parseFloat(governmentTaxes.toFixed(2)),
-        vatableSales: parseFloat(subTotalBeforeTaxes.toFixed(2)), // VATable Sales is the subtotal
-        vat: parseFloat(vat.toFixed(2)),
-        totalCalculatedCharges: parseFloat(totalCalculatedCharges.toFixed(2)),
+        baseCharge: rates.min,
+        consumptionCharge: currentCharges - rates.min,
+        totalCurrentCharges: parseFloat(currentCharges.toFixed(2)),
+        discountAmount: parseFloat(discountAmount.toFixed(2)),
+        netCurrentCharges: parseFloat(netCurrentCharges.toFixed(2)),
+        previousBalance: parseFloat(previousBalance.toFixed(2)),
+        totalDueBeforePenalty: parseFloat(totalDueBeforePenalty.toFixed(2))
+    };
+};
+
+export const applyPenaltyToOverdueBills = async () => {
+    const today = new Date();
+    const billsRef = collection(db, allBillsCollectionPath());
+    const q = query(billsRef, where("status", "==", "Unpaid"));
+    
+    try {
+        const snapshot = await getDocs(q);
+        const updates = [];
+        
+        snapshot.forEach((billDoc) => {
+            const billData = billDoc.data();
+            const dueDate = billData.dueDate?.toDate ? billData.dueDate.toDate() : null;
+            
+            if (dueDate && today > dueDate && (!billData.penaltyAmount || billData.penaltyAmount === 0)) {
+                const penaltyRate = 0.15;
+                const currentCharges = billData.netCurrentCharges || billData.currentCharges || 0;
+                const previousBalance = billData.previousBalance || 0;
+                const totalDue = currentCharges + previousBalance;
+                
+                if (totalDue > 0) {
+                    const penaltyAmount = parseFloat((totalDue * penaltyRate).toFixed(2));
+                    const newTotalDue = totalDue + penaltyAmount;
+                    
+                    updates.push(
+                        updateDoc(doc(db, allBillsCollectionPath(), billDoc.id), {
+                            penaltyAmount: penaltyAmount,
+                            totalAmountDue: newTotalDue,
+                            updatedAt: serverTimestamp(),
+                            penaltyAppliedAt: serverTimestamp()
+                        })
+                    );
+                }
+            }
+        });
+        
+        await Promise.all(updates);
+        return { success: true, updatedCount: updates.length };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+};
+
+export const calculateBillDetails = (consumption, serviceType, meterSize, systemSettings) => {
+    const bill = calculateWaterBill(consumption, serviceType, 'none', 0);
+    
+    return {
+        baseCharge: bill.baseCharge,
+        consumptionCharge: bill.consumptionCharge,
+        totalCalculatedCharges: bill.totalCurrentCharges 
     };
 };

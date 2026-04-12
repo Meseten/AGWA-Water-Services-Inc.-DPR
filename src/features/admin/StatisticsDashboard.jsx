@@ -1,49 +1,35 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Bar, Line, Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
-import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, Calendar, MapPin as MapPinIcon, DollarSign, Clock, UserCheck, Settings, AlertTriangle, TrendingUp, AlertOctagon, Droplets, CreditCard, UserPlus, Percent, Sparkles } from "lucide-react";
+import { BarChart3, Users, MessageSquare, RotateCcw, Loader2, Info, Printer, MapPin as MapPinIcon, DollarSign, UserCheck, Settings, AlertTriangle, AlertOctagon, Droplets, Percent } from "lucide-react";
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from "../../services/dataService.js";
 import { db } from "../../firebase/firebaseConfig.js";
 import { generateChartAnalysis, callDeepseekAPI } from "../../services/deepseekService.js";
 import DOMPurify from 'dompurify';
+import mwdLogo from '../../assets/mwdlogo.png'; 
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
 const chartColors = {
-    blue: 'rgba(59, 130, 246, 0.6)',
-    blueBorder: 'rgba(59, 130, 246, 1)',
-    green: 'rgba(16, 185, 129, 0.6)',
-    greenBorder: 'rgba(16, 185, 129, 1)',
-    purple: 'rgba(139, 92, 246, 0.6)',
-    purpleBorder: 'rgba(139, 92, 246, 1)',
-    red: 'rgba(239, 68, 68, 0.6)',
-    redBorder: 'rgba(239, 68, 68, 1)',
-    orange: 'rgba(249, 115, 22, 0.6)',
-    orangeBorder: 'rgba(249, 115, 22, 1)',
-    teal: 'rgba(20, 184, 166, 0.6)',
-    tealBorder: 'rgba(20, 184, 166, 1)',
-    sky: 'rgba(14, 165, 233, 0.6)',
-    skyBorder: 'rgba(14, 165, 233, 1)',
-    pink: 'rgba(236, 72, 153, 0.6)',
-    pinkBorder: 'rgba(236, 72, 153, 1)',
-    yellow: 'rgba(234, 179, 8, 0.6)',
-    yellowBorder: 'rgba(234, 179, 8, 1)',
-    gray: 'rgba(107, 114, 128, 0.6)',
-    grayBorder: 'rgba(107, 114, 128, 1)',
+    blue: 'rgba(59, 130, 246, 0.6)', blueBorder: 'rgba(59, 130, 246, 1)',
+    green: 'rgba(16, 185, 129, 0.6)', greenBorder: 'rgba(16, 185, 129, 1)',
+    purple: 'rgba(139, 92, 246, 0.6)', purpleBorder: 'rgba(139, 92, 246, 1)',
+    red: 'rgba(239, 68, 68, 0.6)', redBorder: 'rgba(239, 68, 68, 1)',
+    orange: 'rgba(249, 115, 22, 0.6)', orangeBorder: 'rgba(249, 115, 22, 1)',
+    teal: 'rgba(20, 184, 166, 0.6)', tealBorder: 'rgba(20, 184, 166, 1)',
+    sky: 'rgba(14, 165, 233, 0.6)', skyBorder: 'rgba(14, 165, 233, 1)',
+    pink: 'rgba(236, 72, 153, 0.6)', pinkBorder: 'rgba(236, 72, 153, 1)',
+    yellow: 'rgba(234, 179, 8, 0.6)', yellowBorder: 'rgba(234, 179, 8, 1)',
+    gray: 'rgba(107, 114, 128, 0.6)', grayBorder: 'rgba(107, 114, 128, 1)',
 };
 
 const commonChartOptions = (title) => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: false, 
+    responsive: true, maintainAspectRatio: false, animation: false, 
     plugins: {
         legend: { display: true, position: 'bottom' },
         title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
-        tooltip: {
-            backgroundColor: '#1F2937', titleColor: '#E5E7EB', bodyColor: '#D1D5DB',
-            borderColor: '#4B5563', borderWidth: 1, padding: 10, boxPadding: 3,
-        }
+        tooltip: { backgroundColor: '#1F2937', titleColor: '#E5E7EB', bodyColor: '#D1D5DB', borderColor: '#4B5563', borderWidth: 1, padding: 10, boxPadding: 3 }
     },
     scales: {
         y: { beginAtZero: true, grid: { color: '#E5E7EB' }, ticks: { color: '#6B7280' } },
@@ -69,10 +55,7 @@ const LineChartComponent = ({ data, title, datasets }) => {
     if (datasets) {
         chartData = {
             labels: Object.keys(data),
-            datasets: datasets.map(ds => ({
-                ...ds,
-                data: Object.values(data).map(val => val[ds.key] || val || 0)
-            }))
+            datasets: datasets.map(ds => ({ ...ds, data: Object.values(data).map(val => val[ds.key] || val || 0) }))
         };
     } else {
          const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
@@ -85,32 +68,20 @@ const LineChartComponent = ({ data, title, datasets }) => {
             ],
         };
     }
-    
     return <div className="h-72 w-full"><Line options={commonChartOptions(title)} data={chartData} /></div>;
 };
 
 const DoughnutChartComponent = ({ data, title, colorMap }) => {
     if (!data || Object.keys(data).length === 0) return <p className="text-sm text-gray-500 text-center py-10">No data for {title}.</p>;
-    
     const defaultColors = [chartColors.blue, chartColors.green, chartColors.purple, chartColors.orange, chartColors.red, chartColors.teal, chartColors.sky, chartColors.pink, chartColors.yellow, chartColors.gray];
-    
-    const backgroundColors = colorMap 
-        ? Object.keys(data).map(key => colorMap[key] || chartColors.gray)
-        : defaultColors.slice(0, Object.keys(data).length);
+    const backgroundColors = colorMap ? Object.keys(data).map(key => colorMap[key] || chartColors.gray) : defaultColors.slice(0, Object.keys(data).length);
         
     const chartData = {
         labels: Object.keys(data).map(k => k.charAt(0).toUpperCase() + k.slice(1)),
-        datasets: [{
-            data: Object.values(data),
-            backgroundColor: backgroundColors,
-            borderColor: '#FFFFFF',
-            borderWidth: 2,
-        }],
+        datasets: [{ data: Object.values(data), backgroundColor: backgroundColors, borderColor: '#FFFFFF', borderWidth: 2 }],
     };
     const options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
+        responsive: true, maintainAspectRatio: false, animation: false,
         plugins: {
             legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15 } },
             title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -127,14 +98,11 @@ const PieChartComponent = ({ data, title }) => {
         datasets: [{
             data: Object.values(data),
             backgroundColor: [chartColors.teal, chartColors.orange, chartColors.pink, chartColors.yellow, chartColors.sky, chartColors.blue, chartColors.green, chartColors.purple, chartColors.red],
-            borderColor: '#FFFFFF',
-            borderWidth: 2,
+            borderColor: '#FFFFFF', borderWidth: 2,
         }],
     };
     const options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
+        responsive: true, maintainAspectRatio: false, animation: false,
         plugins: {
             legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15 } },
             title: { display: true, text: title, font: { size: 16 }, color: '#374151', padding: { bottom: 15 } },
@@ -143,7 +111,6 @@ const PieChartComponent = ({ data, title }) => {
     };
     return <div className="h-72 w-full"><Pie options={options} data={chartData} /></div>;
 };
-
 
 const StatCard = ({ title, value, icon: Icon, color }) => (
     <div className="bg-gray-50 p-4 rounded-lg shadow border-l-4" style={{ borderColor: color }}>
@@ -159,7 +126,6 @@ const StatCard = ({ title, value, icon: Icon, color }) => (
     </div>
 );
 
-
 const StatisticsDashboard = ({ showNotification = console.log }) => {
     const [stats, setStats] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -172,26 +138,15 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
 
         try {
             const results = await Promise.allSettled([
-                DataService.getUsersStats(db),
-                DataService.getTicketsStats(db),
-                DataService.getRevenueStats(db),
-                DataService.getHourlyActivityStats(db),
-                DataService.getStaffActivityStats(db),
-                DataService.getTechnicalStats(db),
-                DataService.getRevenueByLocationStats(db),
-                DataService.getOutstandingBalanceStats(db),
-                DataService.getConsumptionStats(db),
-                DataService.getPaymentMethodStats(db),
-                DataService.getUserGrowthStats(db),
-                DataService.getDiscountStats(db), 
+                DataService.getUsersStats(db), DataService.getTicketsStats(db),
+                DataService.getRevenueStats(db), DataService.getHourlyActivityStats(db),
+                DataService.getStaffActivityStats(db), DataService.getTechnicalStats(db),
+                DataService.getRevenueByLocationStats(db), DataService.getOutstandingBalanceStats(db),
+                DataService.getConsumptionStats(db), DataService.getPaymentMethodStats(db),
+                DataService.getUserGrowthStats(db), DataService.getDiscountStats(db), 
             ]);
 
-            const [
-                usersResult, ticketsResult, revenueResult, hourlyResult, 
-                staffResult, techResult, locationRevenueResult, outstandingResult,
-                consumptionResult, paymentMethodResult, userGrowthResult,
-                discountResult 
-            ] = results;
+            const [ usersResult, ticketsResult, revenueResult, hourlyResult, staffResult, techResult, locationRevenueResult, outstandingResult, consumptionResult, paymentMethodResult, userGrowthResult, discountResult ] = results;
             
             let partialError = '';
             const newStats = {};
@@ -199,77 +154,49 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             const processResult = (result, name, dataKey) => {
                 if (result.status === 'fulfilled' && result.value.success) {
                     newStats[dataKey] = result.value.data;
-                    
-                    if (name === 'User') {
-                        newStats.totalUsers = result.value.data.total;
-                        newStats.usersByRole = result.value.data.byRole;
-                    }
-                    if (name === 'Ticket') {
-                        newStats.ticketStats = result.value.data.byStatus;
-                        newStats.ticketsByType = result.value.data.byType;
-                        newStats.totalTickets = result.value.data.total;
-                        newStats.openTickets = result.value.data.openCount;
-                    }
-                    if (name === 'Outstanding balance') {
-                        newStats.outstandingBalance = result.value.data.totalOutstanding;
-                    }
+                    if (name === 'User') { newStats.totalUsers = result.value.data.total; newStats.usersByRole = result.value.data.byRole; }
+                    if (name === 'Ticket') { newStats.ticketStats = result.value.data.byStatus; newStats.ticketsByType = result.value.data.byType; newStats.totalTickets = result.value.data.total; newStats.openTickets = result.value.data.openCount; }
+                    if (name === 'Outstanding balance') { newStats.outstandingBalance = result.value.data.totalOutstanding; }
                 } else {
-                    let errorMsg = 'Unknown error';
-                    if (result.status === 'rejected') {
-                        errorMsg = result.reason?.message || result.reason.toString();
-                    } else if (result.value?.error) {
-                        errorMsg = result.value.error;
-                    }
+                    let errorMsg = result.status === 'rejected' ? (result.reason?.message || result.reason.toString()) : result.value?.error;
                     partialError += `${name} stats failed: ${errorMsg} | `;
                 }
             };
             
-            processResult(usersResult, 'User', 'users');
-            processResult(ticketsResult, 'Ticket', 'tickets');
-            processResult(revenueResult, 'Monthly revenue', 'monthlyRevenue');
-            processResult(hourlyResult, 'Hourly activity', 'hourlyActivity');
-            processResult(staffResult, 'Staff activity', 'staffActivity');
-            processResult(techResult, 'Technical', 'techStats');
-            processResult(locationRevenueResult, 'Location revenue', 'revenueByLocation');
-            processResult(outstandingResult, 'Outstanding balance', 'outstanding');
-            processResult(consumptionResult, 'Consumption', 'monthlyConsumption');
-            processResult(paymentMethodResult, 'Payment methods', 'paymentMethods');
-            processResult(userGrowthResult, 'User growth', 'userGrowth');
-            processResult(discountResult, 'Discount', 'discountStats');
-
+            processResult(usersResult, 'User', 'users'); processResult(ticketsResult, 'Ticket', 'tickets');
+            processResult(revenueResult, 'Monthly revenue', 'monthlyRevenue'); processResult(hourlyResult, 'Hourly activity', 'hourlyActivity');
+            processResult(staffResult, 'Staff activity', 'staffActivity'); processResult(techResult, 'Technical', 'techStats');
+            processResult(locationRevenueResult, 'Location revenue', 'revenueByLocation'); processResult(outstandingResult, 'Outstanding balance', 'outstanding');
+            processResult(consumptionResult, 'Consumption', 'monthlyConsumption'); processResult(paymentMethodResult, 'Payment methods', 'paymentMethods');
+            processResult(userGrowthResult, 'User growth', 'userGrowth'); processResult(discountResult, 'Discount', 'discountStats');
 
             if (partialError) setError(partialError.trim().slice(0, -1));
             setStats(newStats);
 
         } catch (e) {
             setError("Critical error fetching statistics.");
-            console.error("fetchStatistics error:", e);
         } finally {
             setIsLoading(false);
         }
     }, [showNotification]);
 
-    useEffect(() => {
-        fetchStatistics();
-    }, [fetchStatistics]);
+    useEffect(() => { fetchStatistics(); }, [fetchStatistics]);
 
     const generateExecutiveSummary = async (statsSummary) => {
         const prompt = `
-            You are 'Agie', an AI analyst for AGWA Water Services. The currency is **Philippine Pesos (PHP)**.
+            You are 'Agie', an AI analyst for Maragondon Water District. Currency is **Philippine Pesos (PHP)**.
             Analyze the following JSON data and generate a professional, high-level "Executive Summary" narrative for a printed report.
             - Start with "<h3 class='print-section-title'>Executive Summary</h3>".
             - Use simple HTML for formatting: <p>, <strong>, <ul>, <li>.
             - Write 2-3 short paragraphs.
-            - Paragraph 1: Cover Business Analytics (Revenue, Outstanding Balance in PHP).
-            - Paragraph 2: Cover User & Support Analytics (User totals, ticket status).
-            - Paragraph 3: Cover Technical & Staff Operations (Routes, Interruptions, Staff Activity).
-            - Be concise and highlight the most important numbers (e.g., total users, total revenue (PHP), open tickets, active interruptions).
+            - Paragraph 1: Cover Business Analytics.
+            - Paragraph 2: Cover User & Support Analytics.
+            - Paragraph 3: Cover Technical & Staff Operations.
             - Data: ${JSON.stringify(statsSummary)}
         `;
         try {
             return await callDeepseekAPI([{ role: 'user', content: prompt }], 'llama-3.1-8b-instant');
         } catch (error) {
-            console.error("AI Executive Summary Generation Failed:", error);
             return "<h3 class='print-section-title'>Executive Summary</h3><p><strong>Analysis:</strong> <em>AI narrative generation failed. Please check the API connection or key.</em></p>";
         }
     };
@@ -286,82 +213,37 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                     const chartInstance = Object.values(ChartJS.instances).find(c => c.canvas === canvas);
                     if (chartInstance) {
                         const chartId = canvas.closest('[data-chart-id]')?.dataset.chartId;
-                        if (chartId) {
-                            resolve({ id: chartId, dataUrl: chartInstance.toBase64Image('image/png', 1.0) });
-                        } else {
-                            resolve(null);
-                        }
-                    } else {
-                        resolve(null);
-                    }
+                        resolve(chartId ? { id: chartId, dataUrl: chartInstance.toBase64Image('image/png', 1.0) } : null);
+                    } else resolve(null);
                 });
             });
             const chartImageResults = (await Promise.all(chartImagePromises)).filter(Boolean);
-            const chartImages = chartImageResults.reduce((acc, img) => {
-                acc[img.id] = img.dataUrl;
-                return acc;
-            }, {});
+            const chartImages = chartImageResults.reduce((acc, img) => { acc[img.id] = img.dataUrl; return acc; }, {});
 
             const statsSummary = {
-                business: {
-                    totalRevenue_12mo_PHP: totalRevenue,
-                    totalOutstanding_PHP: stats.outstandingBalance,
-                    totalConsumption_12mo_m3: totalConsumption,
-                    revenueByLocation_PHP: stats.revenueByLocation,
-                    paymentMethods: stats.paymentMethods,
-                },
-                userSupport: {
-                    totalUsers: stats.totalUsers,
-                    usersByRole: stats.usersByRole,
-                    totalTickets: stats.totalTickets,
-                    openTickets: stats.openTickets,
-                    ticketsByStatus: stats.ticketStats,
-                    ticketsByType: stats.ticketsByType,
-                    discountStats: stats.discountStats,
-                },
-                technical: {
-                    totalRoutes: stats.techStats?.totalRoutes,
-                    totalAccounts: stats.techStats?.totalAccounts,
-                    activeInterrupts: stats.techStats?.activeInterrupts,
-                    unassignedRoutes: stats.techStats?.unassignedRoutes,
-                },
-                activity: {
-                    staffReadings: stats.staffActivity?.readerActivity,
-                    staffPayments: stats.staffActivity?.clerkActivity,
-                }
+                business: { totalRevenue_12mo_PHP: totalRevenue, totalOutstanding_PHP: stats.outstandingBalance, totalConsumption_12mo_m3: totalConsumption, revenueByLocation_PHP: stats.revenueByLocation, paymentMethods: stats.paymentMethods },
+                userSupport: { totalUsers: stats.totalUsers, usersByRole: stats.usersByRole, totalTickets: stats.totalTickets, openTickets: stats.openTickets, ticketsByStatus: stats.ticketStats, ticketsByType: stats.ticketsByType, discountStats: stats.discountStats },
+                technical: { totalRoutes: stats.techStats?.totalRoutes, totalAccounts: stats.techStats?.totalAccounts, activeInterrupts: stats.techStats?.activeInterrupts, unassignedRoutes: stats.techStats?.unassignedRoutes },
+                activity: { staffReadings: stats.staffActivity?.readerActivity, staffPayments: stats.staffActivity?.clerkActivity }
             };
             
             const analysisPromises = [
-                generateExecutiveSummary(statsSummary),
-                generateChartAnalysis("Monthly Collected Revenue (Last 12 Months)", stats.monthlyRevenue || {}),
-                generateChartAnalysis("Monthly Water Consumption (Last 12 Months)", stats.monthlyConsumption || {}),
-                generateChartAnalysis("Revenue by Location", stats.revenueByLocation || {}),
-                generateChartAnalysis("Payments by Method", stats.paymentMethods || {}),
-                generateChartAnalysis("New User Signups (Last 12 Months)", stats.userGrowth || {}),
-                generateChartAnalysis("Users by Role", stats.usersByRole || {}),
-                generateChartAnalysis("Tickets by Type", stats.ticketsByType || {}),
-                generateChartAnalysis("Support Tickets by Status", stats.ticketStats || {}),
-                generateChartAnalysis("Customer Discount Status", stats.discountStats || {}),
-                generateChartAnalysis("Readings Submitted Today (by Staff)", stats.staffActivity?.readerActivity || {}),
-                generateChartAnalysis("Payments Processed Today (by Staff)", stats.staffActivity?.clerkActivity || {}),
+                generateExecutiveSummary(statsSummary), generateChartAnalysis("Monthly Collected Revenue (Last 12 Months)", stats.monthlyRevenue || {}),
+                generateChartAnalysis("Monthly Water Consumption (Last 12 Months)", stats.monthlyConsumption || {}), generateChartAnalysis("Revenue by Location", stats.revenueByLocation || {}),
+                generateChartAnalysis("Payments by Method", stats.paymentMethods || {}), generateChartAnalysis("New User Signups (Last 12 Months)", stats.userGrowth || {}),
+                generateChartAnalysis("Users by Role", stats.usersByRole || {}), generateChartAnalysis("Tickets by Type", stats.ticketsByType || {}),
+                generateChartAnalysis("Support Tickets by Status", stats.ticketStats || {}), generateChartAnalysis("Customer Discount Status", stats.discountStats || {}),
+                generateChartAnalysis("Readings Submitted Today (by Staff)", stats.staffActivity?.readerActivity || {}), generateChartAnalysis("Payments Processed Today (by Staff)", stats.staffActivity?.clerkActivity || {}),
                 generateChartAnalysis("Hourly Portal Activity (Today)", stats.hourlyActivity || []),
             ];
             const analysisResults = await Promise.allSettled(analysisPromises);
             const getAnalysis = (index, fallback) => (analysisResults[index].status === 'fulfilled' ? analysisResults[index].value : `<p><strong>Analysis:</strong> <em>${fallback}</em></p>`);
 
             const analyses = {
-                summary: getAnalysis(0, 'Executive summary generation failed.'),
-                revenue: getAnalysis(1, 'Revenue analysis failed.'),
-                consumption: getAnalysis(2, 'Consumption analysis failed.'),
-                locationRevenue: getAnalysis(3, 'Location revenue analysis failed.'),
-                paymentMethods: getAnalysis(4, 'Payment method analysis failed.'),
-                userGrowth: getAnalysis(5, 'User growth analysis failed.'),
-                userRoles: getAnalysis(6, 'User role analysis failed.'),
-                ticketTypes: getAnalysis(7, 'Ticket type analysis failed.'),
-                ticketStatus: getAnalysis(8, 'Ticket status analysis failed.'),
-                discountStatus: getAnalysis(9, 'Discount status analysis failed.'),
-                staffReadings: getAnalysis(10, 'Staff reading analysis failed.'),
-                staffPayments: getAnalysis(11, 'Staff payment analysis failed.'),
+                summary: getAnalysis(0, 'Executive summary generation failed.'), revenue: getAnalysis(1, 'Revenue analysis failed.'), consumption: getAnalysis(2, 'Consumption analysis failed.'),
+                locationRevenue: getAnalysis(3, 'Location revenue analysis failed.'), paymentMethods: getAnalysis(4, 'Payment method analysis failed.'), userGrowth: getAnalysis(5, 'User growth analysis failed.'),
+                userRoles: getAnalysis(6, 'User role analysis failed.'), ticketTypes: getAnalysis(7, 'Ticket type analysis failed.'), ticketStatus: getAnalysis(8, 'Ticket status analysis failed.'),
+                discountStatus: getAnalysis(9, 'Discount status analysis failed.'), staffReadings: getAnalysis(10, 'Staff reading analysis failed.'), staffPayments: getAnalysis(11, 'Staff payment analysis failed.'),
                 hourlyActivity: getAnalysis(12, 'Hourly activity analysis failed.'),
             };
 
@@ -373,17 +255,19 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             printWindow.document.write(`<style>${printStyles}</style>`);
             printWindow.document.write('</head><body class="bg-white">');
             
+            // Updated MWD Analytics Header
             const headerHtml = `
                 <div class="printable-area p-8">
-                    <header class="report-header">
-                        <div>
-                            <h1 class="logo-print">AGWA</h1>
-                            <p class="tagline-print">Ensuring Clarity, Sustaining Life.</p>
+                    <header class="report-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid black; padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                        <div style="display: flex; align-items: center;">
+                            <img src="${mwdLogo}" alt="MWD Logo" style="height: 60px; width: 60px; margin-right: 15px;" />
+                            <div>
+                                <h1 style="margin: 0; font-size: 1.5rem; color: black; text-transform: uppercase; font-weight: bold;">MARAGONDON WATER DISTRICT</h1>
+                            </div>
                         </div>
-                        <div class="company-address-print">
-                            <strong>AGWA Water Services, Inc.</strong><br/>
-                            AGWA Water Services Bldg., Governor's Drive<br/>
-                            Brgy. Ibayo Silangan, Naic, Cavite 4110
+                        <div style="text-align: right; font-size: 0.9rem; color: black;">
+                            <p style="margin: 0;">Maragondon, Cavite</p>
+                            <p style="margin: 0;">0917-5289190 / (6346) 412-1575</p>
                         </div>
                     </header>
                     <h1 class="report-title">SYSTEM ANALYTICS REPORT</h1>
@@ -398,161 +282,68 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
             const createFigure = (chartId, analysisHtml, colSpan = 'lg:col-span-1') => {
                 const chartImg = chartImages[chartId];
                 if (!chartImg) return `<div class="chart-container ${colSpan}"><div class="analysis-narrative"><p><strong>Analysis:</strong> <em>Chart data not found.</em></p></div></div>`;
-                
-                return `
-                    <div class="chart-container ${colSpan}">
-                        <img src="${chartImg}" alt="${chartId} Chart" />
-                        <div class="analysis-narrative">
-                            ${DOMPurify.sanitize(analysisHtml)}
-                        </div>
-                    </div>
-                `;
+                return `<div class="chart-container ${colSpan}"><img src="${chartImg}" alt="${chartId} Chart" /><div class="analysis-narrative">${DOMPurify.sanitize(analysisHtml)}</div></div>`;
             };
 
-            let reportBody = `
+            printWindow.document.write(`
                 <section class="print-section">
                     <h3 class="print-section-title">Business Analytics</h3>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        ${createFigure('revenue', analyses.revenue)}
-                        ${createFigure('consumption', analyses.consumption)}
-                        ${createFigure('locationRevenue', analyses.locationRevenue)}
-                        ${createFigure('paymentMethods', analyses.paymentMethods)}
+                        ${createFigure('revenue', analyses.revenue)} ${createFigure('consumption', analyses.consumption)}
+                        ${createFigure('locationRevenue', analyses.locationRevenue)} ${createFigure('paymentMethods', analyses.paymentMethods)}
                     </div>
                 </section>
-
                 <section class="print-section">
                     <h3 class="print-section-title">User & Support Analytics</h3>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        ${createFigure('userGrowth', analyses.userGrowth)}
-                        ${createFigure('userRoles', analyses.userRoles)}
-                        ${createFigure('ticketTypes', analyses.ticketTypes)}
-                        ${createFigure('ticketStatus', analyses.ticketStatus)}
+                        ${createFigure('userGrowth', analyses.userGrowth)} ${createFigure('userRoles', analyses.userRoles)}
+                        ${createFigure('ticketTypes', analyses.ticketTypes)} ${createFigure('ticketStatus', analyses.ticketStatus)}
                         ${createFigure('discountStatus', analyses.discountStatus, 'lg:col-span-2')}
                     </div>
                 </section>
-
                 <section class="print-section">
                     <h3 class="print-section-title">Staff & Technical Analytics</h3>
                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        ${createFigure('staffReadings', analyses.staffReadings)}
-                        ${createFigure('staffPayments', analyses.staffPayments)}
-                        ${createFigure('hourlyActivity', analyses.hourlyActivity)}
+                        ${createFigure('staffReadings', analyses.staffReadings)} ${createFigure('staffPayments', analyses.staffPayments)} ${createFigure('hourlyActivity', analyses.hourlyActivity)}
                     </div>
                 </section>
-            `;
-            
-            printWindow.document.write(reportBody);
-            
-            printWindow.document.write(`
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() { 
-                                window.print();
-                                window.close();
-                            }, 1500); 
-                        };
-                    </script>
-                </div></body></html>
-            `);
-            
+                <script>
+                    window.onload = function() { setTimeout(function() { window.print(); window.close(); }, 1500); };
+                </script>
+            </div></body></html>`);
             printWindow.document.close();
 
         } catch (err) {
-            console.error("Print Report Error:", err);
             showNotification("Failed to generate the full report.", "error");
         } finally {
             setIsGeneratingReport(false);
         }
     };
 
-
     const totalRevenue = useMemo(() => stats?.monthlyRevenue ? Object.values(stats.monthlyRevenue).reduce((sum, val) => sum + val, 0) : 0, [stats?.monthlyRevenue]);
     const totalConsumption = useMemo(() => stats?.monthlyConsumption ? Object.values(stats.monthlyConsumption).reduce((sum, val) => sum + val, 0) : 0, [stats?.monthlyConsumption]);
 
-    if (isLoading) {
-        return <LoadingSpinner message="Loading system analytics..." className="mt-10 h-64" />;
-    }
+    if (isLoading) return <LoadingSpinner message="Loading system analytics..." className="mt-10 h-64" />;
 
     return (
         <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn">
              <style id="stats-print-styles" dangerouslySetInnerHTML={{ __html: `
                 @media print {
-                    @page {
-                        size: A4 portrait;
-                        margin: 0.75in;
-                    }
-                    body { 
-                        font-family: 'Times New Roman', Times, serif; 
-                        -webkit-print-color-adjust: exact !important; 
-                        print-color-adjust: exact !important;
-                        color: #000;
-                        font-size: 11pt; 
-                    }
+                    @page { size: A4 portrait; margin: 0.75in; }
+                    body { font-family: 'Times New Roman', Times, serif; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #000; font-size: 11pt; }
                     .no-print { display: none !important; }
                     .printable-area { padding: 0 !important; max-width: 100%; margin: auto; }
-                    .report-header { display: flex; justify-content: space-between; align-items: flex-start; text-align: left; border-bottom: 2px solid #000; padding-bottom: 1rem; }
-                    .report-header .logo-print { font-size: 2.5rem; font-weight: 700; color: #1e3a8a !important; line-height: 1; margin: 0; }
-                    .report-header .tagline-print { font-size: 0.8rem; color: #1d4ed8 !important; font-style: italic; margin: 0; }
-                    .report-header .company-address-print { text-align: right; font-size: 0.8rem; line-height: 1.4; color: #374151 !important; }
+                    .report-header { display: flex; justify-content: space-between; align-items: center; text-align: left; border-bottom: 2px solid #000; padding-bottom: 1rem; margin-bottom: 1.5rem; }
                     h1.report-title { font-size: 1.5rem; font-weight: 700; color: #000 !important; margin-top: 1.5rem; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase; }
                     p.report-generated-date { text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 1.5rem; }
-                    
-                    .print-section { 
-                        page-break-inside: avoid !important; 
-                        margin-top: 1.5rem; 
-                        padding-top: 1.5rem !important;
-                        border-top: 1px solid #d1d5db !important;
-                    }
-                    #ai-summary {
-                        background-color: #f3f4f6 !important;
-                        border: 1px solid #e5e7eb !important;
-                        border-radius: 8px;
-                        padding: 1.25rem;
-                        font-size: 10.5pt;
-                        line-height: 1.6;
-                        color: #374151 !important;
-                    }
-                    #ai-summary p { margin-bottom: 0.75rem; }
-                    #ai-summary strong { color: #111827 !important; }
-                    #ai-summary ul { margin-left: 1.25rem; list-style-type: disc; }
-
-                    h3.print-section-title {
-                        font-size: 1.3rem; 
-                        font-weight: 700; 
-                        border-bottom: 1px solid #4b5563; 
-                        padding-bottom: 0.25rem; 
-                        margin-bottom: 1rem; 
-                        color: #111827 !important;
-                    }
+                    .print-section { page-break-inside: avoid !important; margin-top: 1.5rem; padding-top: 1.5rem !important; border-top: 1px solid #d1d5db !important; }
+                    #ai-summary { background-color: #f3f4f6 !important; border: 1px solid #e5e7eb !important; border-radius: 8px; padding: 1.25rem; font-size: 10.5pt; line-height: 1.6; color: #374151 !important; }
+                    h3.print-section-title { font-size: 1.3rem; font-weight: 700; border-bottom: 1px solid #4b5563; padding-bottom: 0.25rem; margin-bottom: 1rem; color: #111827 !important; }
                     h3.print-section-title svg { display: none; }
-
-                    .chart-container {
-                        page-break-inside: avoid !important;
-                        margin-bottom: 1.5rem;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        padding: 1rem;
-                        background-color: #F9FAFB !important;
-                    }
-                    .chart-container img {
-                        width: 100%;
-                        height: auto;
-                        border-bottom: 1px solid #e5e7eb;
-                        padding-bottom: 1rem;
-                        margin-bottom: 1rem;
-                    }
-                    .analysis-narrative {
-                        font-size: 10pt;
-                        color: #374151 !important;
-                        font-family: 'Georgia', serif;
-                    }
-                    .analysis-narrative p { margin-bottom: 0.5rem; }
-                    .analysis-narrative strong { color: #111827 !important; font-weight: 600; }
-                    .analysis-narrative em { font-style: italic; }
-
-                    .shadow-xl, .shadow-md, .shadow-lg, .border { 
-                        box-shadow: none !important; 
-                    }
+                    .chart-container { page-break-inside: avoid !important; margin-bottom: 1.5rem; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; background-color: #F9FAFB !important; }
+                    .chart-container img { width: 100%; height: auto; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1rem; }
+                    .analysis-narrative { font-size: 10pt; color: #374151 !important; font-family: 'Georgia', serif; }
+                    .shadow-xl, .shadow-md, .shadow-lg, .border { box-shadow: none !important; }
                     .bg-gray-50, .bg-white { background-color: transparent !important; }
                     .h-72 { height: auto !important; }
                 }
@@ -563,12 +354,10 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                 </h2>
                 <div className="flex items-center gap-2">
                     <button onClick={fetchStatistics} disabled={isLoading || isGeneratingReport} className="flex items-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg border border-gray-300 disabled:opacity-50">
-                        {isLoading ? <Loader2 size={16} className="animate-spin mr-2"/> : <RotateCcw size={16} className="mr-2" />}
-                        Refresh
+                        {isLoading ? <Loader2 size={16} className="animate-spin mr-2"/> : <RotateCcw size={16} className="mr-2" />} Refresh
                     </button>
                     <button onClick={handlePrintReport} disabled={isLoading || isGeneratingReport} className="flex items-center text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg disabled:bg-gray-400">
-                        {isGeneratingReport ? <Loader2 size={16} className="animate-spin mr-2"/> : <Printer size={16} className="mr-2"/>}
-                        {isGeneratingReport ? 'Generating Report...' : 'Print Report'}
+                        {isGeneratingReport ? <Loader2 size={16} className="animate-spin mr-2"/> : <Printer size={16} className="mr-2"/>} {isGeneratingReport ? 'Generating Report...' : 'Print Report'}
                     </button>
                 </div>
             </div>
@@ -586,22 +375,10 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                          </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="revenue">
-                                <BarChartComponent
-                                    data={stats?.monthlyRevenue || {}}
-                                    title="Monthly Collected Revenue (Last 12 Months)"
-                                    label="Revenue"
-                                    color={chartColors.green}
-                                    borderColor={chartColors.greenBorder}
-                                />
+                                <BarChartComponent data={stats?.monthlyRevenue || {}} title="Monthly Collected Revenue (Last 12 Months)" label="Revenue" color={chartColors.green} borderColor={chartColors.greenBorder} />
                             </div>
                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="consumption">
-                                <BarChartComponent
-                                    data={stats?.monthlyConsumption || {}}
-                                    title="Monthly Water Consumption (Last 12 Months)"
-                                    label="Consumption (m³)"
-                                    color={chartColors.blue}
-                                    borderColor={chartColors.blueBorder}
-                                />
+                                <BarChartComponent data={stats?.monthlyConsumption || {}} title="Monthly Water Consumption (Last 12 Months)" label="Consumption (m³)" color={chartColors.blue} borderColor={chartColors.blueBorder} />
                             </div>
                              <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="locationRevenue">
                                 <DoughnutChartComponent data={stats?.revenueByLocation} title="Revenue by Location" />
@@ -622,17 +399,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                         </div>
                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                              <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="userGrowth">
-                                <LineChartComponent 
-                                    data={stats?.userGrowth || {}} 
-                                    title="New User Signups (Last 12 Months)"
-                                    datasets={[{
-                                        label: 'New Users',
-                                        key: 'users',
-                                        borderColor: chartColors.purpleBorder,
-                                        backgroundColor: chartColors.purple,
-                                        tension: 0.1
-                                    }]}
-                                />
+                                <LineChartComponent data={stats?.userGrowth || {}} title="New User Signups (Last 12 Months)" datasets={[{ label: 'New Users', key: 'users', borderColor: chartColors.purpleBorder, backgroundColor: chartColors.purple, tension: 0.1 }]} />
                             </div>
                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="userRoles">
                                 <DoughnutChartComponent data={stats?.usersByRole} title="Users by Role" />
@@ -644,15 +411,7 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                                 <DoughnutChartComponent data={stats?.ticketStats} title="Support Tickets by Status" />
                             </div>
                              <div className="p-4 bg-gray-50 rounded-lg border lg:col-span-2" data-chart-id="discountStatus">
-                                <DoughnutChartComponent 
-                                    data={stats?.discountStats} 
-                                    title="Customer Discount Status"
-                                    colorMap={{
-                                        'none': chartColors.gray,
-                                        'pending': chartColors.yellow,
-                                        'verified': chartColors.green
-                                    }}
-                                />
+                                <DoughnutChartComponent data={stats?.discountStats} title="Customer Discount Status" colorMap={{ 'none': chartColors.gray, 'pending': chartColors.yellow, 'verified': chartColors.green }} />
                             </div>
                         </div>
                     </section>
@@ -667,22 +426,10 @@ const StatisticsDashboard = ({ showNotification = console.log }) => {
                          </div>
                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                              <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="staffReadings">
-                                <BarChartComponent
-                                    data={stats?.staffActivity?.readerActivity || {}}
-                                    title="Readings Submitted Today (by Staff)"
-                                    label="Readings"
-                                    color={chartColors.sky}
-                                    borderColor={chartColors.skyBorder}
-                                />
+                                <BarChartComponent data={stats?.staffActivity?.readerActivity || {}} title="Readings Submitted Today (by Staff)" label="Readings" color={chartColors.sky} borderColor={chartColors.skyBorder} />
                             </div>
                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="staffPayments">
-                                <BarChartComponent
-                                    data={stats?.staffActivity?.clerkActivity || {}}
-                                    title="Payments Processed Today (by Staff)"
-                                    label="Payments"
-                                    color={chartColors.purple}
-                                    borderColor={chartColors.purpleBorder}
-                                />
+                                <BarChartComponent data={stats?.staffActivity?.clerkActivity || {}} title="Payments Processed Today (by Staff)" label="Payments" color={chartColors.purple} borderColor={chartColors.purpleBorder} />
                             </div>
                             <div className="p-4 bg-gray-50 rounded-lg border" data-chart-id="hourlyActivity">
                                 <LineChartComponent data={stats?.hourlyActivity || []} title="Hourly Portal Activity (Today)" />

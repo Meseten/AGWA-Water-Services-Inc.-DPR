@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend } from 'chart.js';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import * as DataService from '../../services/dataService';
-import { formatDate } from '../../utils/userUtils';
-import { TrendingUp, Calendar, AlertTriangle, Info, BarChart2 } from 'lucide-react';
+import { TrendingUp, Calendar, AlertTriangle, Info, BarChart2, Droplets, DollarSign, Activity } from 'lucide-react';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
 
 const getSixMonthsAgo = () => {
     const d = new Date();
@@ -18,9 +17,11 @@ const getToday = () => {
     return new Date().toISOString().split('T')[0];
 };
 
-const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
+const WaterAnalyticsSection = ({ user, db, showNotification }) => {
     const [consumptionData, setConsumptionData] = useState([]);
     const [grouping, setGrouping] = useState('monthly');
+    const [metric, setMetric] = useState('volume'); 
+    const [chartType, setChartType] = useState('bar');
     const [startDate, setStartDate] = useState(getSixMonthsAgo());
     const [endDate, setEndDate] = useState(getToday());
     const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +57,7 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
         fetchConsumptionData();
     }, [fetchConsumptionData]);
 
-    const aggregateData = (data, group, start, end) => {
+    const aggregateData = (data, group, start, end, targetMetric) => {
         const aggregated = {};
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         
@@ -75,18 +76,14 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
             let key;
 
             switch (group) {
-                case 'yearly':
-                    key = `${year}`;
-                    break;
-                case 'daily':
-                    key = `${year}-${String(month + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                    break;
+                case 'yearly': key = `${year}`; break;
+                case 'daily': key = `${year}-${String(month + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; break;
                 case 'monthly':
-                default:
-                     key = `${year}-${String(month + 1).padStart(2, '0')}`;
-                    break;
+                default: key = `${year}-${String(month + 1).padStart(2, '0')}`; break;
             }
-            aggregated[key] = (aggregated[key] || 0) + (bill.consumption || 0);
+            
+            const valueToAdd = targetMetric === 'volume' ? (bill.consumption || 0) : ((bill.amountPaid || bill.amount) || 0);
+            aggregated[key] = (aggregated[key] || 0) + valueToAdd;
         });
 
          const sortedKeys = Object.keys(aggregated).sort();
@@ -101,7 +98,7 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
             } else if (group === 'daily') {
                 const [year, monthNum, day] = key.split('-');
                 if(monthNum && day) {
-                    label = `${monthNames[parseInt(monthNum) - 1]} ${day}, '${year.slice(-2)}`;
+                    label = `${monthNames[parseInt(monthNum) - 1]} ${day}`;
                 }
             }
             obj[label] = aggregated[key];
@@ -109,19 +106,28 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
          }, {});
     };
 
-    const processedData = aggregateData(consumptionData, grouping, startDate, endDate);
+    const processedData = aggregateData(consumptionData, grouping, startDate, endDate, metric);
+    const values = Object.values(processedData);
+    
+    const totalMetric = values.reduce((sum, val) => sum + val, 0);
+    const avgMetric = values.length > 0 ? (totalMetric / values.length) : 0;
+    const maxMetric = values.length > 0 ? Math.max(...values) : 0;
 
     const chartData = {
         labels: Object.keys(processedData),
         datasets: [
             {
-                label: 'Consumption (m³)',
-                data: Object.values(processedData),
-                backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                borderColor: 'rgba(37, 99, 235, 1)',
-                borderWidth: 1,
-                borderRadius: 4,
-                hoverBackgroundColor: 'rgba(37, 99, 235, 0.8)',
+                label: metric === 'volume' ? 'Consumption (m³)' : 'Cost (₱)',
+                data: values,
+                backgroundColor: metric === 'volume' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(16, 185, 129, 0.7)',
+                borderColor: metric === 'volume' ? 'rgba(37, 99, 235, 1)' : 'rgba(5, 150, 105, 1)',
+                borderWidth: 2,
+                borderRadius: chartType === 'bar' ? 4 : 0,
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
             },
         ],
     };
@@ -131,13 +137,6 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
         maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
-            title: {
-                display: true,
-                text: `Water Consumption Trend (${grouping.charAt(0).toUpperCase() + grouping.slice(1)})`,
-                font: { size: 16 },
-                color: '#374151',
-                padding: { bottom: 15 }
-            },
             tooltip: {
                 backgroundColor: '#1F2937',
                 titleColor: '#E5E7EB',
@@ -147,7 +146,9 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
                 padding: 10,
                 callbacks: {
                     label: function(context) {
-                        return ` Consumption: ${context.parsed.y.toFixed(2)} m³`;
+                        return metric === 'volume' 
+                            ? ` Consumption: ${context.parsed.y.toFixed(2)} m³`
+                            : ` Cost: ₱${context.parsed.y.toFixed(2)}`;
                     }
                 }
             }
@@ -155,8 +156,8 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
         scales: {
             y: {
                 beginAtZero: true,
-                title: { display: true, text: 'Consumption (m³)', color: '#4B5563' },
-                grid: { color: '#E5E7EB' },
+                title: { display: true, text: metric === 'volume' ? 'Consumption (m³)' : 'Amount (₱)', color: '#4B5563' },
+                grid: { color: '#E5E7EB', borderDash: [5, 5] },
                 ticks: { color: '#6B7280' }
             },
             x: {
@@ -167,112 +168,71 @@ const WaterAnalyticsSection = ({ user, userData, db, showNotification }) => {
         }
     };
 
-    const avgConsumption = consumptionData.length > 0
-        ? (consumptionData.reduce((sum, bill) => sum + (bill.consumption || 0), 0) / consumptionData.length)
-        : 0;
-
-     const calculateInsights = (data) => {
-        const values = Object.values(data);
-        const keys = Object.keys(data);
-        if (values.length < 2) return "Not enough data for comparison in the selected range.";
-        const lastValue = values[values.length - 1];
-        const prevValue = values[values.length - 2];
-        const lastPeriod = keys[values.length - 1];
-        const change = lastValue - prevValue;
-        const percentChange = prevValue !== 0 ? (change / prevValue) * 100 : (lastValue > 0 ? Infinity : 0);
-
-        let insight = `Consumption in ${lastPeriod} was ${lastValue.toFixed(2)} m³. `;
-        if (percentChange === Infinity) {
-             insight += `This is up from 0 in the previous period.`;
-        } else if (change > 0) {
-            insight += `This is ${percentChange >= 0.1 ? '+' : ''}${percentChange.toFixed(1)}% (${change >= 0 ? '+' : ''}${change.toFixed(2)} m³) compared to the previous period.`;
-            if (percentChange > 25) insight += " Consider checking for potential leaks or reviewing usage patterns.";
-        } else if (change < 0) {
-            insight += `This is a ${Math.abs(percentChange).toFixed(1)}% decrease (${change.toFixed(2)} m³) compared to the previous period.`;
-        } else {
-            insight += "Consumption remained stable compared to the previous period.";
-        }
-        return insight;
-    };
-
+    const KpiCard = ({ title, value, icon: Icon, colorClass }) => (
+        <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl shadow-sm flex items-center">
+            <div className={`p-3 rounded-lg mr-4 ${colorClass}`}>
+                <Icon size={24} />
+            </div>
+            <div>
+                <p className="text-sm font-medium text-gray-500">{title}</p>
+                <p className="text-xl font-bold text-gray-800">{value}</p>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200 gap-4">
+        <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn space-y-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center pb-4 border-b border-gray-200 gap-4">
                 <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 flex items-center">
-                    <TrendingUp size={30} className="mr-3 text-blue-600" /> Water Consumption Analytics
+                    <TrendingUp size={30} className="mr-3 text-blue-600" /> Consumption Analytics
                 </h2>
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                     <div className="flex items-center gap-2 w-full">
-                        <BarChart2 size={18} className="text-gray-500" />
-                        <select
-                            value={grouping}
-                            onChange={(e) => setGrouping(e.target.value)}
-                            className="p-2 border rounded-md text-sm bg-gray-50 focus:ring-blue-500 focus:border-blue-500 w-full"
-                            disabled={isLoading}
-                        >
-                            <option value="daily">Group by Day</option>
-                            <option value="monthly">Group by Month</option>
-                            <option value="yearly">Group by Year</option>
-                        </select>
+                <div className="flex flex-wrap items-center gap-3">
+                     <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button onClick={() => setMetric('volume')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${metric === 'volume' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Volume</button>
+                        <button onClick={() => setMetric('cost')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${metric === 'cost' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Cost</button>
                      </div>
-                     <div className="flex items-center gap-2 w-full">
+                     <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button onClick={() => setChartType('bar')} className={`p-1.5 rounded-md transition-colors ${chartType === 'bar' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><BarChart2 size={18}/></button>
+                        <button onClick={() => setChartType('line')} className={`p-1.5 rounded-md transition-colors ${chartType === 'line' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><Activity size={18}/></button>
+                     </div>
+                     <select value={grouping} onChange={(e) => setGrouping(e.target.value)} className="p-2 border rounded-md text-sm bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                         <option value="daily">Daily</option>
+                         <option value="monthly">Monthly</option>
+                         <option value="yearly">Yearly</option>
+                     </select>
+                     <div className="flex items-center gap-2">
                         <Calendar size={18} className="text-gray-500" />
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="p-2 border rounded-md text-sm bg-gray-50 focus:ring-blue-500 focus:border-blue-500 w-full"
-                            disabled={isLoading}
-                            max={endDate}
-                        />
-                         <span className="text-gray-500">-</span>
-                         <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="p-2 border rounded-md text-sm bg-gray-50 focus:ring-blue-500 focus:border-blue-500 w-full"
-                            disabled={isLoading}
-                            min={startDate}
-                            max={getToday()}
-                        />
+                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="p-2 border rounded-md text-sm bg-gray-50 focus:ring-blue-500 focus:border-blue-500" max={endDate}/>
+                        <span className="text-gray-500">-</span>
+                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="p-2 border rounded-md text-sm bg-gray-50 focus:ring-blue-500 focus:border-blue-500" min={startDate} max={getToday()}/>
                     </div>
                 </div>
             </div>
 
-            {isLoading && <LoadingSpinner message="Loading consumption data..." />}
-            {error && !isLoading && (
+            {isLoading ? <LoadingSpinner message="Loading detailed analytics..." /> : error ? (
                 <div className="text-center py-10 bg-red-50 p-4 rounded-lg">
                     <AlertTriangle size={48} className="mx-auto text-red-400 mb-3" />
                     <p className="text-red-600 text-lg font-semibold">Error Loading Data</p>
                     <p className="text-sm text-red-500 mt-1">{error}</p>
                 </div>
-            )}
-             {!isLoading && !error && consumptionData.length === 0 && (
-                 <div className="text-center py-10 bg-gray-50 p-6 rounded-lg shadow-inner">
-                    <Info size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600 text-lg">No consumption data found yet.</p>
-                     <p className="text-sm text-gray-500 mt-1">Analytics will appear after your first few bills.</p>
+            ) : consumptionData.length === 0 ? (
+                 <div className="text-center py-10 bg-gray-50 p-6 rounded-lg shadow-inner border border-gray-100">
+                    <Droplets size={48} className="mx-auto text-gray-300 mb-4" />
+                    <p className="text-gray-600 text-lg">No consumption records found.</p>
+                     <p className="text-sm text-gray-500 mt-1">Your detailed analytics will generate automatically once billing starts.</p>
                 </div>
-            )}
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <KpiCard title={`Total ${metric === 'volume' ? 'Volume' : 'Cost'}`} value={metric === 'volume' ? `${totalMetric.toFixed(2)} m³` : `₱${totalMetric.toFixed(2)}`} icon={metric === 'volume' ? Droplets : DollarSign} colorClass={metric === 'volume' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'} />
+                        <KpiCard title={`Average per ${grouping.replace('ly', '')}`} value={metric === 'volume' ? `${avgMetric.toFixed(2)} m³` : `₱${avgMetric.toFixed(2)}`} icon={Activity} colorClass="bg-purple-100 text-purple-600" />
+                        <KpiCard title={`Highest ${grouping.replace('ly', '')}`} value={metric === 'volume' ? `${maxMetric.toFixed(2)} m³` : `₱${maxMetric.toFixed(2)}`} icon={TrendingUp} colorClass="bg-orange-100 text-orange-600" />
+                    </div>
 
-            {!isLoading && !error && consumptionData.length > 0 && Object.keys(processedData).length > 0 && (
-                <div className="space-y-6">
-                     <div className="text-sm text-center text-gray-700 bg-blue-50 p-3 rounded-md border border-blue-200 shadow-sm">
-                         <p><strong>Insight:</strong> {calculateInsights(processedData)}</p>
-                         <p className="mt-1">Average monthly use (all data): <strong>{avgConsumption.toFixed(2)} m³</strong>.</p>
+                    <div className="h-72 md:h-96 w-full p-4 border border-gray-100 rounded-xl bg-gray-50/50 shadow-inner">
+                        {chartType === 'bar' ? <Bar options={chartOptions} data={chartData} /> : <Line options={chartOptions} data={chartData} />}
                     </div>
-                    <div className="h-64 md:h-80 lg:h-96 w-full p-4 border rounded-lg bg-gray-50 shadow-inner">
-                        <Bar options={chartOptions} data={chartData} />
-                    </div>
-                </div>
-            )}
-             {!isLoading && !error && consumptionData.length > 0 && Object.keys(processedData).length === 0 && (
-                 <div className="text-center py-10 bg-gray-50 p-6 rounded-lg shadow-inner">
-                    <Info size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600 text-lg">No data found for the selected date range and grouping.</p>
-                     <p className="text-sm text-gray-500 mt-1">Try expanding your date range or changing the grouping.</p>
-                </div>
+                </>
             )}
         </div>
     );

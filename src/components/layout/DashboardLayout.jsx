@@ -116,7 +116,6 @@ const DashboardLayout = ({ user, userData, setUserData, handleLogout, showNotifi
             { name: 'My Profile', iconName: 'UserCog', section: 'myProfile', group: 'Account' },
             { name: 'My Bills & Payments', iconName: 'FileText', section: 'myBills', group: 'Account' },
             { name: 'Consumption Analytics', iconName: 'TrendingUp', section: 'waterAnalytics', group: 'Account' },
-            { name: 'Payment Analytics', iconName: 'CreditCard', section: 'paymentAnalytics', group: 'Account' },
             { name: 'My Support Tickets', iconName: 'MessageSquare', section: 'myTickets', group: 'Support' },
             { name: 'Report an Issue', iconName: 'AlertTriangle', section: 'reportIssue', group: 'Support' },
             { name: 'View Announcements', iconName: 'Megaphone', section: 'viewAnnouncements', group: 'Information' },

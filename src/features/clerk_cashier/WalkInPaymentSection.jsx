@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    Banknote, UserCircle, Hash, FileText, CalendarDays, CheckCircle, Printer, Search, Loader2, AlertTriangle 
+    Banknote, UserCircle, Hash, FileText, CalendarDays, CheckCircle, Printer, Search, Loader2 
 } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import * as DataService from '../../services/dataService.js';
 import { formatDate, calculateDynamicPenalty } from '../../utils/userUtils.js';
 import Barcode from '../../components/ui/Barcode.jsx';
-import { serverTimestamp } from 'firebase/firestore';
+import mwdLogo from '../../assets/mwdlogo.png'; 
 
 const commonInputClass = "w-full px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 focus:outline-none transition duration-150 text-sm placeholder-gray-400";
 
@@ -16,8 +16,6 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
     const [customerBills, setCustomerBills] = useState([]);
     const [selectedBill, setSelectedBill] = useState(null);
     const [paymentAmount, setPaymentAmount] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('Cash');
-    const [referenceNumber, setReferenceNumber] = useState('');
     const [systemSettings, setSystemSettings] = useState({});
     
     const [isLoadingCustomer, setIsLoadingCustomer] = useState(false);
@@ -113,10 +111,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
             showNotification("Please enter a valid payment amount.", "warning");
             return;
         }
-        if ((paymentMethod !== 'Cash') && !referenceNumber.trim()) {
-            showNotification("Reference number is required for this payment method.", "warning");
-            return;
-        }
+        
         setIsProcessingPayment(true);
         setPaymentSuccessData(null);
         
@@ -134,21 +129,24 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
         }
 
         try {
-            const paymentTimestamp = serverTimestamp();
             const paymentDate = new Date();
+            const receiptReference = `CASH-${Date.now().toString().slice(-8)}`;
+
             const billUpdateResult = await DataService.updateBill(db, billToPay.id, {
                 status: 'Paid',
                 paymentDate,
-                paymentTimestamp,
+                paymentTimestamp: paymentDate,
                 amountPaid: amountToPay,
-                paymentMethod: paymentMethod,
-                paymentReference: referenceNumber.trim() || `CASH-${Date.now().toString().slice(-8)}`,
+                paymentMethod: 'Cash',
+                paymentReference: receiptReference,
                 processedByClerkId: clerkData.uid,
                 processedByClerkName: clerkData.displayName,
             });
+
             if (!billUpdateResult.success) {
                 throw new Error(billUpdateResult.error || "Failed to update bill status.");
             }
+
             const receiptData = {
                 customerName: searchedCustomer.displayName,
                 accountNumber: searchedCustomer.accountNumber,
@@ -157,15 +155,15 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
                 billMonthYear: billToPay.monthYear || billToPay.billingPeriod,
                 amountPaid: amountToPay,
                 paymentDate: paymentDate,
-                paymentMethod: paymentMethod,
-                referenceNumber: referenceNumber.trim() || `CASH-${Date.now().toString().slice(-8)}`,
+                paymentMethod: 'Walk-in (Cash)',
+                referenceNumber: receiptReference,
                 processedBy: clerkData.displayName,
                 receiptId: `OR-${Date.now()}`
             };
+            
             setPaymentSuccessData(receiptData);
             showNotification(`Payment of ₱${amountToPay.toFixed(2)} processed successfully!`, "success");
             setPaymentAmount('');
-            setReferenceNumber('');
             setSelectedBill(null);
             fetchCustomerBills(searchedCustomer);
         } catch (err) {
@@ -178,7 +176,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
         const printableContent = document.getElementById('payment-receipt-content');
         if (printableContent) {
             const printWindow = window.open('', '_blank', 'height=800,width=1000');
-            printWindow.document.write('<html><head><title>AGWA Payment Receipt</title>');
+            printWindow.document.write('<html><head><title>Payment Receipt</title>');
             printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
             printWindow.document.write(`
                 <style>
@@ -201,7 +199,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
                     .no-print { display: none; }
                 </style>
             `);
-            printWindow.document.write('</head><body class="bg-gray-100 p-4">');
+            printWindow.document.write('</head><body class="bg-white p-4">');
             printWindow.document.write(printableContent.innerHTML);
             printWindow.document.write('</body></html>');
             printWindow.document.close();
@@ -209,7 +207,6 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
         }
     };
 
-    const paymentMethods = ['Cash', 'Check', 'Card (Debit/Credit)', 'E-wallet (GCash/Maya)'];
     const InfoRow = ({ label, value }) => (
         <div className="flex justify-between py-1.5 text-sm border-b border-gray-200 last:border-b-0">
             <span className="text-gray-500">{label}:</span>
@@ -276,18 +273,7 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
                                     <input type="number" id="paymentAmount" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className={`${commonInputClass} pl-7`} step="0.01" required />
                                 </div>
                             </div>
-                            <div>
-                                <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
-                                <select id="paymentMethod" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={commonInputClass} required>
-                                   {paymentMethods.map(method => <option key={method} value={method}>{method}</option>)}
-                                </select>
-                            </div>
-                            {(paymentMethod !== 'Cash') && (
-                                <div>
-                                    <label htmlFor="referenceNumber" className="block text-sm font-medium text-gray-700 mb-1">Reference / Transaction No. *</label>
-                                    <input type="text" id="referenceNumber" value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} className={commonInputClass} placeholder="e.g., Check No., Card Approval Code" required />
-                                </div>
-                            )}
+                            
                              <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-5 rounded-lg flex items-center justify-center transition-colors active:scale-95" disabled={isProcessingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}>
                                 {isProcessingPayment ? <Loader2 size={20} className="animate-spin mr-2" /> : <CheckCircle size={20} className="mr-2" />}
                                 {isProcessingPayment ? 'Processing...' : 'Process Payment'}
@@ -298,26 +284,29 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
             )}
 
             {paymentSuccessData && (
-                <div className="mt-6 p-6 bg-green-50 rounded-lg">
-                    <div className="text-center mb-5">
+                <div className="mt-6 p-6 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-center mb-5 no-print">
                         <CheckCircle size={48} className="mx-auto text-green-500 mb-2" />
                         <h3 className="text-2xl font-semibold text-green-800">Payment Successful!</h3>
                         <p className="text-sm text-gray-600">Official Receipt has been generated.</p>
                     </div>
 
-                    <div id="payment-receipt-content" className="p-6 bg-white rounded-lg shadow-lg max-w-2xl mx-auto font-sans relative overflow-hidden">
+                    <div id="payment-receipt-content" className="p-6 bg-white rounded-lg border border-gray-300 max-w-2xl mx-auto font-sans relative overflow-hidden">
                         <div className="paid-stamp">PAID</div>
-                        <div className="flex justify-between items-start mb-5 pb-4 border-b-2 border-blue-700">
-                            <div>
-                                <div className="text-3xl font-bold text-blue-700">AGWA</div>
-                                <div className="text-xs text-blue-600 italic">Ensuring Clarity, Sustaining Life.</div>
+                    
+                        <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-black">
+                            <div className="flex items-center">
+                                <img src={mwdLogo} alt="MWD Logo" style={{ height: '50px', width: '50px', marginRight: '12px' }} />
+                                <div>
+                                    <div className="text-xl font-bold text-black uppercase tracking-wider m-0 leading-tight">MARAGONDON WATER DISTRICT</div>
+                                </div>
                             </div>
-                            <div className="text-right text-xs">
-                                <p className="font-semibold">AGWA Water Services, Inc.</p>
-                                <p>AGWA Water Services Bldg., Governor's Drive</p>
-                                <p>Brgy. Ibayo Silangan, Naic, Cavite 4110</p>
+                            <div className="text-right text-xs text-black">
+                                <p className="m-0">Maragondon, Cavite</p>
+                                <p className="m-0">0917-5289190 / (6346) 412-1575</p>
                             </div>
                         </div>
+
                         <div className="text-center mb-6">
                             <h4 className="text-xl font-bold text-gray-800">OFFICIAL RECEIPT</h4>
                             <p className="text-sm text-gray-500">Receipt No: {paymentSuccessData.receiptId}</p>
@@ -330,15 +319,12 @@ const WalkInPaymentSection = ({ db, userData: clerkData, showNotification, billi
                             <InfoRow label="Payment For" value={`Water Bill - ${paymentSuccessData.billMonthYear}`} />
                             <InfoRow label="Payment Date" value={formatDate(paymentSuccessData.paymentDate, { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' })} />
                             <InfoRow label="Payment Method" value={paymentSuccessData.paymentMethod} />
-                            {paymentSuccessData.referenceNumber && !paymentSuccessData.referenceNumber.startsWith('CASH-') &&
-                                <InfoRow label="Reference No." value={paymentSuccessData.referenceNumber} />
-                            }
                         </div>
-                        <div className="mt-4 p-3 bg-gray-100 rounded-lg flex justify-between items-center">
+                        <div className="mt-4 p-3 bg-gray-100 rounded-lg flex justify-between items-center border border-gray-300">
                             <span className="text-lg font-semibold text-gray-800">AMOUNT PAID</span>
-                            <span className="text-2xl font-bold text-green-600">₱{paymentSuccessData.amountPaid.toFixed(2)}</span>
+                            <span className="text-2xl font-bold text-black">₱{paymentSuccessData.amountPaid.toFixed(2)}</span>
                         </div>
-                         <div className="mt-4 pt-4 border-t border-dashed">
+                         <div className="mt-4 pt-4 border-t border-dashed border-gray-300">
                            <Barcode value={paymentSuccessData.receiptId}/>
                         </div>
                         <div className="text-xs text-gray-500 mt-4">
