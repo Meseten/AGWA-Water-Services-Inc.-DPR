@@ -1319,3 +1319,26 @@ export async function getDiscountStats(dbInstance) {
         return handleFirestoreError('getting discount stats', e);
     }
 }
+export async function saveTrainingData(dbInstance, data) {
+    try {
+        await setDoc(doc(dbInstance, 'system_data', 'ml_training'), { 
+            records: data, 
+            updatedAt: serverTimestamp() 
+        });
+        return { success: true };
+    } catch (error) {
+        return handleFirestoreError('saving ML training data', error);
+    }
+}
+
+export async function getTrainingData(dbInstance) {
+    try {
+        const docSnap = await getDoc(doc(dbInstance, 'system_data', 'ml_training'));
+        if (docSnap.exists()) {
+            return { success: true, data: docSnap.data().records };
+        }
+        return { success: true, data: null };
+    } catch (error) {
+        return handleFirestoreError('getting ML training data', error);
+    }
+}
