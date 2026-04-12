@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Line, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
-import { TrendingUp, AlertTriangle, Info, Download, Activity, CheckCircle, Database, UploadCloud } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Info, Download, CheckCircle, Database, UploadCloud } from 'lucide-react';
 import Papa from 'papaparse';
 import { RandomForestRegression } from 'ml-random-forest';
 import * as DataService from '../../services/dataService';
@@ -30,13 +30,14 @@ const DemandForecastingSection = ({ db }) => {
     const [historicalData, setHistoricalData] = useState(null);
     const [featureImportance, setFeatureImportance] = useState(null);
 
+    // Fetch cloud data on initial load
     useEffect(() => {
         const fetchCloudData = async () => {
             setIsLoading(true);
             const result = await DataService.getTrainingData(db);
             if (result.success && result.data && result.data.length > 0) {
                 setRawDataset(result.data);
-                trainModel(result.data, serviceType);
+                trainModel(result.data, 'All'); // Default train on All
             } else {
                 setIsLoading(false);
             }
@@ -74,12 +75,20 @@ const DemandForecastingSection = ({ db }) => {
                     setIsLoading(false);
                     return;
                 }
-                const uploadResult = await DataService.saveTrainingData(db, results.data);
+                
+                // Clean data before uploading
+                const cleanData = results.data.filter(row => row && row.Date && row.Consumption_m3 != null);
+
+                // Save to Firebase Cloud
+                const uploadResult = await DataService.saveTrainingData(db, cleanData);
                 if (!uploadResult.success) {
-                    setError("Failed to save data to cloud: " + uploadResult.error);
+                    setError("Failed to sync to cloud database: " + uploadResult.error);
+                } else {
+                    setError(null); // Clear errors if successful
                 }
-                setRawDataset(results.data);
-                trainModel(results.data, serviceType);
+
+                setRawDataset(cleanData);
+                trainModel(cleanData, serviceType);
             },
             error: (err) => {
                 setError(err.message);
@@ -111,7 +120,7 @@ const DemandForecastingSection = ({ db }) => {
             const aggregatedDataMap = new Map();
             
             filteredData.forEach(row => {
-                 if (row.Consumption_m3 && row.Temperature_C) {
+                 if (row.Consumption_m3 != null && row.Temperature_C != null) {
                      const key = row.Date;
                      if (!aggregatedDataMap.has(key)) {
                          aggregatedDataMap.set(key, {
@@ -214,7 +223,6 @@ const DemandForecastingSection = ({ db }) => {
                 systemCapacity: filterType === 'All' ? 60000 : filterType === 'Residential' ? 50000 : 15000,
             });
 
-            setError(null);
             setIsModelTrained(true);
             setIsLoading(false);
         } catch (err) {
@@ -325,6 +333,12 @@ const DemandForecastingSection = ({ db }) => {
                 </div>
             </div>
 
+            {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded mb-4">
+                    <p>{error}</p>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 border-l-4 border-blue-500">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Next Month Forecast</p>
@@ -381,7 +395,6 @@ const DemandForecastingSection = ({ db }) => {
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-gray-800">Feature Importance</h3>
-                        <div className="group relative"><Info size={18} className="text-gray-400 hover:text-gray-600 cursor-help" /></div>
                     </div>
                     <div className="h-80">
                         {featureImportance && (

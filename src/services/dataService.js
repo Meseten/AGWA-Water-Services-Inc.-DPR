@@ -1319,10 +1319,13 @@ export async function getDiscountStats(dbInstance) {
         return handleFirestoreError('getting discount stats', e);
     }
 }
+
 export async function saveTrainingData(dbInstance, data) {
     try {
-        await setDoc(doc(dbInstance, 'system_data', 'ml_training'), { 
-            records: data, 
+        const validData = data.filter(row => row && row.Date && row.Consumption_m3 != null);
+        const cleanData = JSON.parse(JSON.stringify(validData));
+        await setDoc(doc(dbInstance, 'public/data/ml_training_data', 'dataset'), { 
+            records: cleanData, 
             updatedAt: serverTimestamp() 
         });
         return { success: true };
@@ -1333,7 +1336,7 @@ export async function saveTrainingData(dbInstance, data) {
 
 export async function getTrainingData(dbInstance) {
     try {
-        const docSnap = await getDoc(doc(dbInstance, 'system_data', 'ml_training'));
+        const docSnap = await getDoc(doc(dbInstance, 'public/data/ml_training_data', 'dataset'));
         if (docSnap.exists()) {
             return { success: true, data: docSnap.data().records };
         }
