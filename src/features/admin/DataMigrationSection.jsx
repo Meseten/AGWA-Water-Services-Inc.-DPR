@@ -1,263 +1,269 @@
-import React, { useState, useRef } from 'react';
-import { Upload, AlertTriangle, CheckCircle, Database, Loader2, XCircle } from 'lucide-react';
-import { collection, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase/firebaseConfig';
-import { profilesCollectionPath, userProfileDocumentPath } from '../../firebase/firestorePaths';
-import { determineServiceTypeAndRole } from '../../utils/userUtils';
+import React, { useState } from 'react';
+import { UploadCloud, Database, Users, FileText, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import Papa from 'papaparse';
+import { collection, doc, writeBatch, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { profilesCollectionPath, allBillsCollectionPath } from '../../firebase/firestorePaths';
 
-export default function DataMigrationSection({ showNotification }) {
-    const [file, setFile] = useState(null);
-    const [parsedData, setParsedData] = useState([]);
-    const [validationResults, setValidationResults] = useState({ valid: [], invalid: [] });
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [migrationComplete, setMigrationComplete] = useState(false);
-    const fileInputRef = useRef(null);
+const DataMigrationSection = ({ db, showNotification }) => {
+    const [activeTab, setActiveTab] = useState('accounts');
+    const [isLoading, setIsLoading] = useState(false);
+    const [migrationLogs, setMigrationLogs] = useState([]);
 
-    const expectedHeaders = ['accountNumber', 'displayName', 'email', 'barangay', 'meterSerialNumber', 'role', 'serviceType'];
-
-    const handleFileChange = (e) => {
-        const selectedFile = e.target.files[0];
-        if (selectedFile && selectedFile.name.endsWith('.csv')) {
-            setFile(selectedFile);
-            setParsedData([]);
-            setValidationResults({ valid: [], invalid: [] });
-            setMigrationComplete(false);
-            parseCSV(selectedFile);
-        } else {
-            showNotification("Please select a valid CSV file.", "error");
-            e.target.value = null;
-        }
+    const logMessage = (msg, type = 'info') => {
+        setMigrationLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), msg, type }]);
     };
 
-    const parseCSV = (file) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const text = event.target.result;
-            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-            if (lines.length < 2) {
-                showNotification("CSV file is empty or missing data rows.", "error");
-                return;
-            }
+    const processAccountsCSV = async (file) => {
+        setIsLoading(true);
+        setMigrationLogs([]);
+        logMessage(`Starting account migration from ${file.name}...`);
 
-            const headers = lines[0].split(',').map(h => h.trim());
-            const dataRows = [];
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                const data = results.data;
+                logMessage(`Parsed ${data.length} rows. Preparing batches...`);
 
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim());
-                let rowObject = {};
-                headers.forEach((header, index) => {
-                    rowObject[header] = values[index] !== undefined ? values[index] : '';
-                });
-                rowObject.rowIndex = i + 1;
-                dataRows.push(rowObject);
-            }
-            
-            setParsedData(dataRows);
-            validateData(dataRows, headers);
-        };
-        reader.onerror = () => {
-            showNotification("Error reading the file.", "error");
-        };
-        reader.readAsText(file);
-    };
+                try {
+                    const profilesRef = collection(db, profilesCollectionPath());
+                    let batch = writeBatch(db);
+                    let operationCount = 0;
+                    let totalMigrated = 0;
 
-    const validateData = (data, headers) => {
-        const validRows = [];
-        const invalidRows = [];
+                    for (const row of data) {
+                        if (!row.AccountNumber || !row.FullName) {
+                            logMessage(`Skipping invalid row: missing AccountNumber or FullName.`, 'error');
+                            continue;
+                        }
 
-        const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
-        if (missingHeaders.length > 0) {
-            showNotification(`Warning: Missing expected headers: ${missingHeaders.join(', ')}`, "warning");
-        }
+                        const acctNum = String(row.AccountNumber).trim().toUpperCase();
+                        
+                        const q = query(profilesRef, where("accountNumber", "==", acctNum));
+                        const snapshot = await getDocs(q);
+                        
+                        if (!snapshot.empty) {
+                            logMessage(`Account ${acctNum} already exists. Skipping.`, 'warning');
+                            continue;
+                        }
 
-        data.forEach(row => {
-            const errors = [];
-            
-            if (!row.accountNumber || row.accountNumber.trim() === '') {
-                errors.push("CRITICAL: Missing Account Number");
-            } else {
-                const derivedClassification = determineServiceTypeAndRole(row.accountNumber);
-                if (!row.role || row.role.trim() === '') {
-                    row.role = derivedClassification.role;
+                        const docRef = doc(profilesRef);
+                        const profileData = {
+                            accountNumber: acctNum,
+                            displayName: String(row.FullName).trim(),
+                            displayNameLower: String(row.FullName).trim().toLowerCase(),
+                            serviceType: row.ServiceType || 'Residential',
+                            role: 'customer',
+                            meterSerialNumber: row.MeterNumber || '',
+                            serviceAddress: {
+                                barangay: row.Barangay || '',
+                                municipality: 'Maragondon',
+                                province: 'Cavite',
+                                street: row.Street || ''
+                            },
+                            discountStatus: row.DiscountStatus || 'none',
+                            accountStatus: 'Active',
+                            createdAt: serverTimestamp(),
+                            isUnclaimedLegacy: true, 
+                            uid: null 
+                        };
+
+                        batch.set(docRef, profileData);
+                        operationCount++;
+                        totalMigrated++;
+
+                        if (operationCount === 450) {
+                            await batch.commit();
+                            logMessage(`Committed batch of 450 accounts.`, 'success');
+                            batch = writeBatch(db);
+                            operationCount = 0;
+                        }
+                    }
+
+                    if (operationCount > 0) {
+                        await batch.commit();
+                    }
+
+                    logMessage(`Migration complete. Successfully migrated ${totalMigrated} accounts.`, 'success');
+                    showNotification(`Migrated ${totalMigrated} accounts.`, 'success');
+                } catch (error) {
+                    logMessage(`Critical Error: ${error.message}`, 'error');
+                    showNotification("Migration failed.", 'error');
                 }
-                if (!row.serviceType || row.serviceType.trim() === '') {
-                    row.serviceType = derivedClassification.serviceType;
-                }
-            }
-
-            if (!row.displayName || row.displayName.trim() === '') {
-                errors.push("CRITICAL: Missing Display Name");
-            }
-            if (row.email && row.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim())) {
-                errors.push("INVALID: Email format incorrect");
-            }
-
-            if (errors.length > 0) {
-                invalidRows.push({ ...row, validationErrors: errors });
-            } else {
-                validRows.push(row);
+                setIsLoading(false);
+            },
+            error: (err) => {
+                logMessage(`CSV Parse Error: ${err.message}`, 'error');
+                setIsLoading(false);
             }
         });
-
-        setValidationResults({ valid: validRows, invalid: invalidRows });
     };
 
-    const executeMigration = async () => {
-        if (validationResults.invalid.length > 0) {
-            showNotification("Cannot migrate. Please fix all validation errors in the CSV first.", "error");
-            return;
-        }
+    const processBillsCSV = async (file) => {
+        setIsLoading(true);
+        setMigrationLogs([]);
+        logMessage(`Starting legacy bills migration from ${file.name}...`);
 
-        if (validationResults.valid.length === 0) {
-            showNotification("No valid data rows to migrate.", "warning");
-            return;
-        }
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: true,
+            complete: async (results) => {
+                const data = results.data;
+                logMessage(`Parsed ${data.length} billing records. Preparing batches...`);
 
-        setIsProcessing(true);
-        try {
-            const batchSize = 400;
-            const validData = [...validationResults.valid];
-            
-            for (let i = 0; i < validData.length; i += batchSize) {
-                const batch = writeBatch(db);
-                const currentBatch = validData.slice(i, i + batchSize);
-
-                for (const userRow of currentBatch) {
-                    const cleanAccountNumber = userRow.accountNumber.trim().toUpperCase();
-                    const docId = `migrated_${cleanAccountNumber}`;
+                try {
+                    const profilesRef = collection(db, profilesCollectionPath());
+                    const billsRef = collection(db, allBillsCollectionPath());
                     
-                    const profileData = {
-                        accountNumber: cleanAccountNumber,
-                        displayName: userRow.displayName.trim(),
-                        displayNameLower: userRow.displayName.trim().toLowerCase(),
-                        email: userRow.email ? userRow.email.trim() : '',
-                        meterSerialNumber: userRow.meterSerialNumber ? userRow.meterSerialNumber.trim() : '',
-                        role: userRow.role.trim(),
-                        serviceType: userRow.serviceType.trim(),
-                        serviceAddress: { barangay: userRow.barangay ? userRow.barangay.trim() : '' },
-                        discountStatus: 'none',
-                        createdAt: serverTimestamp(),
-                        migratedAt: serverTimestamp(),
-                        isMigrated: true
-                    };
+                    const accountsSnapshot = await getDocs(profilesRef);
+                    const accountMap = {};
+                    accountsSnapshot.forEach(doc => {
+                        const d = doc.data();
+                        if (d.accountNumber) accountMap[d.accountNumber] = { id: doc.id, ...d };
+                    });
 
-                    batch.set(doc(db, profilesCollectionPath(), docId), profileData, { merge: true });
-                    batch.set(doc(db, userProfileDocumentPath(docId), 'profile'), profileData, { merge: true });
+                    let batch = writeBatch(db);
+                    let operationCount = 0;
+                    let totalMigrated = 0;
+
+                    for (const row of data) {
+                        if (!row.AccountNumber || !row.MonthYear || row.Consumption == null) {
+                            logMessage(`Skipping row: Missing AcctNum, MonthYear, or Consumption.`, 'error');
+                            continue;
+                        }
+
+                        const acctNum = String(row.AccountNumber).trim().toUpperCase();
+                        const targetProfile = accountMap[acctNum];
+
+                        if (!targetProfile) {
+                            logMessage(`Skipping bill for ${acctNum}: Account not found in system.`, 'warning');
+                            continue;
+                        }
+
+                        const docRef = doc(billsRef);
+                        
+                        const billDate = new Date(row.BillDate || Date.now());
+                        const dueDate = new Date(row.DueDate || Date.now());
+                        const isPaid = row.Status === 'Paid';
+
+                        const billData = {
+                            userId: targetProfile.uid || targetProfile.id, 
+                            accountNumber: acctNum,
+                            userName: targetProfile.displayName,
+                            serviceType: targetProfile.serviceType,
+                            billingPeriod: row.BillingPeriod || row.MonthYear,
+                            monthYear: row.MonthYear,
+                            billDate: billDate,
+                            dueDate: dueDate,
+                            previousReading: row.PreviousReading || 0,
+                            currentReading: row.CurrentReading || row.Consumption,
+                            consumption: row.Consumption,
+                            amount: row.Amount || 0,
+                            status: isPaid ? 'Paid' : 'Unpaid',
+                            amountPaid: isPaid ? (row.AmountPaid || row.Amount) : 0,
+                            paymentMethod: isPaid ? (row.PaymentMethod || 'Legacy System') : null,
+                            paymentDate: isPaid ? new Date(row.PaymentDate || billDate) : null,
+                            createdAt: serverTimestamp(),
+                            isLegacyRecord: true
+                        };
+
+                        batch.set(docRef, billData);
+                        operationCount++;
+                        totalMigrated++;
+
+                        if (operationCount === 450) {
+                            await batch.commit();
+                            logMessage(`Committed batch of 450 bills.`, 'success');
+                            batch = writeBatch(db);
+                            operationCount = 0;
+                        }
+                    }
+
+                    if (operationCount > 0) {
+                        await batch.commit();
+                    }
+
+                    logMessage(`Migration complete. Successfully migrated ${totalMigrated} bills.`, 'success');
+                    showNotification(`Migrated ${totalMigrated} historical bills.`, 'success');
+                } catch (error) {
+                    logMessage(`Critical Error: ${error.message}`, 'error');
+                    showNotification("Migration failed.", 'error');
                 }
-
-                await batch.commit();
+                setIsLoading(false);
+            },
+            error: (err) => {
+                logMessage(`CSV Parse Error: ${err.message}`, 'error');
+                setIsLoading(false);
             }
-
-            setMigrationComplete(true);
-            showNotification(`Successfully migrated ${validationResults.valid.length} records to AGWA Database.`, "success");
-        } catch (error) {
-            showNotification(`Migration failed: ${error.message}`, "error");
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    const triggerFileInput = () => {
-        fileInputRef.current.click();
+        });
     };
 
     return (
-        <div className="p-6 bg-white rounded-xl shadow-lg">
-            <div className="flex items-center mb-6 border-b pb-4">
-                <Database className="w-8 h-8 text-emerald-600 mr-3" />
+        <div className="p-4 sm:p-6 bg-white rounded-xl shadow-xl animate-fadeIn space-y-6">
+            <div className="flex items-center mb-6">
+                <Database size={28} className="mr-3 text-blue-600" />
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800">AGWA Data Migration Protocol</h2>
-                    <p className="text-sm text-gray-500">Securely import, classify, and validate offline legacy collections natively using Account Number analytics.</p>
+                    <h2 className="text-2xl font-bold text-gray-800">Legacy Data Migration</h2>
+                    <p className="text-sm text-gray-500 mt-1">Upload records from the old system to populate AGWA.</p>
                 </div>
             </div>
 
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 mb-6 text-center">
-                <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileChange} disabled={isProcessing} />
-                <button onClick={triggerFileInput} disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-8 rounded-lg flex items-center justify-center mx-auto transition-colors disabled:opacity-60 shadow-md">
-                    <Upload className="mr-2" size={20} />
-                    {isProcessing ? 'Processing File...' : 'Upload Legacy Database (CSV)'}
+            <div className="flex border-b border-gray-200 mb-6">
+                <button onClick={() => setActiveTab('accounts')} className={`pb-3 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'accounts' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                    <div className="flex items-center"><Users size={18} className="mr-2"/> 1. Migrate Accounts</div>
                 </button>
-                {file && <p className="mt-3 text-sm font-bold text-emerald-900">Selected File: {file.name}</p>}
-                <p className="mt-4 text-xs font-semibold text-emerald-700 uppercase tracking-wide">Expected columns: accountNumber, displayName, email, barangay, meterSerialNumber. (Role & Service Type Auto-Extracted if omitted)</p>
+                <button onClick={() => setActiveTab('bills')} className={`pb-3 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'bills' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                     <div className="flex items-center"><FileText size={18} className="mr-2"/> 2. Migrate Billing History</div>
+                </button>
             </div>
 
-            {parsedData.length > 0 && !migrationComplete && (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-green-50 border border-green-300 p-5 rounded-xl shadow-sm flex items-start">
-                            <CheckCircle className="text-green-600 mt-1 mr-4 flex-shrink-0" size={28} />
-                            <div>
-                                <h4 className="font-extrabold text-green-900 uppercase tracking-wide text-sm mb-1">Passed Validation</h4>
-                                <p className="text-3xl font-black text-green-700">{validationResults.valid.length} <span className="text-lg font-medium text-green-600">Rows</span></p>
-                            </div>
+            {activeTab === 'accounts' && (
+                <div className="bg-blue-50 border border-blue-200 p-6 rounded-xl">
+                    <h3 className="font-bold text-blue-800 mb-2">Step 1: Upload Customer Masterlist</h3>
+                    <p className="text-sm text-blue-700 mb-4">Required CSV Headers: <code className="bg-white px-1 py-0.5 rounded text-blue-900 font-bold">AccountNumber, FullName, Barangay, ServiceType, MeterNumber</code></p>
+                    <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-400 rounded-lg cursor-pointer bg-white hover:bg-blue-50 transition-colors ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            {isLoading ? <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-2" /> : <UploadCloud className="w-8 h-8 text-blue-500 mb-2" />}
+                            <p className="text-sm text-gray-500 font-semibold">{isLoading ? 'Processing Accounts...' : 'Click to select Accounts CSV'}</p>
                         </div>
-                        <div className={`border p-5 rounded-xl shadow-sm flex items-start ${validationResults.invalid.length > 0 ? 'bg-red-50 border-red-400' : 'bg-gray-50 border-gray-200'}`}>
-                            <AlertTriangle className={`${validationResults.invalid.length > 0 ? 'text-red-600' : 'text-gray-400'} mt-1 mr-4 flex-shrink-0`} size={28} />
-                            <div>
-                                <h4 className={`font-extrabold uppercase tracking-wide text-sm mb-1 ${validationResults.invalid.length > 0 ? 'text-red-900' : 'text-gray-500'}`}>Validation Errors</h4>
-                                <p className={`text-3xl font-black ${validationResults.invalid.length > 0 ? 'text-red-700' : 'text-gray-400'}`}>{validationResults.invalid.length} <span className={`text-lg font-medium ${validationResults.invalid.length > 0 ? 'text-red-600' : 'text-gray-400'}`}>Rows</span></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {validationResults.invalid.length > 0 && (
-                        <div className="border-2 border-red-300 rounded-xl overflow-hidden shadow-sm">
-                            <div className="bg-red-100 px-5 py-4 border-b border-red-300 flex items-center justify-between">
-                                <h4 className="font-bold text-red-900 flex items-center">
-                                    <XCircle className="w-5 h-5 mr-2" />
-                                    Rows Requiring Mandatory Fixes Before Migration
-                                </h4>
-                                <span className="text-xs font-bold bg-red-200 text-red-800 px-3 py-1 rounded-full">Upload Blocked</span>
-                            </div>
-                            <div className="max-h-80 overflow-y-auto bg-white">
-                                <table className="w-full text-sm text-left text-gray-600">
-                                    <thead className="text-xs text-gray-800 uppercase bg-gray-100 sticky top-0 shadow-sm">
-                                        <tr>
-                                            <th className="px-5 py-3 font-bold">Row</th>
-                                            <th className="px-5 py-3 font-bold">Account No</th>
-                                            <th className="px-5 py-3 font-bold">Display Name</th>
-                                            <th className="px-5 py-3 font-bold">Identified Errors</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200">
-                                        {validationResults.invalid.map((row, idx) => (
-                                            <tr key={idx} className="hover:bg-red-50 transition-colors">
-                                                <td className="px-5 py-3 font-bold text-gray-900">{row.rowIndex}</td>
-                                                <td className="px-5 py-3 font-mono text-xs">{row.accountNumber || <span className="text-red-500 font-bold italic">[BLANK]</span>}</td>
-                                                <td className="px-5 py-3 font-medium">{row.displayName || <span className="text-red-500 font-bold italic">[BLANK]</span>}</td>
-                                                <td className="px-5 py-3">
-                                                    <ul className="list-disc list-inside text-red-700 font-bold text-xs">
-                                                        {row.validationErrors.map((err, i) => <li key={i}>{err}</li>)}
-                                                    </ul>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex justify-end pt-5 border-t border-gray-200 mt-6">
-                        <button 
-                            onClick={executeMigration} 
-                            disabled={isProcessing || validationResults.valid.length === 0 || validationResults.invalid.length > 0} 
-                            className={`font-bold py-3 px-8 rounded-xl flex items-center transition-all shadow-md ${validationResults.invalid.length > 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-                        >
-                            {isProcessing ? <Loader2 className="animate-spin mr-2" size={20} /> : <Database className="mr-2" size={20} />}
-                            {isProcessing ? 'Committing to Cloud...' : validationResults.invalid.length > 0 ? 'Fix Errors to Commit' : `Commit ${validationResults.valid.length} Valid Records to AGWA`}
-                        </button>
-                    </div>
+                        <input type="file" className="hidden" accept=".csv" onChange={(e) => processAccountsCSV(e.target.files[0])} disabled={isLoading} />
+                    </label>
                 </div>
             )}
 
-            {migrationComplete && (
-                <div className="bg-emerald-100 border-2 border-emerald-400 text-emerald-900 p-8 rounded-xl text-center mt-6 shadow-sm">
-                    <CheckCircle className="w-20 h-20 text-emerald-500 mx-auto mb-5" />
-                    <h3 className="text-3xl font-black mb-3">Migration Deployed Successfully</h3>
-                    <p className="text-lg font-medium text-emerald-800">The legacy data has been strictly validated, dynamically classified, and perfectly committed to the AGWA cloud infrastructure.</p>
+            {activeTab === 'bills' && (
+                <div className="bg-green-50 border border-green-200 p-6 rounded-xl">
+                    <h3 className="font-bold text-green-800 mb-2">Step 2: Upload Historical Billing Data (3-5 Years)</h3>
+                    <p className="text-sm text-green-700 mb-4">Required CSV Headers: <code className="bg-white px-1 py-0.5 rounded text-green-900 font-bold">AccountNumber, MonthYear, Consumption, Amount, Status</code></p>
+                    <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-green-400 rounded-lg cursor-pointer bg-white hover:bg-green-50 transition-colors ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            {isLoading ? <Loader2 className="w-8 h-8 text-green-500 animate-spin mb-2" /> : <UploadCloud className="w-8 h-8 text-green-500 mb-2" />}
+                            <p className="text-sm text-gray-500 font-semibold">{isLoading ? 'Processing Bills...' : 'Click to select Bills CSV'}</p>
+                        </div>
+                        <input type="file" className="hidden" accept=".csv" onChange={(e) => processBillsCSV(e.target.files[0])} disabled={isLoading} />
+                    </label>
+                </div>
+            )}
+
+            {migrationLogs.length > 0 && (
+                <div className="mt-6 border border-gray-200 rounded-xl overflow-hidden">
+                    <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex justify-between">
+                        <span>Migration Terminal</span>
+                        <span className="text-gray-400 font-mono">{migrationLogs.length} events</span>
+                    </div>
+                    <div className="bg-gray-900 p-4 h-64 overflow-y-auto font-mono text-xs space-y-1">
+                        {migrationLogs.map((log, idx) => (
+                            <div key={idx} className={`flex items-start ${log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-green-400' : log.type === 'warning' ? 'text-yellow-400' : 'text-gray-300'}`}>
+                                <span className="text-gray-500 mr-2 whitespace-nowrap">[{log.time}]</span>
+                                <span>{log.msg}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
     );
-}
+};
+
+export default DataMigrationSection;

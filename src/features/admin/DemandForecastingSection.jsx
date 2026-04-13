@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Line, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
-import { TrendingUp, AlertTriangle, Info, Download, CheckCircle, Database, UploadCloud } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Info, Download, CheckCircle, Database, UploadCloud, RefreshCw } from 'lucide-react';
 import Papa from 'papaparse';
 import { RandomForestRegression } from 'ml-random-forest';
 import * as DataService from '../../services/dataService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { allBillsCollectionPath } from '../../firebase/firestorePaths';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
@@ -30,14 +30,13 @@ const DemandForecastingSection = ({ db }) => {
     const [historicalData, setHistoricalData] = useState(null);
     const [featureImportance, setFeatureImportance] = useState(null);
 
-    // Fetch cloud data on initial load
     useEffect(() => {
         const fetchCloudData = async () => {
             setIsLoading(true);
             const result = await DataService.getTrainingData(db);
             if (result.success && result.data && result.data.length > 0) {
                 setRawDataset(result.data);
-                trainModel(result.data, 'All'); // Default train on All
+                trainModel(result.data, 'All');
             } else {
                 setIsLoading(false);
             }
@@ -75,18 +74,13 @@ const DemandForecastingSection = ({ db }) => {
                     setIsLoading(false);
                     return;
                 }
-                
-                // Clean data before uploading
                 const cleanData = results.data.filter(row => row && row.Date && row.Consumption_m3 != null);
-
-                // Save to Firebase Cloud
                 const uploadResult = await DataService.saveTrainingData(db, cleanData);
                 if (!uploadResult.success) {
                     setError("Failed to sync to cloud database: " + uploadResult.error);
                 } else {
-                    setError(null); // Clear errors if successful
+                    setError(null);
                 }
-
                 setRawDataset(cleanData);
                 trainModel(cleanData, serviceType);
             },
@@ -217,77 +211,136 @@ const DemandForecastingSection = ({ db }) => {
             setModelMetrics({
                 rSquared: Math.max(0, r2),
                 mae: mae,
-                forecastValue: forecastValue,
-                confidenceLow: forecastValue - (mae * 1.5),
-                confidenceHigh: forecastValue + (mae * 1.5),
+                forecastValue: Math.max(0, forecastValue),
+                confidenceLow: Math.max(0, forecastValue - (mae * 1.5)),
+                confidenceHigh: Math.max(0, forecastValue + (mae * 1.5)),
                 systemCapacity: filterType === 'All' ? 60000 : filterType === 'Residential' ? 50000 : 15000,
             });
 
             setIsModelTrained(true);
             setIsLoading(false);
+            setError(null);
         } catch (err) {
             setError("Model training failed: " + err.message);
             setIsLoading(false);
         }
     };
 
-    const handleExportLiveData = async () => {
+    const handleSyncLatestMonth = async () => {
         setIsLoading(true);
+        setError(null);
         try {
+            const today = new Date();
+            let targetMonth = today.getMonth();
+            let targetYear = today.getFullYear();
+            
+            if (targetMonth === 0) {
+                targetMonth = 12;
+                targetYear -= 1;
+            }
+
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const targetMonthStr = `${monthNames[targetMonth - 1]} ${targetYear}`;
+            const targetDateKey = `${monthNames[targetMonth - 1]}-${targetYear}`;
+
+            const existingDates = rawDataset.map(row => row.Date);
+            if (existingDates.includes(targetDateKey)) {
+                setError(`Data for ${targetDateKey} is already synced to the ML dataset.`);
+                setIsLoading(false);
+                return;
+            }
+
+            const endDateObj = new Date(targetYear, targetMonth, 0);
+            const startDateStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-01`;
+            const endDateStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(endDateObj.getDate()).padStart(2, "0")}`;
+
+            const weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=14.275&longitude=120.735&start_date=${startDateStr}&end_date=${endDateStr}&daily=temperature_2m_mean,precipitation_sum&timezone=Asia%2FManila`;
+            
+            const weatherResponse = await fetch(weatherUrl);
+            const weatherData = await weatherResponse.json();
+            
+            const dailyTemps = weatherData.daily.temperature_2m_mean;
+            const dailyRain = weatherData.daily.precipitation_sum;
+
+            const avgTemp = dailyTemps.reduce((a, b) => a + (b || 0), 0) / dailyTemps.filter(t => t !== null).length;
+            const totalRain = dailyRain.reduce((a, b) => a + (b || 0), 0);
+
             const billsRef = collection(db, allBillsCollectionPath());
-            const snapshot = await getDocs(billsRef);
-            
-            const aggregatedData = {};
-            
+            const q = query(billsRef, where("monthYear", "==", targetMonthStr));
+            const snapshot = await getDocs(q);
+
+            const aggregatedData = {
+                Residential: { cons: 0, count: 0 },
+                Commercial: { cons: 0, count: 0 },
+                Government: { cons: 0, count: 0 }
+            };
+
             snapshot.docs.forEach(doc => {
                 const bill = doc.data();
-                if (!bill.monthYear || !bill.consumption) return;
-                
-                const dateParts = bill.monthYear.split(' ');
-                const monthStr = dateParts[0].substring(0, 3);
-                const yearStr = dateParts[1];
-                const key = `${monthStr}-${yearStr}`;
-                const type = bill.serviceType || 'Residential';
-
-                if (!aggregatedData[key]) {
-                    aggregatedData[key] = { Residential: { cons: 0, count: 0 }, Commercial: { cons: 0, count: 0 }, Government: { cons: 0, count: 0 } };
-                }
-                
-                if (aggregatedData[key][type]) {
-                    aggregatedData[key][type].cons += bill.consumption;
-                    aggregatedData[key][type].count += 1;
+                const type = bill.serviceType || "Residential";
+                if (aggregatedData[type] && bill.consumption) {
+                    aggregatedData[type].cons += bill.consumption;
+                    aggregatedData[type].count += 1;
                 }
             });
 
-            const monthMap = { 'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12 };
-            let csvContent = "Date,Month,Temperature_C,Rainfall_mm,Service_Type,Active_Connections,NRW_Percent,Consumption_m3\n";
-
-            Object.keys(aggregatedData).sort((a, b) => new Date(`1 ${a}`) - new Date(`1 ${b}`)).forEach(dateKey => {
-                const monthNum = monthMap[dateKey.substring(0, 3)];
-                const types = ['Residential', 'Commercial', 'Government'];
-                
-                types.forEach(type => {
-                    const data = aggregatedData[dateKey][type];
-                    if (data.count > 0) {
-                        csvContent += `${dateKey},${monthNum},,,${type},${data.count},,${data.cons}\n`;
-                    }
-                });
+            const newRecords = [];
+            const types = ["Residential", "Commercial", "Government"];
+            
+            types.forEach(type => {
+                if (aggregatedData[type].count > 0) {
+                    newRecords.push({
+                        Date: targetDateKey,
+                        Month: targetMonth,
+                        Temperature_C: Number(avgTemp.toFixed(2)),
+                        Rainfall_mm: Number(totalRain.toFixed(2)),
+                        Service_Type: type,
+                        Active_Connections: aggregatedData[type].count,
+                        NRW_Percent: 20.0,
+                        Consumption_m3: aggregatedData[type].cons
+                    });
+                }
             });
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `mwd_live_system_data_${new Date().toISOString().split('T')[0]}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            if (newRecords.length === 0) {
+                setError(`No bills found in the database for ${targetMonthStr}. Ensure bills were generated before syncing.`);
+                setIsLoading(false);
+                return;
+            }
 
+            const updatedDataset = [...rawDataset, ...newRecords];
+            const uploadResult = await DataService.saveTrainingData(db, updatedDataset);
+            
+            if (uploadResult.success) {
+                setRawDataset(updatedDataset);
+                trainModel(updatedDataset, serviceType);
+            } else {
+                setError("Failed to save updated dataset to cloud.");
+                setIsLoading(false);
+            }
         } catch (err) {
-            setError("Failed to export live data: " + err.message);
+            setError("Automated ETL Pipeline Error: " + err.message);
+            setIsLoading(false);
         }
-        setIsLoading(false);
+    };
+
+    const handleExportLiveData = () => {
+        if (!rawDataset || rawDataset.length === 0) return;
+        
+        let csvContent = "Date,Month,Temperature_C,Rainfall_mm,Service_Type,Active_Connections,NRW_Percent,Consumption_m3\n";
+        rawDataset.forEach(row => {
+            csvContent += `${row.Date},${row.Month},${row.Temperature_C},${row.Rainfall_mm},${row.Service_Type},${row.Active_Connections},${row.NRW_Percent},${row.Consumption_m3}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `mwd_ml_dataset_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const capacityPercentage = (modelMetrics.forecastValue / modelMetrics.systemCapacity) * 100;
@@ -303,9 +356,9 @@ const DemandForecastingSection = ({ db }) => {
                 <Database size={64} className="text-blue-500 mb-4" />
                 <h2 className="text-2xl font-bold text-gray-800 text-center">AI Model Untrained</h2>
                 <p className="text-gray-500 text-center max-w-lg mb-6">
-                    The Random Forest Regression model requires historical billing and environmental data to generate accurate forecasts. Please upload the MWD dataset CSV to begin training.
+                    The Random Forest Regression model requires an initial historical dataset to establish a baseline. Please upload the 5-Year MWD dataset CSV to begin training.
                 </p>
-                {error && <p className="text-red-500 bg-red-50 p-3 rounded border border-red-200 mb-4">{error}</p>}
+                {error && <p className="text-red-500 bg-red-50 p-3 rounded border border-red-200 mb-4 text-center max-w-lg">{error}</p>}
                 <label className="flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-4 rounded-xl hover:bg-blue-700 transition-colors font-bold text-lg cursor-pointer shadow-lg">
                     <UploadCloud size={24} /> Upload Dataset (CSV) & Sync to Cloud
                     <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
@@ -414,16 +467,19 @@ const DemandForecastingSection = ({ db }) => {
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h3 className="text-lg font-bold text-gray-800 flex items-center">
-                        <Database size={20} className="mr-2 text-green-600" /> Database Sync & Export
+                        <Database size={20} className="mr-2 text-green-600" /> Automated MLOps Pipeline
                     </h3>
-                    <p className="text-sm text-gray-500 mt-1">Model is actively trained on cloud-synced records. Export live data to generate new historical sets.</p>
+                    <p className="text-sm text-gray-500 mt-1">Extracts billing data and Open-Meteo weather APIs to retrain the AI.</p>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={handleExportLiveData} className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
-                        <Download size={18} className="mr-2"/> Export Live Data
+                <div className="flex flex-wrap gap-2">
+                    <button onClick={handleSyncLatestMonth} className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shadow-sm">
+                        <RefreshCw size={18} className="mr-2"/> Auto-Sync Last Month
                     </button>
-                    <label className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer">
-                        <UploadCloud size={18} className="mr-2"/> Retrain Model
+                    <button onClick={handleExportLiveData} className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
+                        <Download size={18} className="mr-2"/> Export Dataset
+                    </button>
+                    <label className="flex items-center bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer">
+                        <UploadCloud size={18} className="mr-2"/> Re-upload Seed
                         <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
                     </label>
                 </div>
