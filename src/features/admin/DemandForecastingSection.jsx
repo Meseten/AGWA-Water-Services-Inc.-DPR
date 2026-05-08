@@ -26,7 +26,7 @@ const DemandForecastingSection = ({ db }) => {
         forecastValue: 0,
         confidenceLow: 0,
         confidenceHigh: 0,
-        systemCapacity: 138070, // Mathematically derived from MWD's 4,602,344 LPD total (Dec 2024)
+        systemCapacity: 138070,
     });
 
     const [historicalData, setHistoricalData] = useState(null);
@@ -247,9 +247,13 @@ const DemandForecastingSection = ({ db }) => {
             const nextMonth = lastRow.rawMonth === 12 ? 1 : lastRow.rawMonth + 1;
             const nextMonthSin = Math.sin((2 * Math.PI * nextMonth) / 12);
             const nextMonthCos = Math.cos((2 * Math.PI * nextMonth) / 12);
-            const projectedTemp = lastRow.rawTemp > 28 ? 27.5 : 29.0; 
-            const projectedRain = lastRow.rawRain > 100 ? 50 : 150;
-            const projectedConnections = lastRow.rawConn + (filterType === 'All' ? 15 : 5);
+
+            const sameMonthHistorical = finalDataArray.filter(row => row.Month === nextMonth);
+            const projectedTemp = sameMonthHistorical.length > 0 ? sameMonthHistorical.reduce((sum, row) => sum + row.Temperature_C, 0) / sameMonthHistorical.length : lastRow.rawTemp;
+            const projectedRain = sameMonthHistorical.length > 0 ? sameMonthHistorical.reduce((sum, row) => sum + row.Rainfall_mm, 0) / sameMonthHistorical.length : lastRow.rawRain;
+            
+            const avgMonthlyGrowth = (finalDataArray[finalDataArray.length - 1].Active_Connections - finalDataArray[0].Active_Connections) / Math.max(1, finalDataArray.length - 1);
+            const projectedConnections = Math.round(lastRow.rawConn + Math.max(0, avgMonthlyGrowth));
             const projectedNRW = lastRow.rawNRW;
 
             const X_next = [[nextMonthSin, nextMonthCos, projectedTemp, projectedRain, projectedConnections, projectedNRW]];
